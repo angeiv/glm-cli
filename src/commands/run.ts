@@ -2,7 +2,11 @@ import { readConfigFile } from "../app/config-store.js";
 import { resolveRuntimeConfig } from "../app/env.js";
 import type { ProviderName } from "../providers/types.js";
 import { runSingleTask } from "../runtime/run-runtime.js";
-import { createGlmRuntime } from "../session/create-session.js";
+import {
+  createGlmRuntime,
+  withPreservedProcessCwd,
+  withScopedEnvironment,
+} from "../session/create-session.js";
 
 export type RunCommandInput = {
   cwd: string;
@@ -23,10 +27,18 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
     process.env,
     fileConfig,
   );
-  const runtime = await createGlmRuntime({
-    cwd: input.cwd,
-    ...runtimeConfig,
-  });
 
-  return runSingleTask(runtime, input.task);
+  return withPreservedProcessCwd(async () =>
+    withScopedEnvironment(
+      { GLM_APPROVAL_POLICY: runtimeConfig.approvalPolicy },
+      async () => {
+        const runtime = await createGlmRuntime({
+          cwd: input.cwd,
+          ...runtimeConfig,
+        });
+
+        return runSingleTask(runtime, input.task);
+      },
+    ),
+  );
 }

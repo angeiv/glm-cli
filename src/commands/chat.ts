@@ -2,7 +2,11 @@ import { readConfigFile } from "../app/config-store.js";
 import { resolveRuntimeConfig } from "../app/env.js";
 import type { ProviderName } from "../providers/types.js";
 import { runChatSession } from "../runtime/chat-runtime.js";
-import { createGlmRuntime } from "../session/create-session.js";
+import {
+  createGlmRuntime,
+  withPreservedProcessCwd,
+  withScopedEnvironment,
+} from "../session/create-session.js";
 
 export type ChatCommandInput = {
   cwd: string;
@@ -22,10 +26,18 @@ export async function runChatCommand(input: ChatCommandInput): Promise<void> {
     process.env,
     fileConfig,
   );
-  const runtime = await createGlmRuntime({
-    cwd: input.cwd,
-    ...runtimeConfig,
-  });
 
-  await runChatSession(runtime);
+  await withPreservedProcessCwd(async () =>
+    withScopedEnvironment(
+      { GLM_APPROVAL_POLICY: runtimeConfig.approvalPolicy },
+      async () => {
+        const runtime = await createGlmRuntime({
+          cwd: input.cwd,
+          ...runtimeConfig,
+        });
+
+        await runChatSession(runtime);
+      },
+    ),
+  );
 }

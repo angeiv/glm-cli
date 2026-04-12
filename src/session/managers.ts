@@ -41,8 +41,6 @@ export function createGlmManagers(input: CreateGlmManagersInput): GlmManagers {
   const modelRegistry = ModelRegistry.create(authStorage, input.modelsPath);
   const settingsManager = SettingsManager.create(input.cwd, input.agentDir);
   settingsManager.applyOverrides({
-    defaultProvider: input.provider,
-    defaultModel: input.model,
     sessionDir: input.sessionDir,
   });
 
