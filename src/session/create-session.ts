@@ -9,7 +9,6 @@ import {
 import { syncPackagedResources } from "../app/resource-sync.js";
 import type { ApprovalPolicy } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
-import { isProviderName } from "../providers/types.js";
 import { createGlmServices, createGlmSessionManager } from "./managers.js";
 import { resolveGlmSessionPaths } from "./session-paths.js";
 import { createBuiltinTools, createPlanTools } from "../tools/index.js";
@@ -34,7 +33,10 @@ export type GlmSessionResult = CreateAgentSessionResult & {
   options: GlmSessionOptions;
 };
 
-export type GlmModelSelection = Pick<GlmSessionInput, "provider" | "model">;
+export type GlmModelSelection = {
+  provider: string;
+  model: string;
+};
 
 export type RuntimeModelStrategy = {
   selection?: GlmModelSelection;
@@ -109,7 +111,7 @@ export function buildModelSelectionEnvironment(
 
 export function resolveRequestedModel(
   modelRegistry: Pick<ModelRegistry, "find">,
-  provider: ProviderName,
+  provider: string,
   modelId: string,
 ) {
   const model = modelRegistry.find(provider, modelId);
@@ -124,7 +126,7 @@ export function resolveRequestedModel(
 export function getGlmModelSelection(
   model?: { provider: string; id: string },
 ): GlmModelSelection | undefined {
-  if (!model || !isProviderName(model.provider)) {
+  if (!model) {
     return undefined;
   }
 
@@ -150,7 +152,7 @@ export function resolveRuntimeModelStrategy(
   }
 
   const savedModel = sessionManager.buildSessionContext().model;
-  if (savedModel && isProviderName(savedModel.provider)) {
+  if (savedModel) {
     return {
       selection: {
         provider: savedModel.provider,

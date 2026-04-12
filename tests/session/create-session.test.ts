@@ -132,7 +132,7 @@ test("createGlmSession resolves the requested model explicitly and restores mode
 });
 
 test("runtime model strategy preserves selection for initial/new sessions but defers to saved resume state", async () => {
-  const { resolveRuntimeModelStrategy } = await import("../../src/session/create-session.js");
+  const { getGlmModelSelection, resolveRuntimeModelStrategy } = await import("../../src/session/create-session.js");
 
   const initial = resolveRuntimeModelStrategy(
     {
@@ -153,6 +153,16 @@ test("runtime model strategy preserves selection for initial/new sessions but de
     model: "glm-openai-test",
   });
   expect(initial.shouldPassExplicitModel).toBe(true);
+
+  const currentBuiltInSelection = getGlmModelSelection({
+    provider: "openai",
+    id: "gpt-5",
+  });
+
+  expect(currentBuiltInSelection).toEqual({
+    provider: "openai",
+    model: "gpt-5",
+  });
 
   const resumed = resolveRuntimeModelStrategy(
     {
@@ -179,10 +189,7 @@ test("runtime model strategy preserves selection for initial/new sessions but de
   expect(resumed.shouldPassExplicitModel).toBe(false);
 
   const freshNewSession = resolveRuntimeModelStrategy(
-    {
-      provider: "openai-compatible",
-      model: "glm-openai-test",
-    },
+    currentBuiltInSelection!,
     {
       buildSessionContext: () => ({
         messages: [],
@@ -194,8 +201,8 @@ test("runtime model strategy preserves selection for initial/new sessions but de
   );
 
   expect(freshNewSession.selection).toEqual({
-    provider: "openai-compatible",
-    model: "glm-openai-test",
+    provider: "openai",
+    model: "gpt-5",
   });
   expect(freshNewSession.shouldPassExplicitModel).toBe(true);
 
