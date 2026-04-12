@@ -21,7 +21,10 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const filtered = argv.filter((value) => value !== "--yolo");
 
   if (filtered[0] === "run") {
-    const task = filtered.slice(1).join(" ").trim() || "";
+    const task = filtered.slice(1).join(" ").trim();
+    if (!task) {
+      throw new Error("The run command requires a task description");
+    }
     return { command: "run", cwd, task, yolo };
   }
 

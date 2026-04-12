@@ -17,4 +17,9 @@ describe("parseCliArgs", () => {
       yolo: true,
     });
   });
+
+  test("rejects run mode without a task description", () => {
+    expect(() => parseCliArgs(["run"])).toThrow("run command requires a task");
+    expect(() => parseCliArgs(["run", "--yolo"])).toThrow("run command requires a task");
+  });
 });
