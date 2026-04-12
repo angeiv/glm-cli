@@ -33,38 +33,97 @@ const glmModels = [
   },
 ];
 
-function resolveConfigDefaultModel(): string | undefined {
+type PersistedProviderConfig = {
+  apiKey?: string;
+  baseURL?: string;
+};
+
+type PersistedConfig = {
+  defaultModel?: string;
+  providers?: {
+    glmOfficial?: PersistedProviderConfig;
+    openAICompatible?: PersistedProviderConfig;
+  };
+};
+
+function normalizeProvider(value: unknown): PersistedProviderConfig | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const maybe = value as Record<string, unknown>;
+  const apiKey = typeof maybe.apiKey === "string" ? maybe.apiKey : undefined;
+  const baseURL = typeof maybe.baseURL === "string" ? maybe.baseURL : undefined;
+  if (!apiKey && !baseURL) return undefined;
+  return { apiKey, baseURL };
+}
+
+function readPersistedConfig(): PersistedConfig {
   const configPath = join(homedir(), ".glm", "config.json");
   try {
     const contents = readFileSync(configPath, "utf8");
-    const parsed = JSON.parse(contents) as { defaultModel?: string };
-    if (typeof parsed.defaultModel === "string") {
-      return parsed.defaultModel;
+    const parsed = JSON.parse(contents);
+    if (typeof parsed !== "object" || parsed === null) {
+      return {};
     }
+    const providers = (parsed as { providers?: Record<string, unknown> }).providers;
+    return {
+      defaultModel: typeof (parsed as { defaultModel?: string }).defaultModel === "string"
+        ? (parsed as { defaultModel?: string }).defaultModel
+        : undefined,
+      providers: {
+        glmOfficial: normalizeProvider(providers?.glmOfficial),
+        openAICompatible: normalizeProvider(providers?.openAICompatible),
+      },
+    };
   } catch {
-    // ignore missing or invalid config
+    return {};
   }
-  return undefined;
+}
+
+const persistedConfig = readPersistedConfig();
+
+export function resolveProviderSettings(options: {
+  envApiKey?: string;
+  envBaseUrl?: string;
+  persisted?: PersistedProviderConfig;
+  defaultBaseUrl: string;
+}) {
+  const apiKey = options.envApiKey ?? options.persisted?.apiKey;
+  const baseUrl = options.envBaseUrl ?? options.persisted?.baseURL ?? options.defaultBaseUrl;
+  return { apiKey, baseUrl };
+}
+
+function resolveConfigDefaultModel(): string | undefined {
+  return persistedConfig.defaultModel;
 }
 
 export default function (pi: ExtensionAPI) {
-  pi.registerProvider("glm-official", {
-    baseUrl: process.env.GLM_BASE_URL ?? "https://open.bigmodel.cn/api/coding/paas/v4/",
-    apiKey: "GLM_API_KEY",
-    api: "openai-completions",
-    models: glmModels,
+  const glmSettings = resolveProviderSettings({
+    envApiKey: process.env.GLM_API_KEY,
+    envBaseUrl: process.env.GLM_BASE_URL,
+    persisted: persistedConfig.providers?.glmOfficial,
+    defaultBaseUrl: "https://open.bigmodel.cn/api/coding/paas/v4/",
   });
 
-  if (process.env.OPENAI_API_KEY) {
-    const openaiModelId =
-      process.env.OPENAI_MODEL ??
-      process.env.GLM_MODEL ??
-      resolveConfigDefaultModel() ??
-      "glm-5";
+  if (glmSettings.apiKey) {
+    pi.registerProvider("glm-official", {
+      baseUrl: glmSettings.baseUrl,
+      apiKey: glmSettings.apiKey,
+      api: "openai-completions",
+      models: glmModels,
+    });
+  }
 
+  const openaiSettings = resolveProviderSettings({
+    envApiKey: process.env.OPENAI_API_KEY,
+    envBaseUrl: process.env.OPENAI_BASE_URL,
+    persisted: persistedConfig.providers?.openAICompatible,
+    defaultBaseUrl: "https://api.openai.com/v1",
+  });
+
+  if (openaiSettings.apiKey) {
+    const openaiModelId = process.env.OPENAI_MODEL ?? process.env.GLM_MODEL ?? resolveConfigDefaultModel() ?? "glm-5";
     pi.registerProvider("openai-compatible", {
-      baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
-      apiKey: "OPENAI_API_KEY",
+      baseUrl: openaiSettings.baseUrl,
+      apiKey: openaiSettings.apiKey,
       api: "openai-completions",
       models: [
         {
