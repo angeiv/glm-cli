@@ -90,6 +90,10 @@ function validateConfigFile(config: GlmConfigFile): void {
     throw new Error(`Invalid default provider in config file: ${config.defaultProvider}`);
   }
 
+  if (typeof config.defaultModel !== "string") {
+    throw new Error(`Invalid defaultModel in config file: ${typeof config.defaultModel}`);
+  }
+
   if (!isApprovalPolicy(config.approvalPolicy)) {
     throw new Error(`Invalid approval policy in config file: ${config.approvalPolicy}`);
   }

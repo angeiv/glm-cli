@@ -33,6 +33,19 @@ describe("resolveProviderSelection", () => {
   });
 });
 
+describe("openai-compatible autodetection", () => {
+  test("OPENAI_API_KEY alone enables openai-compatible provider when default matches", () => {
+    const resolved = resolveProviderSelection(
+      {},
+      { OPENAI_API_KEY: "key" } as NodeJS.ProcessEnv,
+      "openai-compatible",
+      "glm-5",
+    );
+
+    expect(resolved.provider).toBe("openai-compatible");
+  });
+});
+
 describe("resolveRuntimeConfig", () => {
   test("prefers compatibility env before file defaults", () => {
     const config = createConfigFile({ defaultProvider: "openai-compatible", defaultModel: "foo" });
@@ -55,5 +68,34 @@ describe("resolveRuntimeConfig", () => {
 
     expect(runtime.provider).toBe("openai-compatible");
     expect(runtime.model).toBe("foo");
+  });
+
+  test("explicit GLM provider env wins over compatibility credentials", () => {
+    const config = createConfigFile({
+      defaultProvider: "openai-compatible",
+      defaultModel: "foo",
+    });
+    const runtime = resolveRuntimeConfig(
+      {},
+      {
+        GLM_PROVIDER: "glm-official",
+        ANTHROPIC_AUTH_TOKEN: "token",
+        OPENAI_API_KEY: "key",
+      },
+      config,
+    );
+
+    expect(runtime.provider).toBe("glm-official");
+  });
+
+  test("explicit CLI provider wins over compatibility credentials", () => {
+    const config = createConfigFile();
+    const runtime = resolveRuntimeConfig(
+      { provider: "glm-official" },
+      { ANTHROPIC_AUTH_TOKEN: "token", OPENAI_API_KEY: "key" },
+      config,
+    );
+
+    expect(runtime.provider).toBe("glm-official");
   });
 });

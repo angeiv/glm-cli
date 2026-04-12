@@ -35,6 +35,14 @@ export function resolveProviderSelection(
     };
   }
 
+  const envGlmProvider = normalizeProviderName(env.GLM_PROVIDER);
+  if (envGlmProvider) {
+    return {
+      provider: envGlmProvider,
+      model: determineModel(envGlmProvider),
+    };
+  }
+
   if (env.ANTHROPIC_AUTH_TOKEN) {
     return {
       provider: "anthropic" as const,
@@ -42,18 +50,10 @@ export function resolveProviderSelection(
     };
   }
 
-  if (env.OPENAI_API_KEY && env.OPENAI_MODEL) {
+  if (env.OPENAI_API_KEY) {
     return {
       provider: "openai-compatible" as const,
       model: determineModel("openai-compatible"),
-    };
-  }
-
-  const envProvider = normalizeProviderName(env.GLM_PROVIDER);
-  if (envProvider) {
-    return {
-      provider: envProvider,
-      model: determineModel(envProvider),
     };
   }
 
