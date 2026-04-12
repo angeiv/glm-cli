@@ -1,8 +1,5 @@
 import { getGlmConfigPath, getGlmRootDir } from "./dirs.js";
 import * as fsPromises from "node:fs/promises";
-import type { ProviderName } from "../providers/types.js";
-import { isProviderName } from "../providers/types.js";
-export type { ProviderName };
 
 export const fileSystem = {
   readFile: fsPromises.readFile,
@@ -18,7 +15,10 @@ export type ProviderConfig = {
 export type StorageProviderKey = "glmOfficial" | "openAICompatible";
 export type ApprovalPolicy = "ask" | "auto" | "never";
 
-const STORAGE_KEY_TO_PROVIDER: Record<StorageProviderKey, ProviderName> = {
+type PersistedProviderName = "glm-official" | "openai-compatible";
+const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = ["glm-official", "openai-compatible"];
+
+const STORAGE_KEY_TO_PROVIDER: Record<StorageProviderKey, PersistedProviderName> = {
   glmOfficial: "glm-official",
   openAICompatible: "openai-compatible",
 };
@@ -44,7 +44,7 @@ function buildDefaultConfigFile(): GlmConfigFile {
 }
 
 export type GlmConfigFile = {
-  defaultProvider?: ProviderName;
+  defaultProvider?: PersistedProviderName;
   defaultModel?: string;
   approvalPolicy?: ApprovalPolicy;
   providers: Record<StorageProviderKey, ProviderConfig>;
@@ -77,8 +77,12 @@ export function getDefaultConfigFile(): GlmConfigFile {
   return normalizeConfigFile();
 }
 
-export function mapStorageKeyToProvider(key: StorageProviderKey): ProviderName {
+export function mapStorageKeyToProvider(key: StorageProviderKey): PersistedProviderName {
   return STORAGE_KEY_TO_PROVIDER[key];
+}
+
+function isPersistedProviderName(value?: string): value is PersistedProviderName {
+  return PERSISTED_PROVIDER_NAMES.includes(value as PersistedProviderName);
 }
 
 function isApprovalPolicy(value?: string): value is ApprovalPolicy {
@@ -86,7 +90,7 @@ function isApprovalPolicy(value?: string): value is ApprovalPolicy {
 }
 
 function validateConfigFile(config: GlmConfigFile): void {
-  if (!isProviderName(config.defaultProvider)) {
+  if (!isPersistedProviderName(config.defaultProvider)) {
     throw new Error(`Invalid default provider in config file: ${config.defaultProvider}`);
   }
 

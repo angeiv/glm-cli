@@ -1,4 +1,5 @@
-import type { GlmConfigFile, ProviderName } from "./config-store.js";
+import type { GlmConfigFile } from "./config-store.js";
+import type { ProviderName } from "../providers/types.js";
 import { resolveProviderSelection } from "../providers/index.js";
 
 export type RuntimeCliFlags = {

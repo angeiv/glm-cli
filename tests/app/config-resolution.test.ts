@@ -76,6 +76,19 @@ describe("config store normalization", () => {
     await expect(readConfigFile()).rejects.toThrow(/default provider/i);
   });
 
+  test("readConfigFile rejects persisted default providers not backed by storage", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "anthropic",
+      approvalPolicy: "ask",
+      providers: {
+        glmOfficial: { apiKey: "", baseURL: "" },
+        openAICompatible: { apiKey: "", baseURL: "" },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+    await expect(readConfigFile()).rejects.toThrow(/default provider/i);
+  });
+
   test("readConfigFile rejects non-string defaultModel values", async () => {
     const payload = JSON.stringify({
       defaultProvider: "glm-official",
