@@ -1,34 +1,64 @@
 import type { ProviderName } from "./types.js";
+import { normalizeProviderName } from "./types.js";
 
 type ResolveProviderArgs = {
   provider?: ProviderName;
   model?: string;
 };
 
-export function resolveProviderSelection(cli: ResolveProviderArgs, env: NodeJS.ProcessEnv) {
+export function resolveProviderSelection(
+  cli: ResolveProviderArgs,
+  env: NodeJS.ProcessEnv,
+  fallbackProvider: ProviderName,
+  fallbackModel: string,
+) {
+  const determineModel = (provider: ProviderName): string => {
+    if (cli.model) {
+      return cli.model;
+    }
+
+    if (provider === "anthropic") {
+      return env.ANTHROPIC_MODEL ?? env.GLM_MODEL ?? fallbackModel;
+    }
+
+    if (provider === "openai-compatible") {
+      return env.OPENAI_MODEL ?? env.GLM_MODEL ?? fallbackModel;
+    }
+
+    return env.GLM_MODEL ?? fallbackModel;
+  };
+
   if (cli.provider) {
     return {
       provider: cli.provider,
-      model: cli.model ?? env.GLM_MODEL ?? "glm-5",
+      model: determineModel(cli.provider),
     };
   }
 
   if (env.ANTHROPIC_AUTH_TOKEN) {
     return {
       provider: "anthropic" as const,
-      model: cli.model ?? env.ANTHROPIC_MODEL ?? "glm-5",
+      model: determineModel("anthropic"),
     };
   }
 
   if (env.OPENAI_API_KEY && env.OPENAI_MODEL) {
     return {
       provider: "openai-compatible" as const,
-      model: cli.model ?? env.OPENAI_MODEL ?? "glm-5",
+      model: determineModel("openai-compatible"),
+    };
+  }
+
+  const envProvider = normalizeProviderName(env.GLM_PROVIDER);
+  if (envProvider) {
+    return {
+      provider: envProvider,
+      model: determineModel(envProvider),
     };
   }
 
   return {
-    provider: "glm-official" as const,
-    model: cli.model ?? env.GLM_MODEL ?? "glm-5",
+    provider: fallbackProvider,
+    model: determineModel(fallbackProvider),
   };
 }

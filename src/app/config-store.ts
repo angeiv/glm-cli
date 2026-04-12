@@ -1,5 +1,8 @@
 import { getGlmConfigPath, getGlmRootDir } from "./dirs.js";
 import * as fsPromises from "node:fs/promises";
+import type { ProviderName } from "../providers/types.js";
+import { isProviderName } from "../providers/types.js";
+export type { ProviderName };
 
 export const fileSystem = {
   readFile: fsPromises.readFile,
@@ -13,7 +16,6 @@ export type ProviderConfig = {
 };
 
 export type StorageProviderKey = "glmOfficial" | "openAICompatible";
-export type ProviderName = "glm-official" | "openai-compatible";
 export type ApprovalPolicy = "ask" | "auto" | "never";
 
 const STORAGE_KEY_TO_PROVIDER: Record<StorageProviderKey, ProviderName> = {
@@ -21,7 +23,6 @@ const STORAGE_KEY_TO_PROVIDER: Record<StorageProviderKey, ProviderName> = {
   openAICompatible: "openai-compatible",
 };
 
-const VALID_PROVIDER_NAMES: ProviderName[] = ["glm-official", "openai-compatible"];
 const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
 
 const BASE_DEFAULT_CONFIG_FILE = buildDefaultConfigFile();
@@ -78,10 +79,6 @@ export function getDefaultConfigFile(): GlmConfigFile {
 
 export function mapStorageKeyToProvider(key: StorageProviderKey): ProviderName {
   return STORAGE_KEY_TO_PROVIDER[key];
-}
-
-function isProviderName(value?: string): value is ProviderName {
-  return VALID_PROVIDER_NAMES.includes(value as ProviderName);
 }
 
 function isApprovalPolicy(value?: string): value is ApprovalPolicy {

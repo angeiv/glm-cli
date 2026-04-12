@@ -1,4 +1,5 @@
 import type { GlmConfigFile, ProviderName } from "./config-store.js";
+import { resolveProviderSelection } from "../providers/index.js";
 
 export type RuntimeCliFlags = {
   provider?: ProviderName;
@@ -9,7 +10,9 @@ export type RuntimeCliFlags = {
 export type RuntimeEnvVars = Partial<{
   GLM_PROVIDER: string;
   GLM_MODEL: string;
+  OPENAI_API_KEY: string;
   OPENAI_MODEL: string;
+  ANTHROPIC_AUTH_TOKEN: string;
   ANTHROPIC_MODEL: string;
 }>;
 
@@ -24,28 +27,17 @@ export function resolveRuntimeConfig(
   env: RuntimeEnvVars,
   fileConfig: GlmConfigFile,
 ): RuntimeConfig {
-  const provider =
-    normalizeProviderName(cli.provider) ??
-    normalizeProviderName(env.GLM_PROVIDER) ??
-    fileConfig.defaultProvider ??
-    "glm-official";
+  const fallbackProvider = fileConfig.defaultProvider ?? "glm-official";
+  const fallbackModel = fileConfig.defaultModel ?? "glm-5";
 
-  const model =
-    cli.model ??
-    env.GLM_MODEL ??
-    env.OPENAI_MODEL ??
-    env.ANTHROPIC_MODEL ??
-    fileConfig.defaultModel ??
-    "glm-5";
+  const { provider, model } = resolveProviderSelection(
+    { provider: cli.provider, model: cli.model },
+    env as NodeJS.ProcessEnv,
+    fallbackProvider,
+    fallbackModel,
+  );
 
   const approvalPolicy = cli.yolo ? "never" : fileConfig.approvalPolicy ?? "ask";
 
   return { provider, model, approvalPolicy };
-}
-
-function normalizeProviderName(value?: string): ProviderName | undefined {
-  if (value === "glm-official" || value === "openai-compatible") {
-    return value;
-  }
-  return undefined;
 }
