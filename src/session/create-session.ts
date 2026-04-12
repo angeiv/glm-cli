@@ -121,8 +121,21 @@ export function resolveRequestedModel(
   return model;
 }
 
+export function getGlmModelSelection(
+  model?: { provider: string; id: string },
+): GlmModelSelection | undefined {
+  if (!model || !isProviderName(model.provider)) {
+    return undefined;
+  }
+
+  return {
+    provider: model.provider,
+    model: model.id,
+  };
+}
+
 export function resolveRuntimeModelStrategy(
-  requested: GlmModelSelection,
+  preferred: GlmModelSelection,
   sessionManager: Pick<
     ReturnType<typeof createGlmSessionManager>,
     "buildSessionContext"
@@ -131,7 +144,7 @@ export function resolveRuntimeModelStrategy(
 ): RuntimeModelStrategy {
   if (!sessionStartEvent) {
     return {
-      selection: requested,
+      selection: preferred,
       shouldPassExplicitModel: true,
     };
   }
@@ -144,6 +157,13 @@ export function resolveRuntimeModelStrategy(
         model: savedModel.modelId,
       },
       shouldPassExplicitModel: false,
+    };
+  }
+
+  if (sessionStartEvent.reason === "new") {
+    return {
+      selection: preferred,
+      shouldPassExplicitModel: true,
     };
   }
 
@@ -224,6 +244,10 @@ export async function createGlmRuntime(
   input: GlmSessionInput,
 ): Promise<AgentSessionRuntime> {
   const initialOptions = buildSessionOptions(input);
+  let preferredSelection: GlmModelSelection = {
+    provider: input.provider,
+    model: input.model,
+  };
 
   const createRuntime: CreateAgentSessionRuntimeFactory = async ({
     cwd,
@@ -235,10 +259,7 @@ export async function createGlmRuntime(
       cwd,
     });
     const strategy = resolveRuntimeModelStrategy(
-      {
-        provider: input.provider,
-        model: input.model,
-      },
+      preferredSelection,
       sessionManager,
       sessionStartEvent,
     );
@@ -252,6 +273,8 @@ export async function createGlmRuntime(
       tools: options.tools,
       customTools: options.customTools,
     });
+    preferredSelection =
+      getGlmModelSelection(result.session.model) ?? preferredSelection;
 
     return {
       ...result,
@@ -260,7 +283,7 @@ export async function createGlmRuntime(
     };
   };
 
-  return createAgentSessionRuntime(createRuntime, {
+  const runtime = await createAgentSessionRuntime(createRuntime, {
     cwd: input.cwd,
     agentDir: initialOptions.agentDir,
     sessionManager: createGlmSessionManager(
@@ -268,4 +291,13 @@ export async function createGlmRuntime(
       initialOptions.sessionDir,
     ),
   });
+
+  const originalNewSession = runtime.newSession.bind(runtime);
+  runtime.newSession = async (options) => {
+    preferredSelection =
+      getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    return originalNewSession(options);
+  };
+
+  return runtime;
 }

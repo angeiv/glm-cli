@@ -131,7 +131,7 @@ test("createGlmSession resolves the requested model explicitly and restores mode
   expect(process.env.ANTHROPIC_MODEL).toBeUndefined();
 });
 
-test("runtime model strategy only forces the requested model on initial creation", async () => {
+test("runtime model strategy preserves selection for initial/new sessions but defers to saved resume state", async () => {
   const { resolveRuntimeModelStrategy } = await import("../../src/session/create-session.js");
 
   const initial = resolveRuntimeModelStrategy(
@@ -193,8 +193,29 @@ test("runtime model strategy only forces the requested model on initial creation
     { type: "session_start", reason: "new" },
   );
 
-  expect(freshNewSession.selection).toBeUndefined();
-  expect(freshNewSession.shouldPassExplicitModel).toBe(false);
+  expect(freshNewSession.selection).toEqual({
+    provider: "openai-compatible",
+    model: "glm-openai-test",
+  });
+  expect(freshNewSession.shouldPassExplicitModel).toBe(true);
+
+  const emptyResume = resolveRuntimeModelStrategy(
+    {
+      provider: "openai-compatible",
+      model: "glm-openai-test",
+    },
+    {
+      buildSessionContext: () => ({
+        messages: [],
+        thinkingLevel: "medium",
+        model: null,
+      }),
+    },
+    { type: "session_start", reason: "resume" },
+  );
+
+  expect(emptyResume.selection).toBeUndefined();
+  expect(emptyResume.shouldPassExplicitModel).toBe(false);
 });
 
 test("runRunCommand restores cwd and approval env after runtime execution", async () => {
