@@ -131,6 +131,72 @@ test("createGlmSession resolves the requested model explicitly and restores mode
   expect(process.env.ANTHROPIC_MODEL).toBeUndefined();
 });
 
+test("runtime model strategy only forces the requested model on initial creation", async () => {
+  const { resolveRuntimeModelStrategy } = await import("../../src/session/create-session.js");
+
+  const initial = resolveRuntimeModelStrategy(
+    {
+      provider: "openai-compatible",
+      model: "glm-openai-test",
+    },
+    {
+      buildSessionContext: () => ({
+        messages: [],
+        thinkingLevel: "medium",
+        model: null,
+      }),
+    },
+  );
+
+  expect(initial.selection).toEqual({
+    provider: "openai-compatible",
+    model: "glm-openai-test",
+  });
+  expect(initial.shouldPassExplicitModel).toBe(true);
+
+  const resumed = resolveRuntimeModelStrategy(
+    {
+      provider: "openai-compatible",
+      model: "glm-openai-test",
+    },
+    {
+      buildSessionContext: () => ({
+        messages: [{ role: "user", content: "hi" }],
+        thinkingLevel: "medium",
+        model: {
+          provider: "openai-compatible",
+          modelId: "saved-session-model",
+        },
+      }),
+    },
+    { type: "session_start", reason: "resume" },
+  );
+
+  expect(resumed.selection).toEqual({
+    provider: "openai-compatible",
+    model: "saved-session-model",
+  });
+  expect(resumed.shouldPassExplicitModel).toBe(false);
+
+  const freshNewSession = resolveRuntimeModelStrategy(
+    {
+      provider: "openai-compatible",
+      model: "glm-openai-test",
+    },
+    {
+      buildSessionContext: () => ({
+        messages: [],
+        thinkingLevel: "medium",
+        model: null,
+      }),
+    },
+    { type: "session_start", reason: "new" },
+  );
+
+  expect(freshNewSession.selection).toBeUndefined();
+  expect(freshNewSession.shouldPassExplicitModel).toBe(false);
+});
+
 test("runRunCommand restores cwd and approval env after runtime execution", async () => {
   const startingDir = mkdtempSync(join(tmpdir(), "glm-start-"));
   const targetDir = mkdtempSync(join(tmpdir(), "glm-target-"));

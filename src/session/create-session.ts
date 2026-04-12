@@ -9,6 +9,7 @@ import {
 import { syncPackagedResources } from "../app/resource-sync.js";
 import type { ApprovalPolicy } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
+import { isProviderName } from "../providers/types.js";
 import { createGlmServices, createGlmSessionManager } from "./managers.js";
 import { resolveGlmSessionPaths } from "./session-paths.js";
 import { createBuiltinTools, createPlanTools } from "../tools/index.js";
@@ -31,6 +32,13 @@ export type GlmSessionOptions = GlmSessionInput & {
 
 export type GlmSessionResult = CreateAgentSessionResult & {
   options: GlmSessionOptions;
+};
+
+export type GlmModelSelection = Pick<GlmSessionInput, "provider" | "model">;
+
+export type RuntimeModelStrategy = {
+  selection?: GlmModelSelection;
+  shouldPassExplicitModel: boolean;
 };
 
 const MODEL_SELECTION_ENV_KEYS = [
@@ -82,11 +90,15 @@ export async function withPreservedProcessCwd<T>(
 }
 
 export function buildModelSelectionEnvironment(
-  input: Pick<GlmSessionInput, "provider" | "model">,
+  input?: GlmModelSelection,
 ): Partial<NodeJS.ProcessEnv> {
   const overrides: Partial<NodeJS.ProcessEnv> = Object.fromEntries(
     MODEL_SELECTION_ENV_KEYS.map((key) => [key, undefined]),
   );
+
+  if (!input) {
+    return overrides;
+  }
 
   if (input.provider === "openai-compatible") {
     overrides.OPENAI_MODEL = input.model;
@@ -109,29 +121,64 @@ export function resolveRequestedModel(
   return model;
 }
 
+export function resolveRuntimeModelStrategy(
+  requested: GlmModelSelection,
+  sessionManager: Pick<
+    ReturnType<typeof createGlmSessionManager>,
+    "buildSessionContext"
+  >,
+  sessionStartEvent?: { type: "session_start"; reason: string },
+): RuntimeModelStrategy {
+  if (!sessionStartEvent) {
+    return {
+      selection: requested,
+      shouldPassExplicitModel: true,
+    };
+  }
+
+  const savedModel = sessionManager.buildSessionContext().model;
+  if (savedModel && isProviderName(savedModel.provider)) {
+    return {
+      selection: {
+        provider: savedModel.provider,
+        model: savedModel.modelId,
+      },
+      shouldPassExplicitModel: false,
+    };
+  }
+
+  return {
+    selection: undefined,
+    shouldPassExplicitModel: false,
+  };
+}
+
 async function prepareGlmSession(
   options: GlmSessionOptions,
+  strategy: RuntimeModelStrategy,
 ): Promise<{
   services: Awaited<ReturnType<typeof createGlmServices>>["services"];
   sessionManager: Awaited<ReturnType<typeof createGlmServices>>["sessionManager"];
-  model: ReturnType<typeof resolveRequestedModel>;
+  model?: ReturnType<typeof resolveRequestedModel>;
 }> {
   await syncPackagedResources(options.agentDir);
 
   return withScopedEnvironment(
-    buildModelSelectionEnvironment(options),
+    buildModelSelectionEnvironment(strategy.selection),
     async () => {
       const { services, sessionManager } = await createGlmServices(options);
-      const model = resolveRequestedModel(
-        services.modelRegistry,
-        options.provider,
-        options.model,
-      );
 
       return {
         services,
         sessionManager,
-        model,
+        model:
+          strategy.selection && strategy.shouldPassExplicitModel
+            ? resolveRequestedModel(
+                services.modelRegistry,
+                strategy.selection.provider,
+                strategy.selection.model,
+              )
+            : undefined,
       };
     },
   );
@@ -152,7 +199,13 @@ export async function createGlmSession(
   input: GlmSessionInput,
 ): Promise<GlmSessionResult> {
   const options = buildSessionOptions(input);
-  const { services, sessionManager, model } = await prepareGlmSession(options);
+  const { services, sessionManager, model } = await prepareGlmSession(options, {
+    selection: {
+      provider: input.provider,
+      model: input.model,
+    },
+    shouldPassExplicitModel: true,
+  });
   const result = await createAgentSessionFromServices({
     services,
     sessionManager,
@@ -181,8 +234,16 @@ export async function createGlmRuntime(
       ...input,
       cwd,
     });
+    const strategy = resolveRuntimeModelStrategy(
+      {
+        provider: input.provider,
+        model: input.model,
+      },
+      sessionManager,
+      sessionStartEvent,
+    );
 
-    const { services, model } = await prepareGlmSession(options);
+    const { services, model } = await prepareGlmSession(options, strategy);
     const result = await createAgentSessionFromServices({
       services,
       sessionManager,
