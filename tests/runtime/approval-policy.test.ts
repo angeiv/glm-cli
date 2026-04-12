@@ -1,6 +1,17 @@
 import { test, expect } from "vitest";
 import { isDangerousCommand } from "../../resources/extensions/glm-policy/index.js";
 
-test("marks rm -rf as dangerous even in yolo mode", () => {
-  expect(isDangerousCommand("rm -rf /tmp/demo")).toBe(true);
-});
+const rmVariants = [
+  "rm -rf /tmp/demo",
+  "rm -fr /tmp/demo",
+  "rm -r -f /tmp/demo",
+  "rm -f -r /tmp/demo",
+  "sudo rm -fr /tmp/demo",
+];
+
+test.each(rmVariants)(
+  "marks '%s' as dangerous even in yolo mode",
+  (command) => {
+    expect(isDangerousCommand(command)).toBe(true);
+  },
+);

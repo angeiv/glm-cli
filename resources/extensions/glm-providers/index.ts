@@ -38,15 +38,16 @@ export default function (pi: ExtensionAPI) {
     models: glmModels,
   });
 
-  if (process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL) {
+  if (process.env.OPENAI_API_KEY) {
+    const openaiModelId = process.env.OPENAI_MODEL ?? process.env.GLM_MODEL ?? "glm-5";
     pi.registerProvider("openai-compatible", {
       baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
       apiKey: "OPENAI_API_KEY",
       api: "openai-completions",
       models: [
         {
-          id: process.env.OPENAI_MODEL,
-          name: process.env.OPENAI_MODEL,
+          id: openaiModelId,
+          name: openaiModelId,
           reasoning: true,
           input: ["text"],
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
