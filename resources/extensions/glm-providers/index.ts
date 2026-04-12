@@ -1,4 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { readFileSync } from "node:fs";
 
 const glmModels = [
   {
@@ -30,6 +33,20 @@ const glmModels = [
   },
 ];
 
+function resolveConfigDefaultModel(): string | undefined {
+  const configPath = join(homedir(), ".glm", "config.json");
+  try {
+    const contents = readFileSync(configPath, "utf8");
+    const parsed = JSON.parse(contents) as { defaultModel?: string };
+    if (typeof parsed.defaultModel === "string") {
+      return parsed.defaultModel;
+    }
+  } catch {
+    // ignore missing or invalid config
+  }
+  return undefined;
+}
+
 export default function (pi: ExtensionAPI) {
   pi.registerProvider("glm-official", {
     baseUrl: process.env.GLM_BASE_URL ?? "https://open.bigmodel.cn/api/coding/paas/v4/",
@@ -39,7 +56,12 @@ export default function (pi: ExtensionAPI) {
   });
 
   if (process.env.OPENAI_API_KEY) {
-    const openaiModelId = process.env.OPENAI_MODEL ?? process.env.GLM_MODEL ?? "glm-5";
+    const openaiModelId =
+      process.env.OPENAI_MODEL ??
+      process.env.GLM_MODEL ??
+      resolveConfigDefaultModel() ??
+      "glm-5";
+
     pi.registerProvider("openai-compatible", {
       baseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
       apiKey: "OPENAI_API_KEY",
