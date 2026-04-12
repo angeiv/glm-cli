@@ -1,4 +1,5 @@
 import {
+  createEditTool,
   createFindTool,
   createLsTool,
   createReadTool,
@@ -7,6 +8,7 @@ import {
 
 export function createFileTools(cwd: string) {
   return [
+    createEditTool(cwd),
     createReadTool(cwd),
     createWriteTool(cwd),
     createLsTool(cwd),
