@@ -51,9 +51,15 @@ test("createGlmSession resolves the requested model explicitly and restores mode
     provider: "openai-compatible",
     id: "glm-openai-test",
   };
+  const prompt = vi.fn(async () => {
+    expect(process.env.GLM_APPROVAL_POLICY).toBe("never");
+  });
 
   const createAgentSessionFromServices = vi.fn(async (options: { model?: unknown }) => ({
-    session: { model: options.model },
+    session: {
+      model: options.model,
+      prompt,
+    },
     extensionsResult: { extensions: [], errors: [], runtime: {} },
     modelFallbackMessage: undefined,
   }));
@@ -110,24 +116,28 @@ test("createGlmSession resolves the requested model explicitly and restores mode
 
   process.env.OPENAI_MODEL = "outside-openai";
   process.env.GLM_MODEL = "outside-glm";
+  process.env.GLM_APPROVAL_POLICY = "outside-policy";
   delete process.env.ANTHROPIC_MODEL;
 
   const { createGlmSession } = await import("../../src/session/create-session.js");
 
-  await createGlmSession({
+  const result = await createGlmSession({
     cwd: "/tmp/demo",
     model: requestedModel.id,
     provider: "openai-compatible",
     approvalPolicy: "never",
   });
+  await result.session.prompt("test approval policy");
 
   expect(createAgentSessionFromServices).toHaveBeenCalledWith(
     expect.objectContaining({
       model: requestedModel,
     }),
   );
+  expect(prompt).toHaveBeenCalled();
   expect(process.env.OPENAI_MODEL).toBe("outside-openai");
   expect(process.env.GLM_MODEL).toBe("outside-glm");
+  expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
   expect(process.env.ANTHROPIC_MODEL).toBeUndefined();
 });
 
@@ -279,4 +289,87 @@ test("runRunCommand restores cwd and approval env after runtime execution", asyn
   expect(runSingleTask).toHaveBeenCalled();
   expect(process.cwd()).toBe(resolvedStartingDir);
   expect(process.env.GLM_APPROVAL_POLICY).toBe("keep-policy");
+});
+
+test("createGlmRuntime scopes approval policy for direct runtime session usage and restores it", async () => {
+  vi.doUnmock("../../src/session/create-session.js");
+  vi.doUnmock("../../src/app/config-store.js");
+  vi.doUnmock("../../src/runtime/run-runtime.js");
+
+  const runtimeDir = mkdtempSync(join(tmpdir(), "glm-runtime-"));
+  const prompt = vi.fn(async () => {
+    expect(process.env.GLM_APPROVAL_POLICY).toBe("never");
+  });
+
+  const runtimeHost = {
+    session: {
+      model: { provider: "openai-compatible", id: "glm-openai-test" },
+      prompt,
+    },
+    newSession: vi.fn(async () => ({ cancelled: false })),
+  };
+
+  vi.doMock("@mariozechner/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
+      "@mariozechner/pi-coding-agent",
+    );
+
+    return {
+      ...actual,
+      createAgentSessionFromServices: vi.fn(async () => ({
+        session: runtimeHost.session,
+        extensionsResult: { extensions: [], errors: [], runtime: {} },
+        modelFallbackMessage: undefined,
+      })),
+      createAgentSessionRuntime: vi.fn(async () => runtimeHost),
+    };
+  });
+
+  vi.doMock("../../src/session/managers.js", () => ({
+    createGlmServices: vi.fn(async () => ({
+      services: {
+        cwd: "/tmp/demo",
+        agentDir: "/tmp/demo/.glm/agent",
+        authStorage: {},
+        settingsManager: {},
+        modelRegistry: {
+          find: vi.fn(() => runtimeHost.session.model),
+        },
+        resourceLoader: {},
+        diagnostics: [],
+      },
+      sessionManager: {
+        buildSessionContext: () => ({
+          messages: [],
+          thinkingLevel: "medium",
+          model: null,
+        }),
+      },
+    })),
+    createGlmSessionManager: vi.fn(() => ({
+      buildSessionContext: () => ({
+        messages: [],
+        thinkingLevel: "medium",
+        model: null,
+      }),
+    })),
+  }));
+  vi.doMock("../../src/app/resource-sync.js", () => ({
+    syncPackagedResources: vi.fn().mockResolvedValue(undefined),
+  }));
+
+  process.env.GLM_APPROVAL_POLICY = "outside-policy";
+
+  const { createGlmRuntime } = await import("../../src/session/create-session.js");
+  const runtime = await createGlmRuntime({
+    cwd: runtimeDir,
+    model: "glm-openai-test",
+    provider: "openai-compatible",
+    approvalPolicy: "never",
+  });
+
+  await runtime.session.prompt("test direct runtime policy");
+
+  expect(prompt).toHaveBeenCalled();
+  expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
 });

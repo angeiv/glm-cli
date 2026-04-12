@@ -48,6 +48,25 @@ const MODEL_SELECTION_ENV_KEYS = [
   "OPENAI_MODEL",
   "ANTHROPIC_MODEL",
 ] as const;
+const SESSION_APPROVAL_SCOPED_METHODS = new Set([
+  "abort",
+  "bindExtensions",
+  "compact",
+  "followUp",
+  "navigateTree",
+  "prompt",
+  "reload",
+  "setModel",
+  "steer",
+  "cycleModel",
+]);
+const RUNTIME_APPROVAL_SCOPED_METHODS = new Set([
+  "dispose",
+  "fork",
+  "importFromJsonl",
+  "newSession",
+  "switchSession",
+]);
 
 export async function withScopedEnvironment<T>(
   overrides: Partial<NodeJS.ProcessEnv>,
@@ -107,6 +126,12 @@ export function buildModelSelectionEnvironment(
   }
 
   return overrides;
+}
+
+export function buildApprovalPolicyEnvironment(
+  approvalPolicy: ApprovalPolicy,
+): Partial<NodeJS.ProcessEnv> {
+  return { GLM_APPROVAL_POLICY: approvalPolicy };
 }
 
 export function resolveRequestedModel(
@@ -175,6 +200,63 @@ export function resolveRuntimeModelStrategy(
   };
 }
 
+function wrapSessionWithApprovalPolicy<T extends object>(
+  session: T,
+  approvalPolicy: ApprovalPolicy,
+): T {
+  return new Proxy(session, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value !== "function") {
+        return value;
+      }
+
+      const bound = value.bind(target);
+      if (!SESSION_APPROVAL_SCOPED_METHODS.has(String(property))) {
+        return bound;
+      }
+
+      return (...args: unknown[]) =>
+        withScopedEnvironment(
+          buildApprovalPolicyEnvironment(approvalPolicy),
+          async () => bound(...args),
+        );
+    },
+  });
+}
+
+function wrapRuntimeWithApprovalPolicy<T extends AgentSessionRuntime>(
+  runtime: T,
+  approvalPolicy: ApprovalPolicy,
+): T {
+  return new Proxy(runtime, {
+    get(target, property, receiver) {
+      if (property === "session") {
+        return wrapSessionWithApprovalPolicy(
+          Reflect.get(target, property, receiver) as typeof target.session,
+          approvalPolicy,
+        );
+      }
+
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value !== "function") {
+        return value;
+      }
+
+      const bound = value.bind(target);
+      if (!RUNTIME_APPROVAL_SCOPED_METHODS.has(String(property))) {
+        return bound;
+      }
+
+      return (...args: unknown[]) =>
+        withScopedEnvironment(
+          buildApprovalPolicyEnvironment(approvalPolicy),
+          async () => bound(...args),
+        );
+    },
+  });
+}
+
 async function prepareGlmSession(
   options: GlmSessionOptions,
   strategy: RuntimeModelStrategy,
@@ -186,7 +268,10 @@ async function prepareGlmSession(
   await syncPackagedResources(options.agentDir);
 
   return withScopedEnvironment(
-    buildModelSelectionEnvironment(strategy.selection),
+    {
+      ...buildModelSelectionEnvironment(strategy.selection),
+      ...buildApprovalPolicyEnvironment(options.approvalPolicy),
+    },
     async () => {
       const { services, sessionManager } = await createGlmServices(options);
 
@@ -238,6 +323,10 @@ export async function createGlmSession(
 
   return {
     ...result,
+    session: wrapSessionWithApprovalPolicy(
+      result.session,
+      input.approvalPolicy,
+    ) as typeof result.session,
     options,
   };
 }
@@ -301,5 +390,5 @@ export async function createGlmRuntime(
     return originalNewSession(options);
   };
 
-  return runtime;
+  return wrapRuntimeWithApprovalPolicy(runtime, input.approvalPolicy);
 }
