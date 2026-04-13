@@ -3,29 +3,33 @@
 Agent CLI for GLM.
 
 ## Requirements
-`glm` requires Node.js 22 or later because it embeds the Pi SDK and uses modern ECMAScript modules.
+- Node.js 22 or newer (required by the embedded Pi SDK and native ECMAScript module usage)
 
 ## Installing
 ```
 npm install
 ```
-This installs the CLI dependencies and prepares the `dist/` output via `npm run build`.
+This sets up the dependencies and prepares the CLI entrypoint so `npm run build` can create `dist/loader.js`.
 
-## Default `glm` command
-Running `glm` (without subcommands) starts the interactive chat session against the current working directory. The CLI syncs the packaged resources into `~/.glm/agent`, initializes the embedded Pi session, and prompts you for the next action.
+## Usage
+### `glm`
+Runs the default interactive chat session. The CLI bootstraps product directories under `~/.glm`, syncs the packaged prompts/tools, and starts Pi in interactive mode. You can add runtime flags like `--provider`, `--model`, `--cwd`, or `--yolo` to adjust the session.
 
-## `glm run "<task>"`
-Use `glm run` for one-shot tasks. Provide the task description in quotes, and the command will execute through Pi's `runPrintMode`, returning the output once the model finishes. It's useful for scripting or repeated automation.
+### `glm run "<task>"`
+Executes a single task through Pi's `runPrintMode`. Wrap the task description in quotes if it contains spaces. Global flags such as `--provider`, `--model`, `--cwd`, and `--yolo` behave the same as in the interactive mode.
 
-## `glm auth login`
-This command prompts for the provider credentials you want to store under `~/.glm/config.json` (GLM official, OpenAI-compatible, or Anthropic-compatible). Credentials are only stored locally and are later read by `glm doctor` and the main runtime.
+### `glm doctor`
+Performs local health checks before you start a session:
 
-## `glm doctor`
-Running `glm doctor` performs local health checks: it verifies the working directory, ensures credentials exist (env variables or stored config), and confirms that `~/.glm/agent/prompts/system.md` is available. Use it before a session to detect missing prerequisites.
+- Validates the current working directory is accessible.
+- Verifies credentials for the effective provider only (glm-official, openai-compatible, or anthropic compatibility mode).
+- Reports whether `~/.glm/agent/prompts/system.md` is already synced; missing resources are reported as "will sync on first run" instead of failing because the main CLI populates them automatically.
 
-## Anthropic compatibility
-Set `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, and `ANTHROPIC_MODEL` when you need to reuse existing Anthropic-compatible workflows. The CLI maps this environment to an internal `anthropic` provider and honors the same runtime flags as the GLM official mode.
+### `glm auth login`
+Prompts for the provider (`glm-official` or `openai-compatible`), the API key, and an optional base URL. Credentials are persisted under `~/.glm/config.json` so `glm doctor`, `glm`, and `glm run` can pick them up without repeating the prompt.
 
-## `--yolo`
-Append `--yolo` to any command (`glm`, `glm run`, etc.) to skip the interactive approval flow (`approvalPolicy` becomes `never`) while keeping the hard safety policies intact (e.g., destructive shell commands are still blocked). This flag only affects the current invocation.
+### Anthropic compatibility
+Set `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, and `ANTHROPIC_MODEL` when you already rely on Anthropic-style wrappers or gateways. The CLI maps that trio to an internal `anthropic` provider without overriding the core product defaults.
 
+### `--yolo`
+Skip the interactive approval flow (`approvalPolicy` toggles to `never`) while keeping the hard safety policy intact (destructive tool calls are still blocked). The flag applies to the current command invocation only.
