@@ -23,7 +23,7 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm ci
+        run: npm install
 
       - name: Test
         run: npm test
@@ -41,4 +41,3 @@ jobs:
             *.tgz
             SHA256SUMS
           generate_release_notes: true
-
