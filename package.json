@@ -1,0 +1,34 @@
+{
+  "name": "glm-agent-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "glm": "dist/loader.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "piConfig": {
+    "name": "glm",
+    "configDir": ".glm"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-resources.mjs",
+    "dev": "tsx src/loader.ts",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@mariozechner/pi-coding-agent": "^0.66.1",
+    "@sinclair/typebox": "^0.34.41",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.4"
+  }
+}
