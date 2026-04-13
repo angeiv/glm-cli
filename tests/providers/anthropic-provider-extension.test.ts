@@ -98,7 +98,7 @@ describe("anthropic provider extension model registration", () => {
     expect(requested).toMatchObject({
       id: requestedModelId,
       name: "GLM 4.5 Air",
-      reasoning: false,
+      reasoning: true,
     });
     expect(models.filter((model) => model.id === requestedModelId)).toHaveLength(1);
   });
