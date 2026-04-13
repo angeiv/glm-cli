@@ -18,6 +18,35 @@ function toStorageKey(provider: ProviderOptions): StorageProviderKey {
 }
 
 function createPromptSession(): { prompt: PromptFn; close: () => void } {
+  if (!process.stdin.isTTY) {
+    let linesPromise: Promise<string[]> | undefined;
+    let index = 0;
+
+    return {
+      async prompt(question) {
+        process.stdout.write(question);
+        if (!linesPromise) {
+          linesPromise = (async () => {
+            const chunks: Buffer[] = [];
+            for await (const chunk of process.stdin) {
+              chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+            }
+
+            return Buffer.concat(chunks).toString("utf8").split(/\r?\n/);
+          })();
+        }
+
+        const lines = await linesPromise;
+        const answer = lines[index] ?? "";
+        index += 1;
+        return answer;
+      },
+      close() {
+        process.stdout.write("\n");
+      },
+    };
+  }
+
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
