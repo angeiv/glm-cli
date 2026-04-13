@@ -3,7 +3,7 @@ import { readConfigFile, StorageProviderKey, writeConfigFile } from "../app/conf
 import { normalizeProviderName, ProviderName } from "../providers/types.js";
 
 type ProviderOptions = Exclude<ProviderName, "anthropic">;
-const DEFAULT_PROVIDER: ProviderOptions = "glm-official";
+const DEFAULT_PROVIDER: ProviderOptions = "glm";
 
 type PromptFn = (question: string) => Promise<string>;
 
@@ -27,7 +27,7 @@ type AuthLogoutDependencies = {
 };
 
 function toStorageKey(provider: ProviderOptions): StorageProviderKey {
-  return provider === "glm-official" ? "glmOfficial" : "openAICompatible";
+  return provider === "glm" ? "glmOfficial" : "openAICompatible";
 }
 
 function createPromptSession(): { prompt: PromptFn; close: () => void } {
@@ -83,7 +83,7 @@ async function runAuthLogin(deps: AuthDependencies): Promise<void> {
   );
   const selected = normalizeProviderName(providerValue?.trim() || DEFAULT_PROVIDER);
   if (!selected || selected === "anthropic") {
-    throw new Error("Only glm-official and openai-compatible providers are supported for auth login.");
+    throw new Error("Only glm and openai-compatible providers are supported for auth login.");
   }
 
   const provider = selected as ProviderOptions;
@@ -125,7 +125,7 @@ export async function authStatus(deps?: Partial<AuthStatusDependencies>): Promis
   const log = deps?.log ?? console.log;
   const env = deps?.env ?? process.env;
 
-  log(`glm-official: ${config.providers.glmOfficial.apiKey.trim() ? "configured" : "missing"}`);
+  log(`glm: ${config.providers.glmOfficial.apiKey.trim() ? "configured" : "missing"}`);
   log(
     `openai-compatible: ${config.providers.openAICompatible.apiKey.trim() ? "configured" : "missing"}`,
   );
@@ -145,5 +145,5 @@ export async function authLogout(deps?: Partial<AuthLogoutDependencies>): Promis
   };
 
   await (deps?.writeConfigFile ?? writeConfigFile)(config);
-  (deps?.log ?? console.log)("Stored credentials cleared for glm-official and openai-compatible.");
+  (deps?.log ?? console.log)("Stored credentials cleared for glm and openai-compatible.");
 }

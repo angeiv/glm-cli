@@ -15,11 +15,12 @@ export type ProviderConfig = {
 export type StorageProviderKey = "glmOfficial" | "openAICompatible";
 export type ApprovalPolicy = "ask" | "auto" | "never";
 
-type PersistedProviderName = "glm-official" | "openai-compatible";
-const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = ["glm-official", "openai-compatible"];
+type LegacyPersistedProviderName = "glm-official";
+type PersistedProviderName = "glm" | "openai-compatible";
+const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = ["glm", "openai-compatible"];
 
 const STORAGE_KEY_TO_PROVIDER: Record<StorageProviderKey, PersistedProviderName> = {
-  glmOfficial: "glm-official",
+  glmOfficial: "glm",
   openAICompatible: "openai-compatible",
 };
 
@@ -50,6 +51,16 @@ export type GlmConfigFile = {
   providers: Record<StorageProviderKey, ProviderConfig>;
 };
 
+function normalizePersistedProviderName(value: unknown): PersistedProviderName | undefined {
+  if (value === "glm-official") {
+    return "glm";
+  }
+  if (PERSISTED_PROVIDER_NAMES.includes(value as PersistedProviderName)) {
+    return value as PersistedProviderName;
+  }
+  return undefined;
+}
+
 function cloneProviderConfig(config?: ProviderConfig): ProviderConfig {
   return {
     apiKey: config?.apiKey ?? "",
@@ -58,8 +69,14 @@ function cloneProviderConfig(config?: ProviderConfig): ProviderConfig {
 }
 
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
+  const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
+  const defaultProvider =
+    rawDefaultProvider === undefined
+      ? BASE_DEFAULT_CONFIG_FILE.defaultProvider
+      : normalizePersistedProviderName(rawDefaultProvider) ?? (rawDefaultProvider as PersistedProviderName);
+
   return {
-    defaultProvider: config?.defaultProvider ?? BASE_DEFAULT_CONFIG_FILE.defaultProvider,
+    defaultProvider,
     defaultModel: config?.defaultModel ?? BASE_DEFAULT_CONFIG_FILE.defaultModel,
     approvalPolicy: config?.approvalPolicy ?? BASE_DEFAULT_CONFIG_FILE.approvalPolicy,
     providers: {

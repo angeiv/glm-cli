@@ -94,10 +94,10 @@ describe("runCli", () => {
   });
 
   test("dispatches to doctor with parsed flags", async () => {
-    await runCli(["doctor", "--yolo", "--provider", "glm-official"], handlers);
+    await runCli(["doctor", "--yolo", "--provider", "glm"], handlers);
     expect(handlers.doctor).toHaveBeenCalledWith(
       expect.objectContaining({
-        cli: expect.objectContaining({ yolo: true, provider: "glm-official" }),
+        cli: expect.objectContaining({ yolo: true, provider: "glm" }),
       }),
     );
   });

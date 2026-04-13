@@ -38,7 +38,7 @@ test("uses ~/.glm/agent and never policy when yolo is enabled", async () => {
   const options = buildSessionOptions({
     cwd: "/tmp/demo",
     model: "glm-5",
-    provider: "glm-official",
+    provider: "glm",
     approvalPolicy: "never",
   });
 
@@ -342,7 +342,7 @@ test("runRunCommand restores cwd and approval env after runtime execution", asyn
 
   vi.doMock("../../src/app/config-store.js", () => ({
     readConfigFile: vi.fn().mockResolvedValue({
-      defaultProvider: "glm-official",
+      defaultProvider: "glm",
       defaultModel: "glm-5",
       approvalPolicy: "ask",
       providers: {

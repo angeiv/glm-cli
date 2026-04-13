@@ -5,7 +5,7 @@ import { resolveProviderSelection } from "../../src/providers/index.js";
 
 function createConfigFile(overrides: Partial<GlmConfigFile> = {}): GlmConfigFile {
   return {
-    defaultProvider: overrides.defaultProvider ?? "glm-official",
+    defaultProvider: overrides.defaultProvider ?? "glm",
     defaultModel: overrides.defaultModel ?? "glm-5",
     approvalPolicy: overrides.approvalPolicy ?? "ask",
     providers: {
@@ -24,7 +24,7 @@ describe("resolveProviderSelection", () => {
         ANTHROPIC_BASE_URL: "https://open.bigmodel.cn/api/anthropic",
         ANTHROPIC_MODEL: "glm-5",
       } as NodeJS.ProcessEnv,
-      "glm-official",
+      "glm",
       "glm-5",
     );
 
@@ -85,17 +85,17 @@ describe("resolveRuntimeConfig", () => {
       config,
     );
 
-    expect(runtime.provider).toBe("glm-official");
+    expect(runtime.provider).toBe("glm");
   });
 
   test("explicit CLI provider wins over compatibility credentials", () => {
     const config = createConfigFile();
     const runtime = resolveRuntimeConfig(
-      { provider: "glm-official" },
+      { provider: "glm" },
       { ANTHROPIC_AUTH_TOKEN: "token", OPENAI_API_KEY: "key" },
       config,
     );
 
-    expect(runtime.provider).toBe("glm-official");
+    expect(runtime.provider).toBe("glm");
   });
 });

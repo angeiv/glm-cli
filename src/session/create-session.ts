@@ -68,6 +68,10 @@ const RUNTIME_APPROVAL_SCOPED_METHODS = new Set([
   "switchSession",
 ]);
 
+function normalizeGlmProviderId(provider: string): string {
+  return provider === "glm-official" ? "glm" : provider;
+}
+
 export async function withScopedEnvironment<T>(
   overrides: Partial<NodeJS.ProcessEnv>,
   run: () => Promise<T>,
@@ -160,7 +164,7 @@ export function getGlmModelSelection(
   }
 
   return {
-    provider: model.provider,
+    provider: normalizeGlmProviderId(model.provider),
     model: model.id,
   };
 }
@@ -182,12 +186,15 @@ export function resolveRuntimeModelStrategy(
 
   const savedModel = sessionManager.buildSessionContext().model;
   if (savedModel) {
+    const provider = normalizeGlmProviderId(savedModel.provider);
     return {
       selection: {
-        provider: savedModel.provider,
+        provider,
         model: savedModel.modelId,
       },
-      shouldPassExplicitModel: false,
+      // If we had to normalize a legacy provider id, pass explicit model to avoid Pi restoring
+      // a now-unknown provider from session history.
+      shouldPassExplicitModel: provider !== savedModel.provider,
     };
   }
 

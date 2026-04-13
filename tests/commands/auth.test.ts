@@ -3,7 +3,7 @@ import { authLogin, authLogout, authStatus } from "../../src/commands/auth.js";
 import { getDefaultConfigFile } from "../../src/app/config-store.js";
 
 describe("authLogin", () => {
-  test("persists glm-official credentials from sequential prompts", async () => {
+  test("persists glm credentials from sequential prompts", async () => {
     const prompts = ["", "glm-secret", ""];
     const writeConfigFile = vi.fn(async () => undefined);
     const log = vi.fn();
@@ -24,7 +24,7 @@ describe("authLogin", () => {
         }),
       }),
     );
-    expect(log).toHaveBeenCalledWith("Credentials saved for provider glm-official.");
+    expect(log).toHaveBeenCalledWith("Credentials saved for provider glm.");
   });
 
   test("persists openai-compatible credentials and base URL", async () => {
@@ -66,7 +66,7 @@ describe("authStatus", () => {
       env: { ANTHROPIC_AUTH_TOKEN: "anthropic-token" },
     });
 
-    expect(log).toHaveBeenCalledWith("glm-official: configured");
+    expect(log).toHaveBeenCalledWith("glm: configured");
     expect(log).toHaveBeenCalledWith("openai-compatible: missing");
     expect(log).toHaveBeenCalledWith("anthropic (env): configured");
   });
@@ -103,6 +103,6 @@ describe("authLogout", () => {
         },
       }),
     );
-    expect(log).toHaveBeenCalledWith("Stored credentials cleared for glm-official and openai-compatible.");
+    expect(log).toHaveBeenCalledWith("Stored credentials cleared for glm and openai-compatible.");
   });
 });

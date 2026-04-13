@@ -81,11 +81,11 @@ function credentialDetails(provider: ProviderName, env: NodeJS.ProcessEnv, confi
     ok = hasEnvCredential(env, "GLM_API_KEY");
     if (!ok && hasConfigCredential(config, "glmOfficial")) {
       ok = true;
-      details = "glm-official api key stored in config";
+      details = "glm api key stored in config";
     } else if (ok) {
-      details = "glm-official api key detected via environment";
+      details = "glm api key detected via environment";
     } else {
-      details = "missing GLM_API_KEY or stored glm-official credentials";
+      details = "missing GLM_API_KEY or stored glm credentials";
     }
   }
 

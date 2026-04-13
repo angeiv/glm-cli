@@ -26,7 +26,7 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   if (key === "approvalPolicy") {
     return config.approvalPolicy ?? "ask";
   }
-  return config.defaultProvider ?? "glm-official";
+  return config.defaultProvider ?? "glm";
 }
 
 function parseConfigValue(key: ConfigKey, value: string): string {
@@ -35,8 +35,13 @@ function parseConfigValue(key: ConfigKey, value: string): string {
     throw new Error(`${key} cannot be empty`);
   }
 
-  if (key === "defaultProvider" && trimmed !== "glm-official" && trimmed !== "openai-compatible") {
-    throw new Error("defaultProvider must be glm-official or openai-compatible");
+  if (key === "defaultProvider") {
+    if (trimmed === "glm-official") {
+      return "glm";
+    }
+    if (trimmed !== "glm" && trimmed !== "openai-compatible") {
+      throw new Error("defaultProvider must be glm or openai-compatible");
+    }
   }
 
   if (key === "approvalPolicy" && !["ask", "auto", "never"].includes(trimmed)) {

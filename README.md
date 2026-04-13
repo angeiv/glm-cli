@@ -25,7 +25,7 @@ Executes a single task through Pi's `runPrintMode`. Wrap the task description in
 Performs local health checks before you start a session:
 
 - Validates the current working directory is accessible.
-- Verifies credentials for the effective provider only (glm-official, openai-compatible, or anthropic compatibility mode).
+- Verifies credentials for the effective provider only (glm, openai-compatible, or anthropic compatibility mode).
 - Reports whether `~/.glm/agent/prompts/system.md` is already synced; missing resources are reported as "will sync on first run" instead of failing because the main CLI populates them automatically.
 
 ### Credentials

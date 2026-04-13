@@ -10,7 +10,7 @@ import {
 describe("resolveRuntimeConfig", () => {
   test("prefers cli flags over env and file config", () => {
     const config = resolveRuntimeConfig(
-      { provider: "glm-official", model: "glm-5", yolo: true },
+      { provider: "glm", model: "glm-5", yolo: true },
       {
         GLM_PROVIDER: "openai-compatible",
         GLM_MODEL: "glm-4.5",
@@ -23,7 +23,7 @@ describe("resolveRuntimeConfig", () => {
       },
     );
 
-    expect(config.provider).toBe("glm-official");
+    expect(config.provider).toBe("glm");
     expect(config.model).toBe("glm-5");
     expect(config.approvalPolicy).toBe("never");
   });
@@ -44,7 +44,7 @@ describe("config store normalization", () => {
   });
 
   test("mapStorageKeyToProvider returns stable runtime identifiers", () => {
-    expect(mapStorageKeyToProvider("glmOfficial")).toBe("glm-official");
+    expect(mapStorageKeyToProvider("glmOfficial")).toBe("glm");
     expect(mapStorageKeyToProvider("openAICompatible")).toBe("openai-compatible");
   });
 
@@ -59,9 +59,25 @@ describe("config store normalization", () => {
     vi.spyOn(fileSystem, "readFile").mockRejectedValueOnce(enoent);
 
     const config = await readConfigFile();
-    expect(config.defaultProvider).toBe("glm-official");
+    expect(config.defaultProvider).toBe("glm");
     expect(config.defaultModel).toBe("glm-5.1");
     expect(config.providers.glmOfficial.apiKey).toBe("");
+  });
+
+  test("readConfigFile normalizes legacy defaultProvider values", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm-official",
+      defaultModel: "glm-5.1",
+      approvalPolicy: "ask",
+      providers: {
+        glmOfficial: { apiKey: "", baseURL: "" },
+        openAICompatible: { apiKey: "", baseURL: "" },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    const config = await readConfigFile();
+    expect(config.defaultProvider).toBe("glm");
   });
 
   test("readConfigFile rejects invalid default provider names", async () => {
@@ -92,7 +108,7 @@ describe("config store normalization", () => {
 
   test("readConfigFile rejects non-string defaultModel values", async () => {
     const payload = JSON.stringify({
-      defaultProvider: "glm-official",
+      defaultProvider: "glm",
       defaultModel: 123,
       approvalPolicy: "ask",
       providers: {
@@ -106,7 +122,7 @@ describe("config store normalization", () => {
 
   test("readConfigFile rejects invalid approval policies", async () => {
     const payload = JSON.stringify({
-      defaultProvider: "glm-official",
+      defaultProvider: "glm",
       approvalPolicy: "oops",
       providers: {
         glmOfficial: { apiKey: "", baseURL: "" },
@@ -119,7 +135,7 @@ describe("config store normalization", () => {
 
   test("readConfigFile rejects non-string provider fields", async () => {
     const payload = JSON.stringify({
-      defaultProvider: "glm-official",
+      defaultProvider: "glm",
       approvalPolicy: "ask",
       providers: {
         glmOfficial: { apiKey: 123, baseURL: "https://ok" },
@@ -133,7 +149,7 @@ describe("config store normalization", () => {
 
   test("readConfigFile rejects non-string baseURL values", async () => {
     const payload = JSON.stringify({
-      defaultProvider: "glm-official",
+      defaultProvider: "glm",
       approvalPolicy: "ask",
       providers: {
         glmOfficial: { apiKey: "", baseURL: 123 },

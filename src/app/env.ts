@@ -28,7 +28,7 @@ export function resolveRuntimeConfig(
   env: RuntimeEnvVars,
   fileConfig: GlmConfigFile,
 ): RuntimeConfig {
-  const fallbackProvider = fileConfig.defaultProvider ?? "glm-official";
+  const fallbackProvider = fileConfig.defaultProvider ?? "glm";
   const fallbackModel = fileConfig.defaultModel ?? "glm-5.1";
 
   const { provider, model } = resolveProviderSelection(

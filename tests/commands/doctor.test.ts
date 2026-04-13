@@ -47,7 +47,7 @@ describe("runDoctor", () => {
     expect(resourceCheck?.details).toContain("prompts not synced yet");
   });
 
-  test("treats whitespace-only GLM_API_KEY as missing for glm-official", async () => {
+  test("treats whitespace-only GLM_API_KEY as missing for glm", async () => {
     const result = await runDoctor({
       ...baseOptions,
       env: { GLM_API_KEY: "   " },

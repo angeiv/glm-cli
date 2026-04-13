@@ -171,7 +171,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   if (glmSettings.apiKey) {
-    pi.registerProvider("glm-official", {
+    pi.registerProvider("glm", {
       baseUrl: glmSettings.baseUrl,
       apiKey: glmSettings.apiKey,
       api: "openai-completions",
