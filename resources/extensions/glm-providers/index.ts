@@ -5,13 +5,31 @@ import { readFileSync } from "node:fs";
 
 const glmModels = [
   {
+    id: "glm-5.1",
+    name: "GLM 5.1",
+    reasoning: true,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 204_800,
+    maxTokens: 131_072,
+  },
+  {
     id: "glm-5",
     name: "GLM 5",
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128_000,
-    maxTokens: 8_192,
+    contextWindow: 204_800,
+    maxTokens: 131_072,
+  },
+  {
+    id: "glm-4.7",
+    name: "GLM 4.7",
+    reasoning: true,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 204_800,
+    maxTokens: 131_072,
   },
   {
     id: "glm-4.5",
@@ -19,8 +37,8 @@ const glmModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128_000,
-    maxTokens: 8_192,
+    contextWindow: 131_072,
+    maxTokens: 98_304,
   },
   {
     id: "glm-4.5-air",
@@ -28,15 +46,23 @@ const glmModels = [
     reasoning: false,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128_000,
-    maxTokens: 8_192,
+    contextWindow: 131_072,
+    maxTokens: 98_304,
   },
 ];
+
+function normalizeBigModelModelId(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.toLowerCase().startsWith("glm-")) {
+    return trimmed.toLowerCase();
+  }
+  return trimmed;
+}
 
 function resolveModelId(...candidates: Array<string | undefined>): string | undefined {
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate.trim().length > 0) {
-      return candidate.trim();
+      return normalizeBigModelModelId(candidate);
     }
   }
   return undefined;
@@ -52,6 +78,10 @@ function buildCustomModelDefinition(modelId: string) {
     contextWindow: 128_000,
     maxTokens: 8_192,
   };
+}
+
+function resolveModelDefinition(modelId: string) {
+  return glmModels.find((model) => model.id === modelId) ?? buildCustomModelDefinition(modelId);
 }
 
 export function resolveAnthropicModels(requestedModelId: string) {
@@ -156,13 +186,13 @@ export default function (pi: ExtensionAPI) {
       process.env.OPENAI_MODEL,
       process.env.GLM_MODEL,
       resolveConfigDefaultModel(),
-    ) ?? "glm-5";
+    ) ?? "glm-5.1";
     pi.registerProvider("openai-compatible", {
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-completions",
       models: [
-        buildCustomModelDefinition(openaiModelId),
+        resolveModelDefinition(openaiModelId),
       ],
     });
   }
@@ -172,7 +202,7 @@ export default function (pi: ExtensionAPI) {
       process.env.ANTHROPIC_MODEL,
       process.env.GLM_MODEL,
       resolveConfigDefaultModel(),
-    ) ?? "glm-5";
+    ) ?? "glm-5.1";
 
     pi.registerProvider("anthropic", {
       baseUrl: process.env.ANTHROPIC_BASE_URL ?? "https://open.bigmodel.cn/api/anthropic",

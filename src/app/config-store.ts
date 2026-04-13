@@ -34,7 +34,7 @@ function createEmptyProviderConfig(): ProviderConfig {
 function buildDefaultConfigFile(): GlmConfigFile {
   return {
     defaultProvider: STORAGE_KEY_TO_PROVIDER.glmOfficial,
-    defaultModel: "glm-5",
+    defaultModel: "glm-5.1",
     approvalPolicy: "ask",
     providers: {
       glmOfficial: createEmptyProviderConfig(),

@@ -29,7 +29,7 @@ export function resolveRuntimeConfig(
   fileConfig: GlmConfigFile,
 ): RuntimeConfig {
   const fallbackProvider = fileConfig.defaultProvider ?? "glm-official";
-  const fallbackModel = fileConfig.defaultModel ?? "glm-5";
+  const fallbackModel = fileConfig.defaultModel ?? "glm-5.1";
 
   const { provider, model } = resolveProviderSelection(
     { provider: cli.provider, model: cli.model },

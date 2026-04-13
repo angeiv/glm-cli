@@ -60,6 +60,7 @@ describe("config store normalization", () => {
 
     const config = await readConfigFile();
     expect(config.defaultProvider).toBe("glm-official");
+    expect(config.defaultModel).toBe("glm-5.1");
     expect(config.providers.glmOfficial.apiKey).toBe("");
   });
 
