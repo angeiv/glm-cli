@@ -29,11 +29,24 @@ Performs local health checks before you start a session:
 - Reports whether `~/.glm/agent/prompts/system.md` is already synced; missing resources are reported as "will sync on first run" instead of failing because the main CLI populates them automatically.
 
 ### Credentials
-Configure provider credentials via environment variables:
+Configure provider credentials via environment variables or `~/.glm/config.json`:
 
-- GLM official: `GLM_API_KEY` (optional: `GLM_BASE_URL`)
-- OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`)
-- Anthropic compatibility: `ANTHROPIC_AUTH_TOKEN` (optional: `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`)
+- GLM (`--provider glm`): `GLM_API_KEY` (optional: `GLM_BASE_URL`) or config `providers.glmOfficial`
+- OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`) or config `providers.openAICompatible`
+- Anthropic compatibility: `ANTHROPIC_AUTH_TOKEN` (optional: `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`) (env only)
+
+Example `~/.glm/config.json`:
+```json
+{
+  "defaultProvider": "glm",
+  "defaultModel": "glm-5.1",
+  "approvalPolicy": "ask",
+  "providers": {
+    "glmOfficial": { "apiKey": "your_glm_key", "baseURL": "" },
+    "openAICompatible": { "apiKey": "your_openai_key", "baseURL": "" }
+  }
+}
+```
 
 ### `glm config get <key>`
 Reads one supported config key and prints its value. Supported keys:
