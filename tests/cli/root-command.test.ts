@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { CliHandlers, parseCliArgs, runCli } from "../../src/cli.js";
 
@@ -77,4 +78,9 @@ describe("runCli", () => {
     await runCli(["auth", "login"], handlers);
     expect(handlers.authLogin).toHaveBeenCalledOnce();
   });
+});
+
+test("loader keeps a node shebang for direct glm execution", () => {
+  const source = readFileSync(new URL("../../src/loader.ts", import.meta.url), "utf8");
+  expect(source.startsWith("#!/usr/bin/env node")).toBe(true);
 });

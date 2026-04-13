@@ -56,15 +56,19 @@ function hasConfigCredential(config: GlmConfigFile, storageKey: "glmOfficial" | 
   return Boolean(stored?.trim());
 }
 
+function hasEnvCredential(env: NodeJS.ProcessEnv, key: string): boolean {
+  return Boolean(env[key]?.trim());
+}
+
 function credentialDetails(provider: ProviderName, env: NodeJS.ProcessEnv, config: GlmConfigFile): DoctorCheck {
   let ok = false;
   let details = "";
 
   if (provider === "anthropic") {
-    ok = Boolean(env.ANTHROPIC_AUTH_TOKEN);
+    ok = hasEnvCredential(env, "ANTHROPIC_AUTH_TOKEN");
     details = ok ? "anthropic auth token detected" : "missing ANTHROPIC_AUTH_TOKEN for anthropic compatibility";
   } else if (provider === "openai-compatible") {
-    ok = Boolean(env.OPENAI_API_KEY);
+    ok = hasEnvCredential(env, "OPENAI_API_KEY");
     if (!ok && hasConfigCredential(config, "openAICompatible")) {
       ok = true;
       details = "openai-compatible api key stored in config";
@@ -74,7 +78,7 @@ function credentialDetails(provider: ProviderName, env: NodeJS.ProcessEnv, confi
       details = "missing OPENAI_API_KEY or stored openai-compatible credentials";
     }
   } else {
-    ok = Boolean(env.GLM_API_KEY);
+    ok = hasEnvCredential(env, "GLM_API_KEY");
     if (!ok && hasConfigCredential(config, "glmOfficial")) {
       ok = true;
       details = "glm-official api key stored in config";

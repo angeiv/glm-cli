@@ -46,4 +46,39 @@ describe("runDoctor", () => {
     expect(resourceCheck?.ok).toBe(true);
     expect(resourceCheck?.details).toContain("prompts not synced yet");
   });
+
+  test("treats whitespace-only GLM_API_KEY as missing for glm-official", async () => {
+    const result = await runDoctor({
+      ...baseOptions,
+      env: { GLM_API_KEY: "   " },
+    });
+
+    const credentialsCheck = result.checks.find((check) => check.id === "credentials");
+    expect(credentialsCheck?.ok).toBe(false);
+    expect(credentialsCheck?.details).toContain("missing GLM_API_KEY");
+  });
+
+  test("treats whitespace-only OPENAI_API_KEY as missing for openai-compatible", async () => {
+    const result = await runDoctor({
+      ...baseOptions,
+      cli: { provider: "openai-compatible", model: undefined, yolo: false },
+      env: { OPENAI_API_KEY: "   " },
+    });
+
+    const credentialsCheck = result.checks.find((check) => check.id === "credentials");
+    expect(credentialsCheck?.ok).toBe(false);
+    expect(credentialsCheck?.details).toContain("missing OPENAI_API_KEY");
+  });
+
+  test("treats whitespace-only ANTHROPIC_AUTH_TOKEN as missing for anthropic mode", async () => {
+    const result = await runDoctor({
+      ...baseOptions,
+      cli: { provider: "anthropic", model: undefined, yolo: false },
+      env: { ANTHROPIC_AUTH_TOKEN: "   " },
+    });
+
+    const credentialsCheck = result.checks.find((check) => check.id === "credentials");
+    expect(credentialsCheck?.ok).toBe(false);
+    expect(credentialsCheck?.details).toContain("missing ANTHROPIC_AUTH_TOKEN");
+  });
 });
