@@ -6,6 +6,10 @@
   "bin": {
     "glm": "dist/loader.js"
   },
+  "files": [
+    "dist",
+    "resources"
+  ],
   "engines": {
     "node": ">=22.0.0"
   },
@@ -16,6 +20,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/copy-resources.mjs",
     "dev": "tsx src/loader.ts",
+    "prepack": "npm run build",
     "test": "vitest --run"
   },
   "dependencies": {
