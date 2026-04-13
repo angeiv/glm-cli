@@ -1,13 +1,26 @@
 import { createInterface } from "node:readline";
+import { readConfigFile, StorageProviderKey, writeConfigFile } from "../app/config-store.js";
 import { normalizeProviderName, ProviderName } from "../providers/types.js";
-import { readConfigFile, writeConfigFile, StorageProviderKey } from "../app/config-store.js";
 
 type ProviderOptions = Exclude<ProviderName, "anthropic">;
 const DEFAULT_PROVIDER: ProviderOptions = "glm-official";
 
 type PromptFn = (question: string) => Promise<string>;
+
 type AuthDependencies = {
   prompt: PromptFn;
+  readConfigFile: typeof readConfigFile;
+  writeConfigFile: typeof writeConfigFile;
+  log: (message: string) => void;
+};
+
+type AuthStatusDependencies = {
+  readConfigFile: typeof readConfigFile;
+  log: (message: string) => void;
+  env: NodeJS.ProcessEnv;
+};
+
+type AuthLogoutDependencies = {
   readConfigFile: typeof readConfigFile;
   writeConfigFile: typeof writeConfigFile;
   log: (message: string) => void;
@@ -55,9 +68,7 @@ function createPromptSession(): { prompt: PromptFn; close: () => void } {
   return {
     prompt(question) {
       return new Promise((resolve) => {
-        rl.question(question, (answer) => {
-          resolve(answer);
-        });
+        rl.question(question, (answer) => resolve(answer));
       });
     },
     close() {
@@ -67,14 +78,15 @@ function createPromptSession(): { prompt: PromptFn; close: () => void } {
 }
 
 async function runAuthLogin(deps: AuthDependencies): Promise<void> {
-  const providerValue = await deps.prompt(`Provider (${DEFAULT_PROVIDER}/openai-compatible) [${DEFAULT_PROVIDER}]: `);
+  const providerValue = await deps.prompt(
+    `Provider (${DEFAULT_PROVIDER}/openai-compatible) [${DEFAULT_PROVIDER}]: `,
+  );
   const selected = normalizeProviderName(providerValue?.trim() || DEFAULT_PROVIDER);
   if (!selected || selected === "anthropic") {
     throw new Error("Only glm-official and openai-compatible providers are supported for auth login.");
   }
 
   const provider = selected as ProviderOptions;
-
   const apiKey = await deps.prompt("API key: ");
   if (!apiKey.trim()) {
     throw new Error("API key is required.");
@@ -83,6 +95,7 @@ async function runAuthLogin(deps: AuthDependencies): Promise<void> {
   const baseURL = await deps.prompt("Base URL (leave empty to keep default): ");
   const config = await deps.readConfigFile();
   const storageKey = toStorageKey(provider);
+
   config.providers[storageKey] = {
     apiKey: apiKey.trim(),
     baseURL: baseURL.trim() || config.providers[storageKey]?.baseURL || "",
@@ -105,4 +118,32 @@ export async function authLogin(deps?: Partial<AuthDependencies>): Promise<void>
   } finally {
     session?.close();
   }
+}
+
+export async function authStatus(deps?: Partial<AuthStatusDependencies>): Promise<void> {
+  const config = await (deps?.readConfigFile ?? readConfigFile)();
+  const log = deps?.log ?? console.log;
+  const env = deps?.env ?? process.env;
+
+  log(`glm-official: ${config.providers.glmOfficial.apiKey.trim() ? "configured" : "missing"}`);
+  log(
+    `openai-compatible: ${config.providers.openAICompatible.apiKey.trim() ? "configured" : "missing"}`,
+  );
+  log(`anthropic (env): ${env.ANTHROPIC_AUTH_TOKEN?.trim() ? "configured" : "missing"}`);
+}
+
+export async function authLogout(deps?: Partial<AuthLogoutDependencies>): Promise<void> {
+  const config = await (deps?.readConfigFile ?? readConfigFile)();
+
+  config.providers.glmOfficial = {
+    ...config.providers.glmOfficial,
+    apiKey: "",
+  };
+  config.providers.openAICompatible = {
+    ...config.providers.openAICompatible,
+    apiKey: "",
+  };
+
+  await (deps?.writeConfigFile ?? writeConfigFile)(config);
+  (deps?.log ?? console.log)("Stored credentials cleared for glm-official and openai-compatible.");
 }

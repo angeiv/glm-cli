@@ -1,12 +1,12 @@
 import { runChatCommand } from "./commands/chat.js";
 import { runRunCommand } from "./commands/run.js";
 import { runDoctorCommand, DoctorCommandArgs } from "./commands/doctor.js";
-import { authLogin } from "./commands/auth.js";
+import { authLogin, authLogout, authStatus } from "./commands/auth.js";
+import { configGet, configSet } from "./commands/config.js";
 import type { ProviderName } from "./providers/types.js";
 import { normalizeProviderName } from "./providers/types.js";
 import type { ChatCommandInput } from "./commands/chat.js";
 import type { RunCommandInput } from "./commands/run.js";
-import type { RuntimeCliFlags } from "./app/env.js";
 
 type GlobalFlags = {
   provider?: ProviderName;
@@ -26,13 +26,19 @@ export type ParsedCliArgs =
   | (BaseCliArgs & { command: "chat" })
   | (BaseCliArgs & { command: "run"; task: string })
   | (BaseCliArgs & { command: "doctor" })
-  | { command: "auth"; subcommand: "login"; cwd: string };
+  | { command: "auth"; subcommand: "login" | "status" | "logout"; cwd: string }
+  | { command: "config"; subcommand: "get"; key: string; cwd: string }
+  | { command: "config"; subcommand: "set"; key: string; value: string; cwd: string };
 
 export type CliHandlers = {
   chat: (input: ChatCommandInput & { yolo: boolean }) => Promise<number>;
   run: (input: RunCommandInput & { yolo: boolean }) => Promise<number>;
   doctor: (input: DoctorCommandArgs) => Promise<number>;
   authLogin: () => Promise<number>;
+  authStatus: () => Promise<number>;
+  authLogout: () => Promise<number>;
+  configGet: (key: string) => Promise<number>;
+  configSet: (key: string, value: string) => Promise<number>;
 };
 
 function extractFlagValue(args: string[], flag: string): string | undefined {
@@ -83,28 +89,69 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const command = args.shift();
   const cwd = flags.cwd ?? process.cwd();
 
-  if (!command || command === "chat") {
+  if (!command) {
     return { command: "chat", cwd, ...flags };
   }
 
+  if (command === "chat") {
+    const pathArg = args.shift();
+    if (args.length > 0) {
+      throw new Error("The chat command accepts at most one positional path");
+    }
+    return { command: "chat", cwd: pathArg ?? cwd, ...flags };
+  }
+
   if (command === "run") {
-    const task = args.join(" ").trim();
+    const task = args.shift()?.trim();
     if (!task) {
       throw new Error("The run command requires a task description");
     }
-    return { command: "run", task, cwd, ...flags };
+    const pathArg = args.shift();
+    if (args.length > 0) {
+      throw new Error('The run command accepts at most one positional path: glm run "<task>" [path]');
+    }
+    return { command: "run", task, cwd: pathArg ?? cwd, ...flags };
   }
 
   if (command === "doctor") {
+    if (args.length > 0) {
+      throw new Error("The doctor command does not accept positional arguments");
+    }
     return { command: "doctor", cwd, ...flags };
   }
 
   if (command === "auth") {
     const subcommand = args.shift();
-    if (subcommand === "login") {
+    if (subcommand === "login" || subcommand === "status" || subcommand === "logout") {
+      if (args.length > 0) {
+        throw new Error(`The auth ${subcommand} command does not accept positional arguments`);
+      }
       return { command: "auth", subcommand, cwd };
     }
     throw new Error(`Unknown auth subcommand: ${subcommand}`);
+  }
+
+  if (command === "config") {
+    const subcommand = args.shift();
+
+    if (subcommand === "get") {
+      const key = args.shift();
+      if (!key || args.length > 0) {
+        throw new Error("Usage: glm config get <key>");
+      }
+      return { command: "config", subcommand: "get", key, cwd };
+    }
+
+    if (subcommand === "set") {
+      const key = args.shift();
+      const value = args.join(" ").trim();
+      if (!key || !value) {
+        throw new Error("Usage: glm config set <key> <value>");
+      }
+      return { command: "config", subcommand: "set", key, value, cwd };
+    }
+
+    throw new Error(`Unknown config subcommand: ${subcommand}`);
   }
 
   throw new Error(`Unknown command: ${command}`);
@@ -119,6 +166,22 @@ const defaultHandlers: CliHandlers = {
   doctor: async (input) => runDoctorCommand(input),
   authLogin: async () => {
     await authLogin();
+    return 0;
+  },
+  authStatus: async () => {
+    await authStatus();
+    return 0;
+  },
+  authLogout: async () => {
+    await authLogout();
+    return 0;
+  },
+  configGet: async (key) => {
+    await configGet(key);
+    return 0;
+  },
+  configSet: async (key, value) => {
+    await configSet(key, value);
     return 0;
   },
 };
@@ -149,7 +212,18 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         cli: { provider: parsed.provider, model: parsed.model, yolo: parsed.yolo },
       });
     case "auth":
-      return mergedHandlers.authLogin();
+      if (parsed.subcommand === "login") {
+        return mergedHandlers.authLogin();
+      }
+      if (parsed.subcommand === "status") {
+        return mergedHandlers.authStatus();
+      }
+      return mergedHandlers.authLogout();
+    case "config":
+      if (parsed.subcommand === "get") {
+        return mergedHandlers.configGet(parsed.key);
+      }
+      return mergedHandlers.configSet(parsed.key, parsed.value);
     default:
       throw new Error("Unhandled command");
   }
