@@ -45,27 +45,6 @@ describe("parseCliArgs", () => {
     });
   });
 
-  test("parses auth login command", () => {
-    expect(parseCliArgs(["auth", "login"])).toMatchObject({
-      command: "auth",
-      subcommand: "login",
-    });
-  });
-
-  test("parses auth status command", () => {
-    expect(parseCliArgs(["auth", "status"])).toMatchObject({
-      command: "auth",
-      subcommand: "status",
-    });
-  });
-
-  test("parses auth logout command", () => {
-    expect(parseCliArgs(["auth", "logout"])).toMatchObject({
-      command: "auth",
-      subcommand: "logout",
-    });
-  });
-
   test("parses config get command", () => {
     expect(parseCliArgs(["config", "get", "defaultModel"])).toMatchObject({
       command: "config",
@@ -92,9 +71,6 @@ describe("runCli", () => {
       chat: vi.fn(async () => 0) as CliHandlers["chat"],
       run: vi.fn(async () => 0) as CliHandlers["run"],
       doctor: vi.fn(async () => 0) as CliHandlers["doctor"],
-      authLogin: vi.fn(async () => 0),
-      authStatus: vi.fn(async () => 0),
-      authLogout: vi.fn(async () => 0),
       configGet: vi.fn(async () => 0),
       configSet: vi.fn(async () => 0),
     };
@@ -124,21 +100,6 @@ describe("runCli", () => {
         cli: expect.objectContaining({ yolo: true, provider: "glm-official" }),
       }),
     );
-  });
-
-  test("dispatches to auth login", async () => {
-    await runCli(["auth", "login"], handlers);
-    expect(handlers.authLogin).toHaveBeenCalledOnce();
-  });
-
-  test("dispatches to auth status", async () => {
-    await runCli(["auth", "status"], handlers);
-    expect(handlers.authStatus).toHaveBeenCalledOnce();
-  });
-
-  test("dispatches to auth logout", async () => {
-    await runCli(["auth", "logout"], handlers);
-    expect(handlers.authLogout).toHaveBeenCalledOnce();
   });
 
   test("dispatches to config get", async () => {

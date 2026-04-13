@@ -1,7 +1,6 @@
 import { runChatCommand } from "./commands/chat.js";
 import { runRunCommand } from "./commands/run.js";
 import { runDoctorCommand, DoctorCommandArgs } from "./commands/doctor.js";
-import { authLogin, authLogout, authStatus } from "./commands/auth.js";
 import { configGet, configSet } from "./commands/config.js";
 import type { ProviderName } from "./providers/types.js";
 import { normalizeProviderName } from "./providers/types.js";
@@ -26,7 +25,6 @@ export type ParsedCliArgs =
   | (BaseCliArgs & { command: "chat" })
   | (BaseCliArgs & { command: "run"; task: string })
   | (BaseCliArgs & { command: "doctor" })
-  | { command: "auth"; subcommand: "login" | "status" | "logout"; cwd: string }
   | { command: "config"; subcommand: "get"; key: string; cwd: string }
   | { command: "config"; subcommand: "set"; key: string; value: string; cwd: string };
 
@@ -34,9 +32,6 @@ export type CliHandlers = {
   chat: (input: ChatCommandInput & { yolo: boolean }) => Promise<number>;
   run: (input: RunCommandInput & { yolo: boolean }) => Promise<number>;
   doctor: (input: DoctorCommandArgs) => Promise<number>;
-  authLogin: () => Promise<number>;
-  authStatus: () => Promise<number>;
-  authLogout: () => Promise<number>;
   configGet: (key: string) => Promise<number>;
   configSet: (key: string, value: string) => Promise<number>;
 };
@@ -120,17 +115,6 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     return { command: "doctor", cwd, ...flags };
   }
 
-  if (command === "auth") {
-    const subcommand = args.shift();
-    if (subcommand === "login" || subcommand === "status" || subcommand === "logout") {
-      if (args.length > 0) {
-        throw new Error(`The auth ${subcommand} command does not accept positional arguments`);
-      }
-      return { command: "auth", subcommand, cwd };
-    }
-    throw new Error(`Unknown auth subcommand: ${subcommand}`);
-  }
-
   if (command === "config") {
     const subcommand = args.shift();
 
@@ -164,18 +148,6 @@ const defaultHandlers: CliHandlers = {
   },
   run: async (input) => runRunCommand(input),
   doctor: async (input) => runDoctorCommand(input),
-  authLogin: async () => {
-    await authLogin();
-    return 0;
-  },
-  authStatus: async () => {
-    await authStatus();
-    return 0;
-  },
-  authLogout: async () => {
-    await authLogout();
-    return 0;
-  },
   configGet: async (key) => {
     await configGet(key);
     return 0;
@@ -211,14 +183,6 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         cwd: parsed.cwd,
         cli: { provider: parsed.provider, model: parsed.model, yolo: parsed.yolo },
       });
-    case "auth":
-      if (parsed.subcommand === "login") {
-        return mergedHandlers.authLogin();
-      }
-      if (parsed.subcommand === "status") {
-        return mergedHandlers.authStatus();
-      }
-      return mergedHandlers.authLogout();
     case "config":
       if (parsed.subcommand === "get") {
         return mergedHandlers.configGet(parsed.key);

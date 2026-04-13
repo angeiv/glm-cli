@@ -141,7 +141,9 @@ export async function runDoctorCommand(input: DoctorCommandArgs): Promise<number
   });
 
   if (!result.ok) {
-    console.warn("doctor detected issues; run glm auth login or restore credentials and retry");
+    console.warn(
+      "doctor detected issues; set provider credentials (GLM_API_KEY, OPENAI_API_KEY, or ANTHROPIC_AUTH_TOKEN) and retry",
+    );
   }
 
   return result.ok ? 0 : 1;

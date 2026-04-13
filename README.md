@@ -28,17 +28,12 @@ Performs local health checks before you start a session:
 - Verifies credentials for the effective provider only (glm-official, openai-compatible, or anthropic compatibility mode).
 - Reports whether `~/.glm/agent/prompts/system.md` is already synced; missing resources are reported as "will sync on first run" instead of failing because the main CLI populates them automatically.
 
-### `glm auth login`
-Prompts for the provider (`glm-official` or `openai-compatible`), the API key, and an optional base URL. Credentials are persisted under `~/.glm/config.json` so `glm doctor`, `glm`, and `glm run` can pick them up without repeating the prompt.
+### Credentials
+Configure provider credentials via environment variables:
 
-### `glm auth status`
-Prints credential availability for:
-- `glm-official` (stored config key)
-- `openai-compatible` (stored config key)
-- `anthropic` compatibility mode (`ANTHROPIC_AUTH_TOKEN` env)
-
-### `glm auth logout`
-Clears persisted API keys for `glm-official` and `openai-compatible` in `~/.glm/config.json`.
+- GLM official: `GLM_API_KEY` (optional: `GLM_BASE_URL`)
+- OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`)
+- Anthropic compatibility: `ANTHROPIC_AUTH_TOKEN` (optional: `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`)
 
 ### `glm config get <key>`
 Reads one supported config key and prints its value. Supported keys:
