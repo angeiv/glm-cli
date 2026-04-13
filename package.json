@@ -1,7 +1,7 @@
 {
-  "name": "glm-agent-cli",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@angeiv/glm",
+  "version": "0.1.1",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "glm": "dist/loader.js"
@@ -10,6 +10,13 @@
     "dist",
     "resources"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/angeiv/glm-cli.git"
+  },
   "engines": {
     "node": ">=22.0.0"
   },

@@ -1,6 +1,9 @@
-# glm-agent-cli
+# glm-cli
 
 Agent CLI for GLM.
+
+npm package: `@angeiv/glm`  
+command: `glm`
 
 ## Requirements
 - Node.js 22 or newer (required by the embedded Pi SDK and native ECMAScript module usage)
