@@ -148,8 +148,13 @@ export function resolveProviderSettings(options: {
   persisted?: PersistedProviderConfig;
   defaultBaseUrl: string;
 }) {
-  const apiKey = options.envApiKey ?? options.persisted?.apiKey;
-  const baseUrl = options.envBaseUrl ?? options.persisted?.baseURL ?? options.defaultBaseUrl;
+  const envApiKey = options.envApiKey?.trim();
+  const persistedApiKey = options.persisted?.apiKey?.trim();
+  const envBaseUrl = options.envBaseUrl?.trim();
+  const persistedBaseUrl = options.persisted?.baseURL?.trim();
+
+  const apiKey = envApiKey || persistedApiKey;
+  const baseUrl = envBaseUrl || persistedBaseUrl || options.defaultBaseUrl;
   return { apiKey, baseUrl };
 }
 
