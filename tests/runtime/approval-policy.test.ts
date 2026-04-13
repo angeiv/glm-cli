@@ -1,5 +1,5 @@
-import { test, expect } from "vitest";
-import { isDangerousCommand } from "../../resources/extensions/glm-policy/index.js";
+import { test, expect, vi } from "vitest";
+import glmPolicyExtension, { isDangerousCommand } from "../../resources/extensions/glm-policy/index.js";
 import { resolveProviderSettings } from "../../resources/extensions/glm-providers/index.js";
 
 const rmVariants = [
@@ -16,6 +16,49 @@ test.each(rmVariants)(
     expect(isDangerousCommand(command)).toBe(true);
   },
 );
+
+test("dangerous bash commands always require explicit confirmation even when approval policy is never", async () => {
+  const previous = process.env.GLM_APPROVAL_POLICY;
+  process.env.GLM_APPROVAL_POLICY = "never";
+
+  try {
+    const handlers: Record<string, (event: unknown, ctx: unknown) => Promise<unknown>> = {};
+    glmPolicyExtension({
+      on: (name: string, handler: (event: unknown, ctx: unknown) => Promise<unknown>) => {
+        handlers[name] = handler;
+      },
+    } as unknown as Parameters<typeof glmPolicyExtension>[0]);
+
+    const handler = handlers.tool_call;
+    expect(handler).toBeTypeOf("function");
+
+    const confirm = vi.fn(async () => false);
+    const denyResult = await handler(
+      { toolName: "bash", input: { command: "rm -rf /tmp/demo" } },
+      { ui: { confirm } },
+    );
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(confirm).toHaveBeenCalledWith(
+      "Dangerous command requires explicit approval",
+      "rm -rf /tmp/demo",
+    );
+    expect(denyResult).toMatchObject({ block: true, reason: "Denied dangerous command" });
+
+    confirm.mockResolvedValueOnce(true);
+    const allowResult = await handler(
+      { toolName: "bash", input: { command: "rm -rf /tmp/demo" } },
+      { ui: { confirm } },
+    );
+    expect(allowResult).toBeUndefined();
+  } finally {
+    if (previous === undefined) {
+      delete process.env.GLM_APPROVAL_POLICY;
+    } else {
+      process.env.GLM_APPROVAL_POLICY = previous;
+    }
+  }
+});
 
 test("resolveProviderSettings prefers persisted config when env vars missing", () => {
   const settings = resolveProviderSettings({

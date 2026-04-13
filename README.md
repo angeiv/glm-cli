@@ -71,4 +71,4 @@ When provider is not explicitly set, runtime provider resolution order is:
 In anthropic compatibility mode, model selection prefers `ANTHROPIC_MODEL`, then `GLM_MODEL`, then config fallback.
 
 ### `--yolo`
-Skip the interactive approval flow (`approvalPolicy` toggles to `never`) while keeping the hard safety policy intact (destructive tool calls are still blocked). The flag applies to the current command invocation only.
+Skip the interactive approval flow (`approvalPolicy` toggles to `never`) for normal tool calls. Dangerous shell commands (for example `rm`) still require explicit confirmation. The flag applies to the current command invocation only.
