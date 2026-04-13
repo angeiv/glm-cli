@@ -141,6 +141,93 @@ test("createGlmSession resolves the requested model explicitly and restores mode
   expect(process.env.ANTHROPIC_MODEL).toBeUndefined();
 });
 
+test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restores env", async () => {
+  const requestedModel = {
+    provider: "anthropic",
+    id: "claude-3-7-sonnet-20250219",
+  };
+
+  const createAgentSessionFromServices = vi.fn(async (options: { model?: unknown }) => ({
+    session: {
+      model: options.model,
+    },
+    extensionsResult: { extensions: [], errors: [], runtime: {} },
+    modelFallbackMessage: undefined,
+  }));
+
+  const modelRegistry = {
+    find: vi.fn((provider: string, modelId: string) => {
+      if (provider === requestedModel.provider && modelId === requestedModel.id) {
+        return requestedModel;
+      }
+      return undefined;
+    }),
+  };
+
+  const createGlmServices = vi.fn(async () => {
+    expect(process.env.ANTHROPIC_MODEL).toBe(requestedModel.id);
+    expect(process.env.OPENAI_MODEL).toBeUndefined();
+    expect(process.env.GLM_MODEL).toBeUndefined();
+    expect(process.env.GLM_APPROVAL_POLICY).toBe("never");
+
+    return {
+      services: {
+        cwd: "/tmp/demo",
+        agentDir: "/tmp/demo/.glm/agent",
+        authStorage: {},
+        settingsManager: {},
+        modelRegistry,
+        resourceLoader: {},
+        diagnostics: [],
+      },
+      sessionManager: {},
+    };
+  });
+
+  vi.doMock("@mariozechner/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
+      "@mariozechner/pi-coding-agent",
+    );
+
+    return {
+      ...actual,
+      createAgentSessionFromServices,
+    };
+  });
+
+  vi.doMock("../../src/session/managers.js", () => ({
+    createGlmServices,
+    createGlmSessionManager: vi.fn(),
+  }));
+  vi.doMock("../../src/app/resource-sync.js", () => ({
+    syncPackagedResources: vi.fn().mockResolvedValue(undefined),
+  }));
+
+  process.env.ANTHROPIC_MODEL = "outside-anthropic";
+  process.env.OPENAI_MODEL = "outside-openai";
+  process.env.GLM_MODEL = "outside-glm";
+  process.env.GLM_APPROVAL_POLICY = "outside-policy";
+
+  const { createGlmSession } = await import("../../src/session/create-session.js");
+
+  await createGlmSession({
+    cwd: "/tmp/demo",
+    model: requestedModel.id,
+    provider: "anthropic",
+    approvalPolicy: "never",
+  });
+
+  expect(createAgentSessionFromServices).toHaveBeenCalledWith(
+    expect.objectContaining({
+      model: requestedModel,
+    }),
+  );
+  expect(process.env.ANTHROPIC_MODEL).toBe("outside-anthropic");
+  expect(process.env.OPENAI_MODEL).toBe("outside-openai");
+  expect(process.env.GLM_MODEL).toBe("outside-glm");
+  expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
+});
+
 test("runtime model strategy preserves selection for initial/new sessions but defers to saved resume state", async () => {
   const { getGlmModelSelection, resolveRuntimeModelStrategy } = await import("../../src/session/create-session.js");
 

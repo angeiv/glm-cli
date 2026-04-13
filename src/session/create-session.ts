@@ -125,6 +125,10 @@ export function buildModelSelectionEnvironment(
     overrides.OPENAI_MODEL = input.model;
   }
 
+  if (input.provider === "anthropic") {
+    overrides.ANTHROPIC_MODEL = input.model;
+  }
+
   return overrides;
 }
 
