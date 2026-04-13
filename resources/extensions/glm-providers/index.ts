@@ -33,6 +33,38 @@ const glmModels = [
   },
 ];
 
+function resolveModelId(...candidates: Array<string | undefined>): string | undefined {
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+  return undefined;
+}
+
+function buildCustomModelDefinition(modelId: string) {
+  return {
+    id: modelId,
+    name: modelId,
+    reasoning: true,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 128_000,
+    maxTokens: 8_192,
+  };
+}
+
+export function resolveAnthropicModels(requestedModelId: string) {
+  if (glmModels.some((model) => model.id === requestedModelId)) {
+    return glmModels;
+  }
+
+  return [
+    ...glmModels,
+    buildCustomModelDefinition(requestedModelId),
+  ];
+}
+
 type PersistedProviderConfig = {
   apiKey?: string;
   baseURL?: string;
@@ -120,31 +152,33 @@ export default function (pi: ExtensionAPI) {
   });
 
   if (openaiSettings.apiKey) {
-    const openaiModelId = process.env.OPENAI_MODEL ?? process.env.GLM_MODEL ?? resolveConfigDefaultModel() ?? "glm-5";
+    const openaiModelId = resolveModelId(
+      process.env.OPENAI_MODEL,
+      process.env.GLM_MODEL,
+      resolveConfigDefaultModel(),
+    ) ?? "glm-5";
     pi.registerProvider("openai-compatible", {
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-completions",
       models: [
-        {
-          id: openaiModelId,
-          name: openaiModelId,
-          reasoning: true,
-          input: ["text"],
-          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-          contextWindow: 128_000,
-          maxTokens: 8_192,
-        },
+        buildCustomModelDefinition(openaiModelId),
       ],
     });
   }
 
   if (process.env.ANTHROPIC_AUTH_TOKEN) {
+    const anthropicModelId = resolveModelId(
+      process.env.ANTHROPIC_MODEL,
+      process.env.GLM_MODEL,
+      resolveConfigDefaultModel(),
+    ) ?? "glm-5";
+
     pi.registerProvider("anthropic", {
       baseUrl: process.env.ANTHROPIC_BASE_URL ?? "https://open.bigmodel.cn/api/anthropic",
       apiKey: "ANTHROPIC_AUTH_TOKEN",
       api: "anthropic-messages",
-      models: glmModels,
+      models: resolveAnthropicModels(anthropicModelId),
     });
   }
 }
