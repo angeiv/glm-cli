@@ -84,3 +84,46 @@ Skip the interactive approval flow (`approvalPolicy` toggles to `never`) for nor
 
 In interactive mode, you can also switch the policy on the fly:
 - `/approval ask|auto|never` (alias: `/policy`)
+
+## MCP (Model Context Protocol)
+glm can load MCP servers from a config file and expose their tools to the agent.
+
+### Config file
+Default path: `~/.glm/mcp.json`  
+Override: `GLM_MCP_CONFIG=/absolute/or/~/path/to/mcp.json`  
+Disable: `GLM_MCP_DISABLED=1`
+
+Supported format (compatible with common MCP clients):
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "npx",
+      "args": ["-y", "some-mcp-server-package"],
+      "env": {
+        "SOME_API_KEY": "..."
+      }
+    }
+  }
+}
+```
+
+### Tool names
+MCP tools are registered with a stable namespaced name:
+`mcp__<server>__<tool>`
+
+Example: server `"brave-search"` tool `"web_search"` becomes `mcp__brave-search__web_search` (normalized to lowercase/underscores).
+
+### Interactive usage
+- `/mcp` shows which MCP servers were loaded.
+- `/mcp reload` reloads extensions (use after editing `mcp.json`).
+
+## Pi Settings (Model/Runtime Basics)
+glm embeds Pi and uses Pi's settings files for many runtime behaviors (compaction, retry, steering modes, etc):
+
+- Global: `~/.glm/agent/settings.json`
+- Per-project: `<project>/.glm/settings.json`
+
+While streaming in interactive mode:
+- `Enter` sends a steering message (`steer`) into the current generation.
+- `Alt+Enter` queues a follow-up message (`followUp`) for the next turn.

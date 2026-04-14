@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@mariozechner/pi-coding-agent": "^0.67.1",
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "@sinclair/typebox": "^0.34.41",
     "chalk": "^5.6.2",
     "commander": "^14.0.0",
