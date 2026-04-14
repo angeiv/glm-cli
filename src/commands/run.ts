@@ -30,7 +30,12 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
 
   return withPreservedProcessCwd(async () =>
     withScopedEnvironment(
-      { GLM_APPROVAL_POLICY: runtimeConfig.approvalPolicy },
+      {
+        GLM_APPROVAL_POLICY: runtimeConfig.approvalPolicy,
+        // Default to skipping Pi's npm version check for the embedded SDK. Users can opt back in
+        // by setting PI_SKIP_VERSION_CHECK to an empty string before launching glm.
+        PI_SKIP_VERSION_CHECK: process.env.PI_SKIP_VERSION_CHECK ?? "1",
+      },
       async () => {
         const runtime = await createGlmRuntime({
           cwd: input.cwd,
