@@ -143,3 +143,10 @@ glm bundles two web-related tools that models can call:
 - SearxNG JSON endpoint: set `GLM_WEB_SEARCH_URL` (example: `https://your-searx-instance/search`)
 
 If you already use MCP for web/search/browsing, you can skip `web_search` and rely on MCP tools instead.
+
+## Generation Overrides (Env)
+You can set default generation parameters via env vars (applied to provider request payloads):
+
+- `GLM_MAX_OUTPUT_TOKENS=8192`
+- `GLM_TEMPERATURE=0.2`
+- `GLM_TOP_P=0.9`
