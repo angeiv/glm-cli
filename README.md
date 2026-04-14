@@ -127,3 +127,7 @@ glm embeds Pi and uses Pi's settings files for many runtime behaviors (compactio
 While streaming in interactive mode:
 - `Enter` sends a steering message (`steer`) into the current generation.
 - `Alt+Enter` queues a follow-up message (`followUp`) for the next turn.
+
+Token/cost stats:
+- `/stats` (or `/usage`) shows a widget with aggregated token usage (input/output/cache) for the session and current branch.
+- `/stats clear` hides the widget.
