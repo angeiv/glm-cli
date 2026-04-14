@@ -20,16 +20,20 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install
-        run: npm install --no-package-lock
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm install --frozen-lockfile
 
       - name: Test
-        run: npm test
+        run: pnpm test
 
       - name: Pack
-        run: npm pack
+        run: pnpm pack
 
       - name: Checksums
         run: sha256sum *.tgz > SHA256SUMS
