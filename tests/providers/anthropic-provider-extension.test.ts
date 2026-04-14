@@ -113,4 +113,17 @@ describe("anthropic provider extension model registration", () => {
     });
     expect(models.filter((model) => model.id === requestedModelId)).toHaveLength(1);
   });
+
+  test("uses a non-streaming api adapter for ModelScope anthropic endpoints", () => {
+    const requestedModelId = "ZhipuAI/GLM-5";
+    const anthropic = registerAnthropicProvider({
+      ANTHROPIC_AUTH_TOKEN: "token",
+      ANTHROPIC_MODEL: requestedModelId,
+      ANTHROPIC_BASE_URL: "https://api-inference.modelscope.cn/",
+    });
+
+    expect(anthropic).toBeDefined();
+    expect(anthropic!.config.api).toBe("anthropic-messages-modelscope");
+    expect(typeof anthropic!.config.streamSimple).toBe("function");
+  });
 });
