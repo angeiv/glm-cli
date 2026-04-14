@@ -463,3 +463,88 @@ test("createGlmRuntime scopes approval policy for direct runtime session usage a
   expect(prompt).toHaveBeenCalled();
   expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
 });
+
+test("approval policy can be changed at runtime via shared global state", async () => {
+  vi.doUnmock("../../src/session/create-session.js");
+
+  const runtimeDir = mkdtempSync(join(tmpdir(), "glm-runtime-"));
+  const prompt = vi.fn(async () => {
+    expect(process.env.GLM_APPROVAL_POLICY).toBe("auto");
+  });
+
+  const runtimeHost = {
+    session: {
+      model: { provider: "openai-compatible", id: "glm-openai-test" },
+      prompt,
+    },
+    newSession: vi.fn(async () => ({ cancelled: false })),
+  };
+
+  vi.doMock("@mariozechner/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
+      "@mariozechner/pi-coding-agent",
+    );
+
+    return {
+      ...actual,
+      createAgentSessionFromServices: vi.fn(async () => ({
+        session: runtimeHost.session,
+        extensionsResult: { extensions: [], errors: [], runtime: {} },
+        modelFallbackMessage: undefined,
+      })),
+      createAgentSessionRuntime: vi.fn(async () => runtimeHost),
+    };
+  });
+
+  vi.doMock("../../src/session/managers.js", () => ({
+    createGlmServices: vi.fn(async () => ({
+      services: {
+        cwd: "/tmp/demo",
+        agentDir: "/tmp/demo/.glm/agent",
+        authStorage: {},
+        settingsManager: {},
+        modelRegistry: {
+          find: vi.fn(() => runtimeHost.session.model),
+        },
+        resourceLoader: {},
+        diagnostics: [],
+      },
+      sessionManager: {
+        buildSessionContext: () => ({
+          messages: [],
+          thinkingLevel: "medium",
+          model: null,
+        }),
+      },
+    })),
+    createGlmSessionManager: vi.fn(() => ({
+      buildSessionContext: () => ({
+        messages: [],
+        thinkingLevel: "medium",
+        model: null,
+      }),
+    })),
+  }));
+  vi.doMock("../../src/app/resource-sync.js", () => ({
+    syncPackagedResources: vi.fn().mockResolvedValue(undefined),
+  }));
+
+  process.env.GLM_APPROVAL_POLICY = "outside-policy";
+
+  const { createGlmRuntime } = await import("../../src/session/create-session.js");
+  const runtime = await createGlmRuntime({
+    cwd: runtimeDir,
+    model: "glm-openai-test",
+    provider: "openai-compatible",
+    approvalPolicy: "ask",
+  });
+
+  // Simulate `/approval auto` by mutating the shared global policy state.
+  const stateKey = Symbol.for("glm.approvalPolicy");
+  (globalThis as any)[stateKey] = { policy: "auto" };
+
+  await runtime.session.prompt("test updated runtime policy");
+
+  expect(prompt).toHaveBeenCalled();
+  expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
+});

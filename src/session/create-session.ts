@@ -44,6 +44,34 @@ export type RuntimeModelStrategy = {
   shouldPassExplicitModel: boolean;
 };
 
+const GLM_APPROVAL_POLICY_STATE = Symbol.for("glm.approvalPolicy");
+type GlmApprovalPolicyState = { policy: ApprovalPolicy };
+
+function getGlmApprovalPolicyState(): GlmApprovalPolicyState {
+  const existing = (globalThis as any)[GLM_APPROVAL_POLICY_STATE] as unknown;
+  if (typeof existing === "object" && existing !== null) {
+    const maybe = existing as Partial<GlmApprovalPolicyState>;
+    if (maybe.policy === "ask" || maybe.policy === "auto" || maybe.policy === "never") {
+      return maybe as GlmApprovalPolicyState;
+    }
+  }
+
+  const state: GlmApprovalPolicyState = { policy: "ask" };
+  (globalThis as any)[GLM_APPROVAL_POLICY_STATE] = state;
+  return state;
+}
+
+function setGlmApprovalPolicy(policy: ApprovalPolicy): void {
+  getGlmApprovalPolicyState().policy = policy;
+}
+
+function getGlmApprovalPolicy(fallback: ApprovalPolicy): ApprovalPolicy {
+  const current = getGlmApprovalPolicyState().policy;
+  return current === "ask" || current === "auto" || current === "never"
+    ? current
+    : fallback;
+}
+
 const MODEL_SELECTION_ENV_KEYS = [
   "GLM_MODEL",
   "OPENAI_MODEL",
@@ -200,7 +228,7 @@ export function resolveRuntimeModelStrategy(
 
 function wrapSessionWithApprovalPolicy<T extends object>(
   session: T,
-  approvalPolicy: ApprovalPolicy,
+  fallbackApprovalPolicy: ApprovalPolicy,
 ): T {
   return new Proxy(session, {
     get(target, property, receiver) {
@@ -216,7 +244,7 @@ function wrapSessionWithApprovalPolicy<T extends object>(
 
       return (...args: unknown[]) =>
         withScopedEnvironment(
-          buildApprovalPolicyEnvironment(approvalPolicy),
+          buildApprovalPolicyEnvironment(getGlmApprovalPolicy(fallbackApprovalPolicy)),
           async () => bound(...args),
         );
     },
@@ -225,14 +253,14 @@ function wrapSessionWithApprovalPolicy<T extends object>(
 
 function wrapRuntimeWithApprovalPolicy<T extends AgentSessionRuntime>(
   runtime: T,
-  approvalPolicy: ApprovalPolicy,
+  fallbackApprovalPolicy: ApprovalPolicy,
 ): T {
   return new Proxy(runtime, {
     get(target, property, receiver) {
       if (property === "session") {
         return wrapSessionWithApprovalPolicy(
           Reflect.get(target, property, receiver) as typeof target.session,
-          approvalPolicy,
+          fallbackApprovalPolicy,
         );
       }
 
@@ -248,7 +276,7 @@ function wrapRuntimeWithApprovalPolicy<T extends AgentSessionRuntime>(
 
       return (...args: unknown[]) =>
         withScopedEnvironment(
-          buildApprovalPolicyEnvironment(approvalPolicy),
+          buildApprovalPolicyEnvironment(getGlmApprovalPolicy(fallbackApprovalPolicy)),
           async () => bound(...args),
         );
     },
@@ -268,7 +296,7 @@ async function prepareGlmSession(
   return withScopedEnvironment(
     {
       ...buildModelSelectionEnvironment(strategy.selection),
-      ...buildApprovalPolicyEnvironment(options.approvalPolicy),
+      ...buildApprovalPolicyEnvironment(getGlmApprovalPolicy(options.approvalPolicy)),
     },
     async () => {
       const { services, sessionManager } = await createGlmServices(options);
@@ -303,6 +331,8 @@ export function buildSessionOptions(input: GlmSessionInput): GlmSessionOptions {
 export async function createGlmSession(
   input: GlmSessionInput,
 ): Promise<GlmSessionResult> {
+  setGlmApprovalPolicy(input.approvalPolicy);
+
   const options = buildSessionOptions(input);
   const { services, sessionManager, model } = await prepareGlmSession(options, {
     selection: {
@@ -332,6 +362,8 @@ export async function createGlmSession(
 export async function createGlmRuntime(
   input: GlmSessionInput,
 ): Promise<AgentSessionRuntime> {
+  setGlmApprovalPolicy(input.approvalPolicy);
+
   const initialOptions = buildSessionOptions(input);
   let preferredSelection: GlmModelSelection = {
     provider: input.provider,
