@@ -150,3 +150,14 @@ You can set default generation parameters via env vars (applied to provider requ
 - `GLM_MAX_OUTPUT_TOKENS=8192`
 - `GLM_TEMPERATURE=0.2`
 - `GLM_TOP_P=0.9`
+
+## BigModel/z.ai Capabilities
+BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so Pi works out of the box:
+
+- Uses `max_tokens` (BigModel docs) instead of `max_completion_tokens`.
+- Maps Pi "thinking" toggles to BigModel's `thinking: { type: "enabled" | "disabled" }` request format.
+- Enables streaming tool-call argument deltas via `tool_stream: true` when tools are present and `stream: true`.
+
+Optional env knobs:
+- `GLM_CLEAR_THINKING=0|1`: sets `thinking.clear_thinking` when the request includes `thinking`. (`0` is preserved thinking, per BigModel docs.)
+- `GLM_RESPONSE_FORMAT=json_object`: adds `response_format: { type: "json_object" }` to requests (can interfere with tool calling; enable only when you need strict JSON output).
