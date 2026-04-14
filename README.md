@@ -131,3 +131,15 @@ While streaming in interactive mode:
 Token/cost stats:
 - `/stats` (or `/usage`) shows a widget with aggregated token usage (input/output/cache) for the session and current branch.
 - `/stats clear` hides the widget.
+
+## Web Tools
+glm bundles two web-related tools that models can call:
+
+- `web_search`: web search (requires configuration)
+- `web_fetch`: fetch a URL and extract plain text (HTML is stripped)
+
+`web_search` configuration (pick one):
+- Brave Search API: set `BRAVE_API_KEY`
+- SearxNG JSON endpoint: set `GLM_WEB_SEARCH_URL` (example: `https://your-searx-instance/search`)
+
+If you already use MCP for web/search/browsing, you can skip `web_search` and rely on MCP tools instead.
