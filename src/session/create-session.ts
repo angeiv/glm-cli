@@ -9,6 +9,7 @@ import {
 import { syncPackagedResources } from "../app/resource-sync.js";
 import type { ApprovalPolicy } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
+import { isProviderName } from "../providers/types.js";
 import { createGlmServices, createGlmSessionManager } from "./managers.js";
 import { resolveGlmSessionPaths } from "./session-paths.js";
 import { createBuiltinTools, createPlanTools } from "../tools/index.js";
@@ -67,10 +68,6 @@ const RUNTIME_APPROVAL_SCOPED_METHODS = new Set([
   "newSession",
   "switchSession",
 ]);
-
-function normalizeGlmProviderId(provider: string): string {
-  return provider === "glm-official" ? "glm" : provider;
-}
 
 export async function withScopedEnvironment<T>(
   overrides: Partial<NodeJS.ProcessEnv>,
@@ -164,7 +161,7 @@ export function getGlmModelSelection(
   }
 
   return {
-    provider: normalizeGlmProviderId(model.provider),
+    provider: model.provider,
     model: model.id,
   };
 }
@@ -177,36 +174,26 @@ export function resolveRuntimeModelStrategy(
   >,
   sessionStartEvent?: { type: "session_start"; reason: string },
 ): RuntimeModelStrategy {
-  if (!sessionStartEvent) {
-    return {
-      selection: preferred,
-      shouldPassExplicitModel: true,
-    };
+  const reason = sessionStartEvent?.reason;
+  const shouldPinPreferredSelection = !reason || reason === "new" || reason === "resume" || reason === "fork";
+
+  // glm chooses to keep the currently selected model across session switches/resumes.
+  // This avoids surprising behavior when users change credentials/model IDs in a new terminal
+  // and then resume an older session (which may reference an outdated model ID).
+  if (shouldPinPreferredSelection) {
+    return { selection: preferred, shouldPassExplicitModel: true };
   }
 
   const savedModel = sessionManager.buildSessionContext().model;
-  if (savedModel) {
-    const provider = normalizeGlmProviderId(savedModel.provider);
-    return {
-      selection: {
-        provider,
-        model: savedModel.modelId,
-      },
-      // If we had to normalize a legacy provider id, pass explicit model to avoid Pi restoring
-      // a now-unknown provider from session history.
-      shouldPassExplicitModel: provider !== savedModel.provider,
-    };
-  }
-
-  if (sessionStartEvent.reason === "new") {
-    return {
-      selection: preferred,
-      shouldPassExplicitModel: true,
-    };
+  if (!savedModel || !isProviderName(savedModel.provider)) {
+    return { selection: preferred, shouldPassExplicitModel: true };
   }
 
   return {
-    selection: undefined,
+    selection: {
+      provider: savedModel.provider,
+      model: savedModel.modelId,
+    },
     shouldPassExplicitModel: false,
   };
 }

@@ -27,7 +27,7 @@ type AuthLogoutDependencies = {
 };
 
 function toStorageKey(provider: ProviderOptions): StorageProviderKey {
-  return provider === "glm" ? "glmOfficial" : "openAICompatible";
+  return provider;
 }
 
 function createPromptSession(): { prompt: PromptFn; close: () => void } {
@@ -97,6 +97,7 @@ async function runAuthLogin(deps: AuthDependencies): Promise<void> {
   const storageKey = toStorageKey(provider);
 
   config.providers[storageKey] = {
+    ...config.providers[storageKey],
     apiKey: apiKey.trim(),
     baseURL: baseURL.trim() || config.providers[storageKey]?.baseURL || "",
   };
@@ -125,9 +126,9 @@ export async function authStatus(deps?: Partial<AuthStatusDependencies>): Promis
   const log = deps?.log ?? console.log;
   const env = deps?.env ?? process.env;
 
-  log(`glm: ${config.providers.glmOfficial.apiKey.trim() ? "configured" : "missing"}`);
+  log(`glm: ${config.providers.glm.apiKey.trim() ? "configured" : "missing"}`);
   log(
-    `openai-compatible: ${config.providers.openAICompatible.apiKey.trim() ? "configured" : "missing"}`,
+    `openai-compatible: ${config.providers["openai-compatible"].apiKey.trim() ? "configured" : "missing"}`,
   );
   log(`anthropic (env): ${env.ANTHROPIC_AUTH_TOKEN?.trim() ? "configured" : "missing"}`);
 }
@@ -135,12 +136,12 @@ export async function authStatus(deps?: Partial<AuthStatusDependencies>): Promis
 export async function authLogout(deps?: Partial<AuthLogoutDependencies>): Promise<void> {
   const config = await (deps?.readConfigFile ?? readConfigFile)();
 
-  config.providers.glmOfficial = {
-    ...config.providers.glmOfficial,
+  config.providers.glm = {
+    ...config.providers.glm,
     apiKey: "",
   };
-  config.providers.openAICompatible = {
-    ...config.providers.openAICompatible,
+  config.providers["openai-compatible"] = {
+    ...config.providers["openai-compatible"],
     apiKey: "",
   };
 

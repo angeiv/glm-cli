@@ -80,6 +80,17 @@ describe("anthropic provider extension model registration", () => {
     expect(models.filter((model) => model.id === requestedModelId)).toHaveLength(1);
   });
 
+  test("registers provider when ANTHROPIC_MODEL is set even without auth token", () => {
+    const requestedModelId = "ZhipuAI/GLM-5";
+    const anthropic = registerAnthropicProvider({
+      ANTHROPIC_MODEL: requestedModelId,
+    });
+
+    expect(anthropic).toBeDefined();
+    const models = anthropic!.config.models as Array<{ id: string }>;
+    expect(models.some((model) => model.id === requestedModelId)).toBe(true);
+  });
+
   test("keeps built-in GLM metadata when ANTHROPIC_MODEL matches known GLM ids", () => {
     const requestedModelId = "glm-4.5-air";
     const anthropic = registerAnthropicProvider({
@@ -101,5 +112,18 @@ describe("anthropic provider extension model registration", () => {
       reasoning: true,
     });
     expect(models.filter((model) => model.id === requestedModelId)).toHaveLength(1);
+  });
+
+  test("uses a custom api adapter for ModelScope anthropic endpoints", () => {
+    const requestedModelId = "ZhipuAI/GLM-5";
+    const anthropic = registerAnthropicProvider({
+      ANTHROPIC_AUTH_TOKEN: "token",
+      ANTHROPIC_MODEL: requestedModelId,
+      ANTHROPIC_BASE_URL: "https://api-inference.modelscope.cn/",
+    });
+
+    expect(anthropic).toBeDefined();
+    expect(anthropic!.config.api).toBe("anthropic-messages-modelscope");
+    expect(typeof anthropic!.config.streamSimple).toBe("function");
   });
 });

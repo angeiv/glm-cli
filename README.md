@@ -34,9 +34,17 @@ Performs local health checks before you start a session:
 ### Credentials
 Configure provider credentials via environment variables or `~/.glm/config.json`:
 
-- GLM (`--provider glm`): `GLM_API_KEY` (optional: `GLM_BASE_URL`) or config `providers.glmOfficial`
-- OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`) or config `providers.openAICompatible`
+- GLM (`--provider glm`): `GLM_API_KEY` (optional: `GLM_BASE_URL`) or config `providers.glm`
+- OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`) or config `providers["openai-compatible"]`
 - Anthropic compatibility: `ANTHROPIC_AUTH_TOKEN` (optional: `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`) (env only)
+
+Official GLM base URL options (`GLM_BASE_URL` or `providers.glm.baseURL`):
+- BigModel API: `https://open.bigmodel.cn/api/paas/v4/`
+- BigModel Coding Plan: `https://open.bigmodel.cn/api/coding/paas/v4/`
+- z.ai API: `https://api.z.ai/api/paas/v4/`
+- z.ai Coding Plan: `https://api.z.ai/api/coding/paas/v4/`
+
+If you prefer a shorthand preset, set `GLM_ENDPOINT` (or `providers.glm.endpoint`) to one of: `bigmodel`, `bigmodel-coding`, `zai`, `zai-coding`. `GLM_BASE_URL` still takes precedence when set.
 
 Example `~/.glm/config.json`:
 ```json
@@ -45,8 +53,8 @@ Example `~/.glm/config.json`:
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
   "providers": {
-    "glmOfficial": { "apiKey": "your_glm_key", "baseURL": "" },
-    "openAICompatible": { "apiKey": "your_openai_key", "baseURL": "" }
+    "glm": { "apiKey": "your_glm_key", "baseURL": "", "endpoint": "bigmodel-coding" },
+    "openai-compatible": { "apiKey": "your_openai_key", "baseURL": "" }
   }
 }
 ```
@@ -71,4 +79,4 @@ When provider is not explicitly set, runtime provider resolution order is:
 In anthropic compatibility mode, model selection prefers `ANTHROPIC_MODEL`, then `GLM_MODEL`, then config fallback.
 
 ### `--yolo`
-Skip the interactive approval flow (`approvalPolicy` toggles to `never`) while keeping the hard safety policy intact (destructive tool calls are still blocked). The flag applies to the current command invocation only.
+Skip the interactive approval flow (`approvalPolicy` toggles to `never`) for normal tool calls. Dangerous shell commands (for example `rm`) still require explicit confirmation. The flag applies to the current command invocation only.

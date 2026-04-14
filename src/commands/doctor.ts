@@ -51,7 +51,7 @@ async function checkCwd(cwd: string, pathExists: (path: string) => Promise<boole
   };
 }
 
-function hasConfigCredential(config: GlmConfigFile, storageKey: "glmOfficial" | "openAICompatible") {
+function hasConfigCredential(config: GlmConfigFile, storageKey: "glm" | "openai-compatible") {
   const stored = config.providers[storageKey]?.apiKey ?? "";
   return Boolean(stored?.trim());
 }
@@ -69,7 +69,7 @@ function credentialDetails(provider: ProviderName, env: NodeJS.ProcessEnv, confi
     details = ok ? "anthropic auth token detected" : "missing ANTHROPIC_AUTH_TOKEN for anthropic compatibility";
   } else if (provider === "openai-compatible") {
     ok = hasEnvCredential(env, "OPENAI_API_KEY");
-    if (!ok && hasConfigCredential(config, "openAICompatible")) {
+    if (!ok && hasConfigCredential(config, "openai-compatible")) {
       ok = true;
       details = "openai-compatible api key stored in config";
     } else if (ok) {
@@ -79,7 +79,7 @@ function credentialDetails(provider: ProviderName, env: NodeJS.ProcessEnv, confi
     }
   } else {
     ok = hasEnvCredential(env, "GLM_API_KEY");
-    if (!ok && hasConfigCredential(config, "glmOfficial")) {
+    if (!ok && hasConfigCredential(config, "glm")) {
       ok = true;
       details = "glm api key stored in config";
     } else if (ok) {

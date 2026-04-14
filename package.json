@@ -31,7 +31,7 @@
     "test": "vitest --run"
   },
   "dependencies": {
-    "@mariozechner/pi-coding-agent": "^0.66.1",
+    "@mariozechner/pi-coding-agent": "^0.67.1",
     "@sinclair/typebox": "^0.34.41",
     "chalk": "^5.6.2",
     "commander": "^14.0.0",
