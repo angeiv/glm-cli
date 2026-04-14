@@ -23,9 +23,13 @@ test("dangerous bash commands always require explicit confirmation even when app
 
   try {
     const handlers: Record<string, (event: unknown, ctx: unknown) => Promise<unknown>> = {};
+    const commands: Array<{ name: string; handler: unknown }> = [];
     glmPolicyExtension({
       on: (name: string, handler: (event: unknown, ctx: unknown) => Promise<unknown>) => {
         handlers[name] = handler;
+      },
+      registerCommand: (name: string, options: { handler: unknown }) => {
+        commands.push({ name, handler: options.handler });
       },
     } as unknown as Parameters<typeof glmPolicyExtension>[0]);
 

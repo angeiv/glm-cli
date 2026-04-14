@@ -1,6 +1,48 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const COMMAND_SEPARATORS = new Set([";", "&&", "||", "|"]);
+type ApprovalPolicy = "ask" | "auto" | "never";
+const GLM_APPROVAL_POLICY_STATE = Symbol.for("glm.approvalPolicy");
+type GlmApprovalPolicyState = { policy: ApprovalPolicy };
+
+function getGlmApprovalPolicyState(): GlmApprovalPolicyState {
+  const existing = (globalThis as any)[GLM_APPROVAL_POLICY_STATE] as unknown;
+  if (typeof existing === "object" && existing !== null) {
+    const maybe = existing as Partial<GlmApprovalPolicyState>;
+    if (maybe.policy === "ask" || maybe.policy === "auto" || maybe.policy === "never") {
+      return maybe as GlmApprovalPolicyState;
+    }
+  }
+
+  const state: GlmApprovalPolicyState = { policy: "ask" };
+  (globalThis as any)[GLM_APPROVAL_POLICY_STATE] = state;
+  return state;
+}
+
+function normalizeApprovalPolicy(value?: string): ApprovalPolicy | undefined {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "ask" || normalized === "auto" || normalized === "never") {
+    return normalized;
+  }
+  return undefined;
+}
+
+function getCurrentApprovalPolicy(): ApprovalPolicy {
+  // Source of truth: global state shared with the glm CLI runtime.
+  // Env var remains supported as a fallback, but we prefer state so `/approval`
+  // changes persist even when callers temporarily scope GLM_APPROVAL_POLICY.
+  return getGlmApprovalPolicyState().policy ?? normalizeApprovalPolicy(process.env.GLM_APPROVAL_POLICY) ?? "ask";
+}
+
+function setCurrentApprovalPolicy(policy: ApprovalPolicy): void {
+  getGlmApprovalPolicyState().policy = policy;
+  process.env.GLM_APPROVAL_POLICY = policy;
+}
+
+function formatApprovalPolicyHelp(current: ApprovalPolicy): string {
+  return `Current approvalPolicy: ${current}. Usage: /approval <ask|auto|never>`;
+}
+
 const DANGEROUS_BINARIES = new Set([
   // File deletion.
   "rm",
@@ -329,6 +371,49 @@ export function isDangerousCommand(command: string): boolean {
 }
 
 export default function (pi: ExtensionAPI) {
+  const updateApprovalStatus = (policy: ApprovalPolicy, ctx: { ui: { setStatus: (key: string, text: string | undefined) => void } }) => {
+    try {
+      ctx.ui.setStatus("glm.approvalPolicy", `approval: ${policy}`);
+    } catch {
+      // Ignore status update failures in non-interactive modes.
+    }
+  };
+
+  const registerApprovalCommand = (name: string) => {
+    pi.registerCommand(name, {
+      description: "Set approval policy (ask|auto|never) for bash tool confirmations",
+      handler: async (args, ctx) => {
+        const trimmed = args.trim();
+        const current = getCurrentApprovalPolicy();
+
+        if (!trimmed) {
+          ctx.ui.notify(formatApprovalPolicyHelp(current), "info");
+          updateApprovalStatus(current, ctx);
+          return;
+        }
+
+        const next = normalizeApprovalPolicy(trimmed.split(/\s+/)[0]);
+        if (!next) {
+          ctx.ui.notify(formatApprovalPolicyHelp(current), "error");
+          updateApprovalStatus(current, ctx);
+          return;
+        }
+
+        setCurrentApprovalPolicy(next);
+        updateApprovalStatus(next, ctx);
+        ctx.ui.notify(`approvalPolicy set to ${next}`, "info");
+      },
+    });
+  };
+
+  pi.on("session_start", (_event, ctx) => {
+    const current = getCurrentApprovalPolicy();
+    updateApprovalStatus(current, ctx);
+  });
+
+  registerApprovalCommand("approval");
+  registerApprovalCommand("policy");
+
   pi.on("tool_call", async (event, ctx) => {
     if (event.toolName !== "bash") return;
     const command = String(event.input.command ?? "").trim();
@@ -352,7 +437,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    const policy = (process.env.GLM_APPROVAL_POLICY ?? "ask").toLowerCase();
+    const policy = getCurrentApprovalPolicy();
     if (policy === "never") return;
     const sensitive = /\bgit push\b|\bnpm publish\b|\bsudo\b/.test(command);
     if (policy === "auto" && !sensitive) return;
