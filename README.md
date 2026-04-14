@@ -34,8 +34,8 @@ Performs local health checks before you start a session:
 ### Credentials
 Configure provider credentials via environment variables or `~/.glm/config.json`:
 
-- GLM (`--provider glm`): `GLM_API_KEY` (optional: `GLM_BASE_URL`) or config `providers.glmOfficial`
-- OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`) or config `providers.openAICompatible`
+- GLM (`--provider glm`): `GLM_API_KEY` (optional: `GLM_BASE_URL`) or config `providers.glm`
+- OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`) or config `providers["openai-compatible"]`
 - Anthropic compatibility: `ANTHROPIC_AUTH_TOKEN` (optional: `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`) (env only)
 
 Example `~/.glm/config.json`:
@@ -45,8 +45,8 @@ Example `~/.glm/config.json`:
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
   "providers": {
-    "glmOfficial": { "apiKey": "your_glm_key", "baseURL": "" },
-    "openAICompatible": { "apiKey": "your_openai_key", "baseURL": "" }
+    "glm": { "apiKey": "your_glm_key", "baseURL": "" },
+    "openai-compatible": { "apiKey": "your_openai_key", "baseURL": "" }
   }
 }
 ```

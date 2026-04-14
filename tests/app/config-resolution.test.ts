@@ -2,7 +2,6 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { resolveRuntimeConfig } from "../../src/app/env.js";
 import {
   fileSystem,
-  mapStorageKeyToProvider,
   normalizeConfigFile,
   readConfigFile,
 } from "../../src/app/config-store.js";
@@ -19,7 +18,7 @@ describe("resolveRuntimeConfig", () => {
         defaultProvider: "openai-compatible",
         defaultModel: "foo",
         approvalPolicy: "ask",
-        providers: { glmOfficial: { apiKey: "k", baseURL: "" }, openAICompatible: { apiKey: "", baseURL: "" } },
+        providers: { glm: { apiKey: "k", baseURL: "" }, "openai-compatible": { apiKey: "", baseURL: "" } },
       },
     );
 
@@ -38,14 +37,9 @@ describe("config store normalization", () => {
     const first = normalizeConfigFile();
     const second = normalizeConfigFile();
 
-    expect(first.providers.glmOfficial).not.toBe(second.providers.glmOfficial);
-    first.providers.glmOfficial.apiKey = "mutated";
-    expect(second.providers.glmOfficial.apiKey).toBe("");
-  });
-
-  test("mapStorageKeyToProvider returns stable runtime identifiers", () => {
-    expect(mapStorageKeyToProvider("glmOfficial")).toBe("glm");
-    expect(mapStorageKeyToProvider("openAICompatible")).toBe("openai-compatible");
+    expect(first.providers.glm).not.toBe(second.providers.glm);
+    first.providers.glm.apiKey = "mutated";
+    expect(second.providers.glm.apiKey).toBe("");
   });
 
   test("readConfigFile surfaces parse errors instead of silently defaulting", async () => {
@@ -61,23 +55,22 @@ describe("config store normalization", () => {
     const config = await readConfigFile();
     expect(config.defaultProvider).toBe("glm");
     expect(config.defaultModel).toBe("glm-5.1");
-    expect(config.providers.glmOfficial.apiKey).toBe("");
+    expect(config.providers.glm.apiKey).toBe("");
   });
 
-  test("readConfigFile normalizes legacy defaultProvider values", async () => {
+  test("readConfigFile rejects legacy defaultProvider values", async () => {
     const payload = JSON.stringify({
       defaultProvider: "glm-official",
       defaultModel: "glm-5.1",
       approvalPolicy: "ask",
       providers: {
-        glmOfficial: { apiKey: "", baseURL: "" },
-        openAICompatible: { apiKey: "", baseURL: "" },
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
-    const config = await readConfigFile();
-    expect(config.defaultProvider).toBe("glm");
+    await expect(readConfigFile()).rejects.toThrow(/default provider/i);
   });
 
   test("readConfigFile rejects invalid default provider names", async () => {
@@ -85,8 +78,8 @@ describe("config store normalization", () => {
       defaultProvider: "bad-provider",
       approvalPolicy: "ask",
       providers: {
-        glmOfficial: { apiKey: "", baseURL: "" },
-        openAICompatible: { apiKey: "", baseURL: "" },
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
@@ -98,8 +91,8 @@ describe("config store normalization", () => {
       defaultProvider: "anthropic",
       approvalPolicy: "ask",
       providers: {
-        glmOfficial: { apiKey: "", baseURL: "" },
-        openAICompatible: { apiKey: "", baseURL: "" },
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
@@ -112,8 +105,8 @@ describe("config store normalization", () => {
       defaultModel: 123,
       approvalPolicy: "ask",
       providers: {
-        glmOfficial: { apiKey: "", baseURL: "" },
-        openAICompatible: { apiKey: "", baseURL: "" },
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
@@ -125,8 +118,8 @@ describe("config store normalization", () => {
       defaultProvider: "glm",
       approvalPolicy: "oops",
       providers: {
-        glmOfficial: { apiKey: "", baseURL: "" },
-        openAICompatible: { apiKey: "", baseURL: "" },
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
@@ -138,8 +131,8 @@ describe("config store normalization", () => {
       defaultProvider: "glm",
       approvalPolicy: "ask",
       providers: {
-        glmOfficial: { apiKey: 123, baseURL: "https://ok" },
-        openAICompatible: { apiKey: "", baseURL: {} },
+        glm: { apiKey: 123, baseURL: "https://ok" },
+        "openai-compatible": { apiKey: "", baseURL: {} },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
@@ -152,8 +145,8 @@ describe("config store normalization", () => {
       defaultProvider: "glm",
       approvalPolicy: "ask",
       providers: {
-        glmOfficial: { apiKey: "", baseURL: 123 },
-        openAICompatible: { apiKey: "", baseURL: "" },
+        glm: { apiKey: "", baseURL: 123 },
+        "openai-compatible": { apiKey: "", baseURL: "" },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);

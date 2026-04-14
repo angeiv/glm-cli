@@ -18,7 +18,7 @@ describe("authLogin", () => {
     expect(writeConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
         providers: expect.objectContaining({
-          glmOfficial: expect.objectContaining({
+          glm: expect.objectContaining({
             apiKey: "glm-secret",
           }),
         }),
@@ -41,7 +41,7 @@ describe("authLogin", () => {
     expect(writeConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
         providers: expect.objectContaining({
-          openAICompatible: expect.objectContaining({
+          "openai-compatible": expect.objectContaining({
             apiKey: "openai-secret",
             baseURL: "https://gateway.example.com",
           }),
@@ -59,8 +59,8 @@ describe("authStatus", () => {
       readConfigFile: async () => ({
         ...getDefaultConfigFile(),
         providers: {
-          glmOfficial: { apiKey: "glm-secret", baseURL: "" },
-          openAICompatible: { apiKey: "", baseURL: "" },
+          glm: { apiKey: "glm-secret", baseURL: "" },
+          "openai-compatible": { apiKey: "", baseURL: "" },
         },
       }),
       env: { ANTHROPIC_AUTH_TOKEN: "anthropic-token" },
@@ -81,8 +81,8 @@ describe("authLogout", () => {
       readConfigFile: async () => ({
         ...getDefaultConfigFile(),
         providers: {
-          glmOfficial: { apiKey: "glm-secret", baseURL: "https://glm.example.com" },
-          openAICompatible: { apiKey: "openai-secret", baseURL: "https://gateway.example.com" },
+          glm: { apiKey: "glm-secret", baseURL: "https://glm.example.com" },
+          "openai-compatible": { apiKey: "openai-secret", baseURL: "https://gateway.example.com" },
         },
       }),
       writeConfigFile,
@@ -92,11 +92,11 @@ describe("authLogout", () => {
     expect(writeConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
         providers: {
-          glmOfficial: {
+          glm: {
             apiKey: "",
             baseURL: "https://glm.example.com",
           },
-          openAICompatible: {
+          "openai-compatible": {
             apiKey: "",
             baseURL: "https://gateway.example.com",
           },

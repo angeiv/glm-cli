@@ -11,10 +11,5 @@ export function normalizeProviderName(value?: string): ProviderName | undefined 
   const trimmed = value.trim();
   if (!trimmed) return undefined;
 
-  // Backwards compatibility: treat legacy provider name as alias.
-  if (trimmed === "glm-official") {
-    return "glm";
-  }
-
   return isProviderName(trimmed) ? trimmed : undefined;
 }

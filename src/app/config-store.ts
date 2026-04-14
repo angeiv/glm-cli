@@ -12,17 +12,11 @@ export type ProviderConfig = {
   baseURL: string;
 };
 
-export type StorageProviderKey = "glmOfficial" | "openAICompatible";
+export type StorageProviderKey = "glm" | "openai-compatible";
 export type ApprovalPolicy = "ask" | "auto" | "never";
 
-type LegacyPersistedProviderName = "glm-official";
-type PersistedProviderName = "glm" | "openai-compatible";
+type PersistedProviderName = StorageProviderKey;
 const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = ["glm", "openai-compatible"];
-
-const STORAGE_KEY_TO_PROVIDER: Record<StorageProviderKey, PersistedProviderName> = {
-  glmOfficial: "glm",
-  openAICompatible: "openai-compatible",
-};
 
 const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
 
@@ -34,12 +28,12 @@ function createEmptyProviderConfig(): ProviderConfig {
 
 function buildDefaultConfigFile(): GlmConfigFile {
   return {
-    defaultProvider: STORAGE_KEY_TO_PROVIDER.glmOfficial,
+    defaultProvider: "glm",
     defaultModel: "glm-5.1",
     approvalPolicy: "ask",
     providers: {
-      glmOfficial: createEmptyProviderConfig(),
-      openAICompatible: createEmptyProviderConfig(),
+      glm: createEmptyProviderConfig(),
+      "openai-compatible": createEmptyProviderConfig(),
     },
   };
 }
@@ -50,16 +44,6 @@ export type GlmConfigFile = {
   approvalPolicy?: ApprovalPolicy;
   providers: Record<StorageProviderKey, ProviderConfig>;
 };
-
-function normalizePersistedProviderName(value: unknown): PersistedProviderName | undefined {
-  if (value === "glm-official") {
-    return "glm";
-  }
-  if (PERSISTED_PROVIDER_NAMES.includes(value as PersistedProviderName)) {
-    return value as PersistedProviderName;
-  }
-  return undefined;
-}
 
 function cloneProviderConfig(config?: ProviderConfig): ProviderConfig {
   return {
@@ -73,18 +57,18 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
   const defaultProvider =
     rawDefaultProvider === undefined
       ? BASE_DEFAULT_CONFIG_FILE.defaultProvider
-      : normalizePersistedProviderName(rawDefaultProvider) ?? (rawDefaultProvider as PersistedProviderName);
+      : (rawDefaultProvider as PersistedProviderName);
 
   return {
     defaultProvider,
     defaultModel: config?.defaultModel ?? BASE_DEFAULT_CONFIG_FILE.defaultModel,
     approvalPolicy: config?.approvalPolicy ?? BASE_DEFAULT_CONFIG_FILE.approvalPolicy,
     providers: {
-      glmOfficial: cloneProviderConfig(
-        config?.providers?.glmOfficial ?? BASE_DEFAULT_CONFIG_FILE.providers.glmOfficial,
+      glm: cloneProviderConfig(
+        config?.providers?.glm ?? BASE_DEFAULT_CONFIG_FILE.providers.glm,
       ),
-      openAICompatible: cloneProviderConfig(
-        config?.providers?.openAICompatible ?? BASE_DEFAULT_CONFIG_FILE.providers.openAICompatible,
+      "openai-compatible": cloneProviderConfig(
+        config?.providers?.["openai-compatible"] ?? BASE_DEFAULT_CONFIG_FILE.providers["openai-compatible"],
       ),
     },
   };
@@ -92,10 +76,6 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
 
 export function getDefaultConfigFile(): GlmConfigFile {
   return normalizeConfigFile();
-}
-
-export function mapStorageKeyToProvider(key: StorageProviderKey): PersistedProviderName {
-  return STORAGE_KEY_TO_PROVIDER[key];
 }
 
 function isPersistedProviderName(value?: string): value is PersistedProviderName {

@@ -9,8 +9,8 @@ function createConfigFile(overrides: Partial<GlmConfigFile> = {}): GlmConfigFile
     defaultModel: overrides.defaultModel ?? "glm-5",
     approvalPolicy: overrides.approvalPolicy ?? "ask",
     providers: {
-      glmOfficial: { apiKey: "", baseURL: "" },
-      openAICompatible: { apiKey: "", baseURL: "" },
+      glm: { apiKey: "", baseURL: "" },
+      "openai-compatible": { apiKey: "", baseURL: "" },
     },
   };
 }
@@ -78,7 +78,7 @@ describe("resolveRuntimeConfig", () => {
     const runtime = resolveRuntimeConfig(
       {},
       {
-        GLM_PROVIDER: "glm-official",
+        GLM_PROVIDER: "glm",
         ANTHROPIC_AUTH_TOKEN: "token",
         OPENAI_API_KEY: "key",
       },

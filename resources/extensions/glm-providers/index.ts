@@ -177,8 +177,8 @@ type PersistedProviderConfig = {
 type PersistedConfig = {
   defaultModel?: string;
   providers?: {
-    glmOfficial?: PersistedProviderConfig;
-    openAICompatible?: PersistedProviderConfig;
+    glm?: PersistedProviderConfig;
+    "openai-compatible"?: PersistedProviderConfig;
   };
 };
 
@@ -205,8 +205,8 @@ function readPersistedConfig(): PersistedConfig {
         ? (parsed as { defaultModel?: string }).defaultModel
         : undefined,
       providers: {
-        glmOfficial: normalizeProvider(providers?.glmOfficial),
-        openAICompatible: normalizeProvider(providers?.openAICompatible),
+        glm: normalizeProvider(providers?.glm),
+        "openai-compatible": normalizeProvider(providers?.["openai-compatible"]),
       },
     };
   } catch {
@@ -240,7 +240,7 @@ export default function (pi: ExtensionAPI) {
   const glmSettings = resolveProviderSettings({
     envApiKey: process.env.GLM_API_KEY,
     envBaseUrl: process.env.GLM_BASE_URL,
-    persisted: persistedConfig.providers?.glmOfficial,
+    persisted: persistedConfig.providers?.glm,
     defaultBaseUrl: "https://open.bigmodel.cn/api/coding/paas/v4/",
   });
 
@@ -256,7 +256,7 @@ export default function (pi: ExtensionAPI) {
   const openaiSettings = resolveProviderSettings({
     envApiKey: process.env.OPENAI_API_KEY,
     envBaseUrl: process.env.OPENAI_BASE_URL,
-    persisted: persistedConfig.providers?.openAICompatible,
+    persisted: persistedConfig.providers?.["openai-compatible"],
     defaultBaseUrl: "https://api.openai.com/v1",
   });
 

@@ -9,6 +9,7 @@ import {
 import { syncPackagedResources } from "../app/resource-sync.js";
 import type { ApprovalPolicy } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
+import { isProviderName } from "../providers/types.js";
 import { createGlmServices, createGlmSessionManager } from "./managers.js";
 import { resolveGlmSessionPaths } from "./session-paths.js";
 import { createBuiltinTools, createPlanTools } from "../tools/index.js";
@@ -67,10 +68,6 @@ const RUNTIME_APPROVAL_SCOPED_METHODS = new Set([
   "newSession",
   "switchSession",
 ]);
-
-function normalizeGlmProviderId(provider: string): string {
-  return provider === "glm-official" ? "glm" : provider;
-}
 
 export async function withScopedEnvironment<T>(
   overrides: Partial<NodeJS.ProcessEnv>,
@@ -164,7 +161,7 @@ export function getGlmModelSelection(
   }
 
   return {
-    provider: normalizeGlmProviderId(model.provider),
+    provider: model.provider,
     model: model.id,
   };
 }
@@ -186,15 +183,21 @@ export function resolveRuntimeModelStrategy(
 
   const savedModel = sessionManager.buildSessionContext().model;
   if (savedModel) {
-    const provider = normalizeGlmProviderId(savedModel.provider);
+    if (!isProviderName(savedModel.provider)) {
+      // Prefer an explicit supported model when the session references a provider we don't expose.
+      return {
+        selection: preferred,
+        shouldPassExplicitModel: true,
+      };
+    }
+
+    const provider = savedModel.provider;
     return {
       selection: {
         provider,
         model: savedModel.modelId,
       },
-      // If we had to normalize a legacy provider id, pass explicit model to avoid Pi restoring
-      // a now-unknown provider from session history.
-      shouldPassExplicitModel: provider !== savedModel.provider,
+      shouldPassExplicitModel: false,
     };
   }
 

@@ -19,7 +19,7 @@ describe("runDoctor", () => {
       ...baseConfig,
       providers: {
         ...baseConfig.providers,
-        openAICompatible: { apiKey: "openai-key", baseURL: "https://example.com" },
+        "openai-compatible": { apiKey: "openai-key", baseURL: "https://example.com" },
       },
     };
 

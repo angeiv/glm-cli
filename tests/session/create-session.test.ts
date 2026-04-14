@@ -341,16 +341,16 @@ test("runRunCommand restores cwd and approval env after runtime execution", asyn
   });
 
   vi.doMock("../../src/app/config-store.js", () => ({
-    readConfigFile: vi.fn().mockResolvedValue({
-      defaultProvider: "glm",
-      defaultModel: "glm-5",
-      approvalPolicy: "ask",
-      providers: {
-        glmOfficial: { apiKey: "", baseURL: "" },
-        openAICompatible: { apiKey: "", baseURL: "" },
-      },
-    }),
-  }));
+      readConfigFile: vi.fn().mockResolvedValue({
+        defaultProvider: "glm",
+        defaultModel: "glm-5",
+        approvalPolicy: "ask",
+        providers: {
+          glm: { apiKey: "", baseURL: "" },
+          "openai-compatible": { apiKey: "", baseURL: "" },
+        },
+      }),
+    }));
   vi.doMock("../../src/session/create-session.js", async () => {
     const actual = await vi.importActual<typeof import("../../src/session/create-session.js")>(
       "../../src/session/create-session.js",

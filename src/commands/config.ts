@@ -36,9 +36,6 @@ function parseConfigValue(key: ConfigKey, value: string): string {
   }
 
   if (key === "defaultProvider") {
-    if (trimmed === "glm-official") {
-      return "glm";
-    }
     if (trimmed !== "glm" && trimmed !== "openai-compatible") {
       throw new Error("defaultProvider must be glm or openai-compatible");
     }
