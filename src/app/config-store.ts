@@ -10,6 +10,12 @@ export const fileSystem = {
 export type ProviderConfig = {
   apiKey: string;
   baseURL: string;
+  /**
+   * Optional shorthand for selecting one of GLM's official endpoints without
+   * having to specify the full baseURL. This is currently only used for the
+   * `glm` provider by our bundled Pi extension.
+   */
+  endpoint?: string;
 };
 
 export type StorageProviderKey = "glm" | "openai-compatible";
@@ -46,10 +52,27 @@ export type GlmConfigFile = {
 };
 
 function cloneProviderConfig(config?: ProviderConfig): ProviderConfig {
-  return {
+  const base: ProviderConfig = {
     apiKey: config?.apiKey ?? "",
     baseURL: config?.baseURL ?? "",
   };
+
+  const endpointRaw = (config as unknown as { endpoint?: unknown })?.endpoint;
+  if (endpointRaw === undefined) {
+    return base;
+  }
+
+  // Preserve invalid endpoint values so validation can reject them.
+  if (typeof endpointRaw !== "string") {
+    return { ...(base as any), endpoint: endpointRaw } as ProviderConfig;
+  }
+
+  const endpoint = endpointRaw.trim();
+
+  // Keep config JSON tidy by omitting empty endpoint keys.
+  if (!endpoint) return base;
+
+  return { ...base, endpoint };
 }
 
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
@@ -110,6 +133,11 @@ function validateProviderConfig(config: ProviderConfig, key: StorageProviderKey)
   }
   if (typeof config.baseURL !== "string") {
     throw new Error(`Invalid baseURL for provider ${key}: ${typeof config.baseURL}`);
+  }
+
+  const endpoint = (config as unknown as { endpoint?: unknown })?.endpoint;
+  if (endpoint !== undefined && typeof endpoint !== "string") {
+    throw new Error(`Invalid endpoint for provider ${key}: ${typeof endpoint}`);
   }
 }
 

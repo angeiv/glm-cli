@@ -9,6 +9,51 @@ const OPENAI_COMPAT = {
   supportsDeveloperRole: false,
 } as const;
 
+const GLM_BASE_URL_PRESETS = {
+  // BigModel
+  bigmodel: "https://open.bigmodel.cn/api/paas/v4/",
+  "bigmodel-coding": "https://open.bigmodel.cn/api/coding/paas/v4/",
+  // z.ai
+  zai: "https://api.z.ai/api/paas/v4/",
+  "zai-coding": "https://api.z.ai/api/coding/paas/v4/",
+} as const;
+
+type GlmBaseUrlPreset = keyof typeof GLM_BASE_URL_PRESETS;
+
+function normalizeGlmBaseUrlPreset(value?: string): GlmBaseUrlPreset | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  const aliases: Record<string, GlmBaseUrlPreset> = {
+    "bigmodel-api": "bigmodel",
+    "open.bigmodel": "bigmodel",
+    "open.bigmodel.cn": "bigmodel",
+    "bigmodel-coding-plan": "bigmodel-coding",
+
+    "zai-api": "zai",
+    "z.ai": "zai",
+    "api.z.ai": "zai",
+    "zai-coding-plan": "zai-coding",
+  };
+
+  const mapped = aliases[normalized];
+  if (mapped) return mapped;
+
+  return Object.prototype.hasOwnProperty.call(GLM_BASE_URL_PRESETS, normalized)
+    ? (normalized as GlmBaseUrlPreset)
+    : undefined;
+}
+
+function resolveGlmBaseUrlPreset(
+  envPreset?: string,
+  persistedPreset?: string,
+): string | undefined {
+  const preset = normalizeGlmBaseUrlPreset(envPreset) ?? normalizeGlmBaseUrlPreset(persistedPreset);
+  if (!preset) return undefined;
+  return GLM_BASE_URL_PRESETS[preset];
+}
+
 type AnthropicContentBlock =
   | { type: "text"; text: string }
   | {
@@ -666,6 +711,7 @@ export function resolveAnthropicModels(requestedModelId: string) {
 type PersistedProviderConfig = {
   apiKey?: string;
   baseURL?: string;
+  endpoint?: string;
 };
 
 type PersistedConfig = {
@@ -681,8 +727,9 @@ function normalizeProvider(value: unknown): PersistedProviderConfig | undefined 
   const maybe = value as Record<string, unknown>;
   const apiKey = typeof maybe.apiKey === "string" ? maybe.apiKey : undefined;
   const baseURL = typeof maybe.baseURL === "string" ? maybe.baseURL : undefined;
-  if (!apiKey && !baseURL) return undefined;
-  return { apiKey, baseURL };
+  const endpoint = typeof maybe.endpoint === "string" ? maybe.endpoint : undefined;
+  if (!apiKey && !baseURL && !endpoint) return undefined;
+  return { apiKey, baseURL, endpoint };
 }
 
 function readPersistedConfig(): PersistedConfig {
@@ -731,11 +778,15 @@ function resolveConfigDefaultModel(): string | undefined {
 }
 
 export default function (pi: ExtensionAPI) {
+  const glmPresetBaseUrl = resolveGlmBaseUrlPreset(
+    process.env.GLM_ENDPOINT,
+    persistedConfig.providers?.glm?.endpoint,
+  );
   const glmSettings = resolveProviderSettings({
     envApiKey: process.env.GLM_API_KEY,
     envBaseUrl: process.env.GLM_BASE_URL,
     persisted: persistedConfig.providers?.glm,
-    defaultBaseUrl: "https://open.bigmodel.cn/api/coding/paas/v4/",
+    defaultBaseUrl: glmPresetBaseUrl ?? GLM_BASE_URL_PRESETS["bigmodel-coding"],
   });
 
   if (glmSettings.apiKey) {

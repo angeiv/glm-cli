@@ -153,4 +153,18 @@ describe("config store normalization", () => {
 
     await expect(readConfigFile()).rejects.toThrow(/baseURL/i);
   });
+
+  test("readConfigFile rejects non-string endpoint values", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "", endpoint: 123 },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/endpoint/i);
+  });
 });

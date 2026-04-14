@@ -38,6 +38,14 @@ Configure provider credentials via environment variables or `~/.glm/config.json`
 - OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`) or config `providers["openai-compatible"]`
 - Anthropic compatibility: `ANTHROPIC_AUTH_TOKEN` (optional: `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`) (env only)
 
+Official GLM base URL options (`GLM_BASE_URL` or `providers.glm.baseURL`):
+- BigModel API: `https://open.bigmodel.cn/api/paas/v4/`
+- BigModel Coding Plan: `https://open.bigmodel.cn/api/coding/paas/v4/`
+- z.ai API: `https://api.z.ai/api/paas/v4/`
+- z.ai Coding Plan: `https://api.z.ai/api/coding/paas/v4/`
+
+If you prefer a shorthand preset, set `GLM_ENDPOINT` (or `providers.glm.endpoint`) to one of: `bigmodel`, `bigmodel-coding`, `zai`, `zai-coding`. `GLM_BASE_URL` still takes precedence when set.
+
 Example `~/.glm/config.json`:
 ```json
 {
@@ -45,7 +53,7 @@ Example `~/.glm/config.json`:
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
   "providers": {
-    "glm": { "apiKey": "your_glm_key", "baseURL": "" },
+    "glm": { "apiKey": "your_glm_key", "baseURL": "", "endpoint": "bigmodel-coding" },
     "openai-compatible": { "apiKey": "your_openai_key", "baseURL": "" }
   }
 }

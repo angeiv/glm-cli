@@ -97,6 +97,7 @@ async function runAuthLogin(deps: AuthDependencies): Promise<void> {
   const storageKey = toStorageKey(provider);
 
   config.providers[storageKey] = {
+    ...config.providers[storageKey],
     apiKey: apiKey.trim(),
     baseURL: baseURL.trim() || config.providers[storageKey]?.baseURL || "",
   };
