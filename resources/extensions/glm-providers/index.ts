@@ -1,6 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { AssistantMessageEventStream, type Context, type Model, type SimpleStreamOptions } from "@mariozechner/pi-ai";
-import { streamSimpleAnthropic } from "@mariozechner/pi-ai/anthropic";
+import { AssistantMessageEventStream, streamSimple, type Context, type Model, type SimpleStreamOptions } from "@mariozechner/pi-ai";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
@@ -382,7 +381,7 @@ function createStreamFirstModelscopeAnthropicApi() {
       };
 
       try {
-        const primary = streamSimpleAnthropic(model, context, options);
+        const primary = streamSimple({ ...model, api: "anthropic-messages" }, context, options);
 
         for await (const event of primary) {
           if (event.type === "error" && isModelscopeTerminatedErrorMessage(event.error?.errorMessage)) {
