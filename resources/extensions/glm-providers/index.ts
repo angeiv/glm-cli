@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { AssistantMessageEventStream, type Context, type Model, type SimpleStreamOptions } from "@mariozechner/pi-ai";
+import { streamSimpleAnthropic } from "@mariozechner/pi-ai/anthropic";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
@@ -203,6 +204,11 @@ function mapAnthropicStopReason(reason: string | null | undefined): "stop" | "le
   return "stop";
 }
 
+function isModelscopeTerminatedErrorMessage(message: string | undefined): boolean {
+  if (!message) return false;
+  return message.toLowerCase().includes("terminated");
+}
+
 function createNonStreamingModelscopeAnthropicApi() {
   return (model: Model<any>, context: Context, options?: SimpleStreamOptions) => {
     const stream = new AssistantMessageEventStream();
@@ -349,6 +355,147 @@ function createNonStreamingModelscopeAnthropicApi() {
           error: output,
         });
         stream.end();
+      }
+    })();
+
+    return stream;
+  };
+}
+
+function createStreamFirstModelscopeAnthropicApi() {
+  const fallback = createNonStreamingModelscopeAnthropicApi();
+
+  return (model: Model<any>, context: Context, options?: SimpleStreamOptions) => {
+    const stream = new AssistantMessageEventStream();
+
+    (async () => {
+      const buffered: any[] = [];
+      let flushed = false;
+
+      const flush = () => {
+        if (flushed) return;
+        flushed = true;
+        for (const event of buffered) {
+          stream.push(event);
+        }
+        buffered.length = 0;
+      };
+
+      try {
+        const primary = streamSimpleAnthropic(model, context, options);
+
+        for await (const event of primary) {
+          if (event.type === "error" && isModelscopeTerminatedErrorMessage(event.error?.errorMessage)) {
+            if (options?.signal?.aborted) {
+              stream.push(event as any);
+              stream.end(event.error as any);
+              return;
+            }
+
+            const fallbackStream = fallback(model, context, options);
+
+            if (!flushed) {
+              // If the stream aborted before any meaningful output, fall back to a non-streaming request
+              // without showing Pi's retry UI.
+              for await (const fallbackEvent of fallbackStream) {
+                stream.push(fallbackEvent as any);
+              }
+              stream.end(await fallbackStream.result());
+              return;
+            }
+
+            // We already emitted partial output; finish the message with a non-streaming request.
+            const final = await fallbackStream.result();
+            if (final.stopReason === "error" || final.stopReason === "aborted") {
+              stream.push({ type: "error", reason: final.stopReason, error: final });
+            } else {
+              stream.push({ type: "done", reason: final.stopReason, message: final });
+            }
+            stream.end(final as any);
+            return;
+          }
+
+          if (event.type === "error" && !flushed) {
+            // Hide the buffered "start" event for early failures (e.g. invalid auth).
+            stream.push(event as any);
+            stream.end(event.error as any);
+            return;
+          }
+
+          if (!flushed) {
+            buffered.push(event as any);
+
+            // Don't emit a start event until we see actual output. ModelScope sometimes terminates
+            // streaming connections early (undici "terminated"), and delaying avoids Pi's retry UI.
+            if (
+              event.type === "text_delta" ||
+              event.type === "thinking_delta" ||
+              event.type === "toolcall_delta" ||
+              event.type === "toolcall_start" ||
+              event.type === "done"
+            ) {
+              flush();
+            }
+
+            // Keep buffering until flush.
+            continue;
+          }
+
+          stream.push(event as any);
+        }
+
+        if (!flushed) {
+          flush();
+        }
+
+        stream.end(await primary.result());
+      } catch (error) {
+        // Defensive: If anything goes wrong before we emitted output, fall back to non-streaming.
+        const message = error instanceof Error ? error.message : String(error);
+        const stopReason = options?.signal?.aborted ? "aborted" : "error";
+
+        if (isModelscopeTerminatedErrorMessage(message) && !options?.signal?.aborted) {
+          const fallbackStream = fallback(model, context, options);
+
+          if (!flushed) {
+            for await (const fallbackEvent of fallbackStream) {
+              stream.push(fallbackEvent as any);
+            }
+            stream.end(await fallbackStream.result());
+            return;
+          }
+
+          const final = await fallbackStream.result();
+          if (final.stopReason === "error" || final.stopReason === "aborted") {
+            stream.push({ type: "error", reason: final.stopReason, error: final });
+          } else {
+            stream.push({ type: "done", reason: final.stopReason, message: final });
+          }
+          stream.end(final as any);
+          return;
+        }
+
+        const output = {
+          role: "assistant" as const,
+          content: [] as Array<any>,
+          api: model.api,
+          provider: model.provider,
+          model: model.id,
+          usage: {
+            input: 0,
+            output: 0,
+            cacheRead: 0,
+            cacheWrite: 0,
+            totalTokens: 0,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+          },
+          stopReason,
+          errorMessage: message,
+          timestamp: Date.now(),
+        };
+
+        stream.push({ type: "error", reason: stopReason, error: output });
+        stream.end(output);
       }
     })();
 
@@ -637,10 +784,11 @@ export default function (pi: ExtensionAPI) {
     pi.registerProvider("anthropic", {
       baseUrl,
       apiKey: "ANTHROPIC_AUTH_TOKEN",
-      // ModelScope's Anthropic-compatible endpoint aborts streaming responses (undici "terminated").
-      // Use a non-streaming implementation to keep the agent usable and surface HTTP errors.
+      // ModelScope's Anthropic-compatible endpoint supports streaming, but sometimes aborts
+      // connections early (undici "terminated"). Prefer streaming and automatically fall back
+      // to a non-streaming request to surface real HTTP errors without Pi's retry UI.
       api: isModelscope ? "anthropic-messages-modelscope" : "anthropic-messages",
-      ...(isModelscope ? { streamSimple: createNonStreamingModelscopeAnthropicApi() } : {}),
+      ...(isModelscope ? { streamSimple: createStreamFirstModelscopeAnthropicApi() } : {}),
       models: resolveAnthropicModels(anthropicModelId),
     });
   }

@@ -114,7 +114,7 @@ describe("anthropic provider extension model registration", () => {
     expect(models.filter((model) => model.id === requestedModelId)).toHaveLength(1);
   });
 
-  test("uses a non-streaming api adapter for ModelScope anthropic endpoints", () => {
+  test("uses a custom api adapter for ModelScope anthropic endpoints", () => {
     const requestedModelId = "ZhipuAI/GLM-5";
     const anthropic = registerAnthropicProvider({
       ANTHROPIC_AUTH_TOKEN: "token",
