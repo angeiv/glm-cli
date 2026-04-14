@@ -7,6 +7,7 @@ import {
   SettingsManager,
 } from "@mariozechner/pi-coding-agent";
 import type { ProviderName } from "../providers/types.js";
+import { readConfigFile } from "../app/config-store.js";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -96,6 +97,23 @@ export async function createGlmServices(
   input: CreateGlmManagersInput,
 ): Promise<GlmServices> {
   const managers = createGlmManagers(input);
+  const config = await readConfigFile();
+  const glmApiKey = (process.env.GLM_API_KEY ?? config.providers.glm.apiKey ?? "").trim();
+  const openAiCompatApiKey = (process.env.OPENAI_API_KEY ?? config.providers["openai-compatible"].apiKey ?? "").trim();
+  const anthropicApiKey = (process.env.ANTHROPIC_AUTH_TOKEN ?? "").trim();
+
+  // Make env/config credentials take precedence over any stale ~/.glm/agent/auth.json entries.
+  // This is important when resuming older sessions from a new terminal with updated credentials.
+  if (glmApiKey) {
+    managers.authStorage.setRuntimeApiKey("glm", glmApiKey);
+  }
+  if (openAiCompatApiKey) {
+    managers.authStorage.setRuntimeApiKey("openai-compatible", openAiCompatApiKey);
+  }
+  if (anthropicApiKey) {
+    managers.authStorage.setRuntimeApiKey("anthropic", anthropicApiKey);
+  }
+
   const services = await createAgentSessionServices({
     cwd: input.cwd,
     agentDir: input.agentDir,
