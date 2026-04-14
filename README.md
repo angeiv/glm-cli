@@ -10,9 +10,10 @@ command: `glm`
 
 ## Installing
 ```
-npm install
+corepack enable
+pnpm install
 ```
-This sets up the dependencies and prepares the CLI entrypoint so `npm run build` can create `dist/loader.js`.
+This sets up the dependencies and prepares the CLI entrypoint so `pnpm run build` can create `dist/loader.js`.
 
 ## Usage
 ### `glm`
