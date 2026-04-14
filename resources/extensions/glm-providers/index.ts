@@ -3,7 +3,12 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
 
-const glmModels = [
+const OPENAI_COMPAT = {
+  // Many OpenAI-compatible servers reject the newer "developer" role.
+  supportsDeveloperRole: false,
+} as const;
+
+const glmBaseModels = [
   {
     id: "glm-5.1",
     name: "GLM 5.1",
@@ -114,6 +119,11 @@ const glmModels = [
   },
 ];
 
+const glmModels = glmBaseModels.map((model) => ({
+  ...model,
+  compat: OPENAI_COMPAT,
+}));
+
 function normalizeBigModelModelId(value: string): string {
   const trimmed = value.trim();
   if (trimmed.toLowerCase().startsWith("glm-")) {
@@ -140,6 +150,7 @@ function buildCustomModelDefinition(modelId: string) {
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 128_000,
     maxTokens: 8_192,
+    compat: OPENAI_COMPAT,
   };
 }
 
