@@ -80,6 +80,17 @@ describe("anthropic provider extension model registration", () => {
     expect(models.filter((model) => model.id === requestedModelId)).toHaveLength(1);
   });
 
+  test("registers provider when ANTHROPIC_MODEL is set even without auth token", () => {
+    const requestedModelId = "ZhipuAI/GLM-5";
+    const anthropic = registerAnthropicProvider({
+      ANTHROPIC_MODEL: requestedModelId,
+    });
+
+    expect(anthropic).toBeDefined();
+    const models = anthropic!.config.models as Array<{ id: string }>;
+    expect(models.some((model) => model.id === requestedModelId)).toBe(true);
+  });
+
   test("keeps built-in GLM metadata when ANTHROPIC_MODEL matches known GLM ids", () => {
     const requestedModelId = "glm-4.5-air";
     const anthropic = registerAnthropicProvider({

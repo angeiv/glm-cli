@@ -276,7 +276,7 @@ export default function (pi: ExtensionAPI) {
     });
   }
 
-  if (process.env.ANTHROPIC_AUTH_TOKEN) {
+  if (process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_MODEL || process.env.ANTHROPIC_BASE_URL) {
     const anthropicModelId = resolveModelId(
       process.env.ANTHROPIC_MODEL,
       process.env.GLM_MODEL,
