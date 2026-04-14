@@ -9,6 +9,24 @@ const OPENAI_COMPAT = {
   supportsDeveloperRole: false,
 } as const;
 
+const ZHIPU_OPENAI_COMPAT = {
+  // BigModel / z.ai OpenAI-compatible endpoints are close to OpenAI Chat Completions, but
+  // differ in a few fields (tokens/thinking/streaming-tool).
+  supportsDeveloperRole: false,
+  supportsStore: false,
+  supportsUsageInStreaming: false,
+  supportsStrictMode: false,
+  supportsReasoningEffort: false,
+  maxTokensField: "max_tokens",
+  thinkingFormat: "zai",
+  zaiToolStream: true,
+} as const;
+
+function isZhipuOpenAiCompatBaseUrl(baseUrl: string): boolean {
+  const normalized = baseUrl.trim().toLowerCase();
+  return normalized.includes("open.bigmodel.cn") || normalized.includes("api.z.ai");
+}
+
 const GLM_BASE_URL_PRESETS = {
   // BigModel
   bigmodel: "https://open.bigmodel.cn/api/paas/v4/",
@@ -660,7 +678,7 @@ const glmBaseModels = [
 
 const glmModels = glmBaseModels.map((model) => ({
   ...model,
-  compat: OPENAI_COMPAT,
+  compat: ZHIPU_OPENAI_COMPAT,
 }));
 
 function normalizeBigModelModelId(value: string): string {
@@ -680,7 +698,7 @@ function resolveModelId(...candidates: Array<string | undefined>): string | unde
   return undefined;
 }
 
-function buildCustomModelDefinition(modelId: string) {
+function buildCustomModelDefinition(modelId: string, compat: typeof OPENAI_COMPAT = OPENAI_COMPAT) {
   return {
     id: modelId,
     name: modelId,
@@ -689,12 +707,14 @@ function buildCustomModelDefinition(modelId: string) {
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 128_000,
     maxTokens: 8_192,
-    compat: OPENAI_COMPAT,
+    compat,
   };
 }
 
-function resolveModelDefinition(modelId: string) {
-  return glmModels.find((model) => model.id === modelId) ?? buildCustomModelDefinition(modelId);
+function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string) {
+  const compat = isZhipuOpenAiCompatBaseUrl(baseUrl) ? ZHIPU_OPENAI_COMPAT : OPENAI_COMPAT;
+  const base = glmBaseModels.find((model) => model.id === modelId);
+  return base ? { ...base, compat } : buildCustomModelDefinition(modelId, compat);
 }
 
 export function resolveAnthropicModels(requestedModelId: string) {
@@ -816,7 +836,7 @@ export default function (pi: ExtensionAPI) {
       apiKey: openaiSettings.apiKey,
       api: "openai-completions",
       models: [
-        resolveModelDefinition(openaiModelId),
+        resolveOpenAiCompatibleModelDefinition(openaiModelId, openaiSettings.baseUrl),
       ],
     });
   }
