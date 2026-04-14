@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@mariozechner/pi-ai':
+        specifier: ^0.67.1
+        version: 0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
       '@mariozechner/pi-coding-agent':
         specifier: ^0.67.1
         version: 0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
