@@ -174,42 +174,26 @@ export function resolveRuntimeModelStrategy(
   >,
   sessionStartEvent?: { type: "session_start"; reason: string },
 ): RuntimeModelStrategy {
-  if (!sessionStartEvent) {
-    return {
-      selection: preferred,
-      shouldPassExplicitModel: true,
-    };
+  const reason = sessionStartEvent?.reason;
+  const shouldPinPreferredSelection = !reason || reason === "new" || reason === "resume" || reason === "fork";
+
+  // glm chooses to keep the currently selected model across session switches/resumes.
+  // This avoids surprising behavior when users change credentials/model IDs in a new terminal
+  // and then resume an older session (which may reference an outdated model ID).
+  if (shouldPinPreferredSelection) {
+    return { selection: preferred, shouldPassExplicitModel: true };
   }
 
   const savedModel = sessionManager.buildSessionContext().model;
-  if (savedModel) {
-    if (!isProviderName(savedModel.provider)) {
-      // Prefer an explicit supported model when the session references a provider we don't expose.
-      return {
-        selection: preferred,
-        shouldPassExplicitModel: true,
-      };
-    }
-
-    const provider = savedModel.provider;
-    return {
-      selection: {
-        provider,
-        model: savedModel.modelId,
-      },
-      shouldPassExplicitModel: false,
-    };
-  }
-
-  if (sessionStartEvent.reason === "new") {
-    return {
-      selection: preferred,
-      shouldPassExplicitModel: true,
-    };
+  if (!savedModel || !isProviderName(savedModel.provider)) {
+    return { selection: preferred, shouldPassExplicitModel: true };
   }
 
   return {
-    selection: undefined,
+    selection: {
+      provider: savedModel.provider,
+      model: savedModel.modelId,
+    },
     shouldPassExplicitModel: false,
   };
 }

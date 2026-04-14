@@ -228,7 +228,7 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
   expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
 });
 
-test("runtime model strategy preserves selection for initial/new sessions but defers to saved resume state", async () => {
+test("runtime model strategy keeps preferred selection across resumes", async () => {
   const { getGlmModelSelection, resolveRuntimeModelStrategy } = await import("../../src/session/create-session.js");
 
   const initial = resolveRuntimeModelStrategy(
@@ -281,9 +281,9 @@ test("runtime model strategy preserves selection for initial/new sessions but de
 
   expect(resumed.selection).toEqual({
     provider: "openai-compatible",
-    model: "saved-session-model",
+    model: "glm-openai-test",
   });
-  expect(resumed.shouldPassExplicitModel).toBe(false);
+  expect(resumed.shouldPassExplicitModel).toBe(true);
 
   const freshNewSession = resolveRuntimeModelStrategy(
     currentBuiltInSelection!,
@@ -318,8 +318,11 @@ test("runtime model strategy preserves selection for initial/new sessions but de
     { type: "session_start", reason: "resume" },
   );
 
-  expect(emptyResume.selection).toBeUndefined();
-  expect(emptyResume.shouldPassExplicitModel).toBe(false);
+  expect(emptyResume.selection).toEqual({
+    provider: "openai-compatible",
+    model: "glm-openai-test",
+  });
+  expect(emptyResume.shouldPassExplicitModel).toBe(true);
 });
 
 test("runRunCommand restores cwd and approval env after runtime execution", async () => {
