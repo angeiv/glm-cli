@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { afterEach, describe, expect, test } from "vitest";
-import registerGlmProviders from "../../resources/extensions/glm-providers/index.js";
+import registerGlmProviders from "../../resources/extensions/glm-providers/index.ts";
 
 const trackedEnvKeys = [
   "GLM_API_KEY",

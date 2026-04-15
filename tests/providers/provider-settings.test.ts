@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { resolveProviderSettings } from "../../resources/extensions/glm-providers/index.js";
+import { resolveProviderSettings } from "../../resources/extensions/glm-providers/index.ts";
 
 describe("resolveProviderSettings", () => {
   test("prefers env api key over persisted and trims whitespace", () => {
