@@ -57,6 +57,17 @@ Example `~/.glm/config.json`:
   "defaultProvider": "glm",
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
+  "generation": {
+    "maxOutputTokens": 8192,
+    "temperature": 0.2,
+    "topP": 0.9
+  },
+  "glmCapabilities": {
+    "thinkingMode": "enabled",
+    "clearThinking": false,
+    "toolStream": "on",
+    "responseFormat": "json_object"
+  },
   "providers": {
     "glm": { "apiKey": "your_glm_key", "baseURL": "", "endpoint": "bigmodel-coding" },
     "openai-compatible": { "apiKey": "your_openai_key", "baseURL": "" }
@@ -69,9 +80,31 @@ Reads one supported config key and prints its value. Supported keys:
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
+- `glmEndpoint`
+- `maxOutputTokens`
+- `temperature`
+- `topP`
+- `thinkingMode`
+- `clearThinking`
+- `toolStream`
+- `responseFormat`
 
 ### `glm config set <key> <value>`
-Writes one supported config key (`defaultProvider`, `defaultModel`, or `approvalPolicy`) to `~/.glm/config.json`.
+Writes supported config keys to `~/.glm/config.json`.
+
+Common examples:
+- `glm config set glmEndpoint bigmodel-coding`
+- `glm config set maxOutputTokens 8192`
+- `glm config set thinkingMode enabled`
+- `glm config set clearThinking false`
+- `glm config set toolStream on`
+- `glm config set responseFormat json_object`
+
+Optional fields can be cleared with `unset`:
+- `glm config set glmEndpoint unset`
+- `glm config set maxOutputTokens unset`
+- `glm config set clearThinking unset`
+- `glm config set responseFormat unset`
 
 ### Anthropic compatibility
 When provider is not explicitly set, runtime provider resolution order is:
@@ -213,13 +246,28 @@ You can set default generation parameters via env vars (applied to provider requ
 - `GLM_TEMPERATURE=0.2`
 - `GLM_TOP_P=0.9`
 
+Equivalent config file keys:
+- `generation.maxOutputTokens`
+- `generation.temperature`
+- `generation.topP`
+
 ## BigModel/z.ai Capabilities
 BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so Pi works out of the box:
 
 - Uses `max_tokens` (BigModel docs) instead of `max_completion_tokens`.
 - Maps Pi "thinking" toggles to BigModel's `thinking: { type: "enabled" | "disabled" }` request format.
-- Enables streaming tool-call argument deltas via `tool_stream: true` when tools are present and `stream: true`.
+- Supports forcing `thinking` on/off via `thinkingMode`, even when Pi does not emit a toggle.
+- Can explicitly control `tool_stream` via `toolStream` when tools are present and `stream: true`.
+- Supports structured JSON output via `responseFormat=json_object`.
 
 Optional env knobs:
+- `GLM_THINKING_MODE=auto|enabled|disabled`
 - `GLM_CLEAR_THINKING=0|1`: sets `thinking.clear_thinking` when the request includes `thinking`. (`0` is preserved thinking, per BigModel docs.)
+- `GLM_TOOL_STREAM=auto|on|off`
 - `GLM_RESPONSE_FORMAT=json_object`: adds `response_format: { type: "json_object" }` to requests (can interfere with tool calling; enable only when you need strict JSON output).
+
+Equivalent config file keys:
+- `glmCapabilities.thinkingMode`
+- `glmCapabilities.clearThinking`
+- `glmCapabilities.toolStream`
+- `glmCapabilities.responseFormat`

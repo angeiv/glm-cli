@@ -1,5 +1,5 @@
 import { readConfigFile } from "../app/config-store.js";
-import { resolveRuntimeConfig } from "../app/env.js";
+import { buildCapabilityEnvironment, resolveRuntimeConfig } from "../app/env.js";
 import type { ProviderName } from "../providers/types.js";
 import { runSingleTask } from "../runtime/run-runtime.js";
 import {
@@ -31,6 +31,7 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
   return withPreservedProcessCwd(async () =>
     withScopedEnvironment(
       {
+        ...buildCapabilityEnvironment(process.env, fileConfig),
         GLM_APPROVAL_POLICY: runtimeConfig.approvalPolicy,
         // Default to skipping Pi's npm version check for the embedded SDK. Users can opt back in
         // by setting PI_SKIP_VERSION_CHECK to an empty string before launching glm.

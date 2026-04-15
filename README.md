@@ -57,6 +57,17 @@ pnpm install
   "defaultProvider": "glm",
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
+  "generation": {
+    "maxOutputTokens": 8192,
+    "temperature": 0.2,
+    "topP": 0.9
+  },
+  "glmCapabilities": {
+    "thinkingMode": "enabled",
+    "clearThinking": false,
+    "toolStream": "on",
+    "responseFormat": "json_object"
+  },
   "providers": {
     "glm": { "apiKey": "your_glm_key", "baseURL": "", "endpoint": "bigmodel-coding" },
     "openai-compatible": { "apiKey": "your_openai_key", "baseURL": "" }
@@ -69,9 +80,31 @@ pnpm install
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
+- `glmEndpoint`
+- `maxOutputTokens`
+- `temperature`
+- `topP`
+- `thinkingMode`
+- `clearThinking`
+- `toolStream`
+- `responseFormat`
 
 ### `glm config set <key> <value>`
-将一个受支持的配置项（`defaultProvider`、`defaultModel` 或 `approvalPolicy`）写入 `~/.glm/config.json`。
+将受支持的配置项写入 `~/.glm/config.json`。
+
+常用示例：
+- `glm config set glmEndpoint bigmodel-coding`
+- `glm config set maxOutputTokens 8192`
+- `glm config set thinkingMode enabled`
+- `glm config set clearThinking false`
+- `glm config set toolStream on`
+- `glm config set responseFormat json_object`
+
+可清空的可选项支持使用 `unset`：
+- `glm config set glmEndpoint unset`
+- `glm config set maxOutputTokens unset`
+- `glm config set clearThinking unset`
+- `glm config set responseFormat unset`
 
 ### Anthropic 兼容模式
 当未显式指定 provider 时，运行时会按以下顺序决定 provider：
@@ -213,13 +246,28 @@ glm 内置了两个可被模型调用的 web 相关工具：
 - `GLM_TEMPERATURE=0.2`
 - `GLM_TOP_P=0.9`
 
+对应配置文件键：
+- `generation.maxOutputTokens`
+- `generation.temperature`
+- `generation.topP`
+
 ## BigModel / z.ai 能力适配
 BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions API 存在一些差异。`glm` 已在请求发送前进行补丁处理，以便 Pi 可以直接工作：
 
 - 使用 `max_tokens`（BigModel 文档格式），而不是 `max_completion_tokens`
 - 将 Pi 的 thinking 开关映射为 BigModel 的 `thinking: { type: "enabled" | "disabled" }`
-- 当请求包含 tools 且 `stream: true` 时，启用 `tool_stream: true` 以获得工具参数的流式增量输出
+- 支持通过 `thinkingMode` 强制开启/关闭 thinking，而不依赖 Pi 默认开关
+- 当请求包含 tools 且 `stream: true` 时，可通过 `toolStream` 显式控制 `tool_stream`
+- 支持通过 `responseFormat=json_object` 启用结构化 JSON 输出
 
 可选环境变量：
+- `GLM_THINKING_MODE=auto|enabled|disabled`
 - `GLM_CLEAR_THINKING=0|1`：当请求中包含 `thinking` 时，设置 `thinking.clear_thinking`（按 BigModel 文档，`0` 表示 preserved thinking）
+- `GLM_TOOL_STREAM=auto|on|off`
 - `GLM_RESPONSE_FORMAT=json_object`：为请求添加 `response_format: { type: "json_object" }`（可能与 tool calling 互相影响，仅在确实需要严格 JSON 输出时启用）
+
+对应配置文件键：
+- `glmCapabilities.thinkingMode`
+- `glmCapabilities.clearThinking`
+- `glmCapabilities.toolStream`
+- `glmCapabilities.responseFormat`
