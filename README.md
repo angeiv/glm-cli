@@ -84,3 +84,80 @@ Skip the interactive approval flow (`approvalPolicy` toggles to `never`) for nor
 
 In interactive mode, you can also switch the policy on the fly:
 - `/approval ask|auto|never` (alias: `/policy`)
+
+## MCP (Model Context Protocol)
+glm can load MCP servers from a config file and expose their tools to the agent.
+
+### Config file
+Default path: `~/.glm/mcp.json`  
+Override: `GLM_MCP_CONFIG=/absolute/or/~/path/to/mcp.json`  
+Disable: `GLM_MCP_DISABLED=1`
+
+Supported format (compatible with common MCP clients):
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "npx",
+      "args": ["-y", "some-mcp-server-package"],
+      "env": {
+        "SOME_API_KEY": "..."
+      }
+    }
+  }
+}
+```
+
+### Tool names
+MCP tools are registered with a stable namespaced name:
+`mcp__<server>__<tool>`
+
+Example: server `"brave-search"` tool `"web_search"` becomes `mcp__brave-search__web_search` (normalized to lowercase/underscores).
+
+### Interactive usage
+- `/mcp` shows which MCP servers were loaded.
+- `/mcp reload` reloads extensions (use after editing `mcp.json`).
+
+## Pi Settings (Model/Runtime Basics)
+glm embeds Pi and uses Pi's settings files for many runtime behaviors (compaction, retry, steering modes, etc):
+
+- Global: `~/.glm/agent/settings.json`
+- Per-project: `<project>/.glm/settings.json`
+
+While streaming in interactive mode:
+- `Enter` sends a steering message (`steer`) into the current generation.
+- `Alt+Enter` queues a follow-up message (`followUp`) for the next turn.
+
+Token/cost stats:
+- `/stats` (or `/usage`) shows a widget with aggregated token usage (input/output/cache) for the session and current branch.
+- `/stats clear` hides the widget.
+
+## Web Tools
+glm bundles two web-related tools that models can call:
+
+- `web_search`: web search (requires configuration)
+- `web_fetch`: fetch a URL and extract plain text (HTML is stripped)
+
+`web_search` configuration (pick one):
+- Brave Search API: set `BRAVE_API_KEY`
+- SearxNG JSON endpoint: set `GLM_WEB_SEARCH_URL` (example: `https://your-searx-instance/search`)
+
+If you already use MCP for web/search/browsing, you can skip `web_search` and rely on MCP tools instead.
+
+## Generation Overrides (Env)
+You can set default generation parameters via env vars (applied to provider request payloads):
+
+- `GLM_MAX_OUTPUT_TOKENS=8192`
+- `GLM_TEMPERATURE=0.2`
+- `GLM_TOP_P=0.9`
+
+## BigModel/z.ai Capabilities
+BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so Pi works out of the box:
+
+- Uses `max_tokens` (BigModel docs) instead of `max_completion_tokens`.
+- Maps Pi "thinking" toggles to BigModel's `thinking: { type: "enabled" | "disabled" }` request format.
+- Enables streaming tool-call argument deltas via `tool_stream: true` when tools are present and `stream: true`.
+
+Optional env knobs:
+- `GLM_CLEAR_THINKING=0|1`: sets `thinking.clear_thinking` when the request includes `thinking`. (`0` is preserved thinking, per BigModel docs.)
+- `GLM_RESPONSE_FORMAT=json_object`: adds `response_format: { type: "json_object" }` to requests (can interfere with tool calling; enable only when you need strict JSON output).
