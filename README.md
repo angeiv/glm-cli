@@ -1,53 +1,57 @@
+<p align="right">
+  <a href="./README.en.md" aria-label="Switch to English version of this README">English</a> | <strong>中文</strong>
+</p>
+
 # glm-cli
 
-Agent CLI for GLM.
+GLM 的 Agent CLI。
 
-npm package: `@angeiv/glm`  
-command: `glm`
+npm 包名：`@angeiv/glm`  
+命令：`glm`
 
-## Requirements
-- Node.js 22 or newer (required by the embedded Pi SDK and native ECMAScript module usage)
+## 环境要求
+- Node.js 22 或更高版本（内置的 Pi SDK 与原生 ESM 运行方式要求）
 
-## Installing
+## 安装
 ```
 corepack enable
 pnpm install
 ```
-This sets up the dependencies and prepares the CLI entrypoint so `pnpm run build` can create `dist/loader.js`.
+这会安装依赖并准备 CLI 入口，随后可通过 `pnpm run build` 生成 `dist/loader.js`。
 
-## Usage
+## 使用方式
 ### `glm`
-Runs the default interactive chat session. The CLI bootstraps product directories under `~/.glm`, syncs the packaged prompts/tools, and starts Pi in interactive mode. You can add runtime flags like `--provider`, `--model`, `--cwd`, or `--yolo` to adjust the session.
+启动默认的交互式会话。CLI 会在 `~/.glm` 下初始化产品目录、同步内置 prompts 和 tools，并以 Pi 的交互模式启动。你也可以追加 `--provider`、`--model`、`--cwd`、`--yolo` 等运行参数。
 
 ### `glm chat [path]`
-Starts interactive chat and optionally uses `[path]` as the working directory for that session.
+启动交互式聊天，并可选地将 `[path]` 作为本次会话的工作目录。
 
 ### `glm run "<task>" [path]`
-Executes a single task through Pi's `runPrintMode`. Wrap the task description in quotes if it contains spaces. Global flags such as `--provider`, `--model`, `--cwd`, and `--yolo` behave the same as in the interactive mode.
+通过 Pi 的 `runPrintMode` 执行单次任务。如果任务描述包含空格，请用引号包裹。`--provider`、`--model`、`--cwd`、`--yolo` 等全局参数与交互模式保持一致。
 
 ### `glm doctor`
-Performs local health checks before you start a session:
+在启动会话前执行本地健康检查：
 
-- Validates the current working directory is accessible.
-- Verifies credentials for the effective provider only (glm, openai-compatible, or anthropic compatibility mode).
-- Reports whether `~/.glm/agent/prompts/system.md` is already synced; missing resources are reported as "will sync on first run" instead of failing because the main CLI populates them automatically.
+- 校验当前工作目录是否可访问。
+- 仅检查当前生效 provider 的凭据（`glm`、`openai-compatible`、`anthropic` 兼容模式）。
+- 检查 `~/.glm/agent/prompts/system.md` 是否已经同步；若尚未同步，会报告为“首次运行时将自动同步”，而不是直接报错。
 
-### Credentials
-Configure provider credentials via environment variables or `~/.glm/config.json`:
+### 凭据配置
+可通过环境变量或 `~/.glm/config.json` 配置 provider 凭据：
 
-- GLM (`--provider glm`): `GLM_API_KEY` (optional: `GLM_BASE_URL`) or config `providers.glm`
-- OpenAI compatible: `OPENAI_API_KEY` (optional: `OPENAI_BASE_URL`, `OPENAI_MODEL`) or config `providers["openai-compatible"]`
-- Anthropic compatibility: `ANTHROPIC_AUTH_TOKEN` (optional: `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`) (env only)
+- GLM（`--provider glm`）：`GLM_API_KEY`（可选：`GLM_BASE_URL`）或配置文件中的 `providers.glm`
+- OpenAI Compatible：`OPENAI_API_KEY`（可选：`OPENAI_BASE_URL`、`OPENAI_MODEL`）或配置文件中的 `providers["openai-compatible"]`
+- Anthropic Compatible：`ANTHROPIC_AUTH_TOKEN`（可选：`ANTHROPIC_BASE_URL`、`ANTHROPIC_MODEL`），当前仅支持环境变量
 
-Official GLM base URL options (`GLM_BASE_URL` or `providers.glm.baseURL`):
-- BigModel API: `https://open.bigmodel.cn/api/paas/v4/`
-- BigModel Coding Plan: `https://open.bigmodel.cn/api/coding/paas/v4/`
-- z.ai API: `https://api.z.ai/api/paas/v4/`
-- z.ai Coding Plan: `https://api.z.ai/api/coding/paas/v4/`
+官方 GLM base URL 选项（`GLM_BASE_URL` 或 `providers.glm.baseURL`）：
+- BigModel API：`https://open.bigmodel.cn/api/paas/v4/`
+- BigModel Coding Plan：`https://open.bigmodel.cn/api/coding/paas/v4/`
+- z.ai API：`https://api.z.ai/api/paas/v4/`
+- z.ai Coding Plan：`https://api.z.ai/api/coding/paas/v4/`
 
-If you prefer a shorthand preset, set `GLM_ENDPOINT` (or `providers.glm.endpoint`) to one of: `bigmodel`, `bigmodel-coding`, `zai`, `zai-coding`. `GLM_BASE_URL` still takes precedence when set.
+如果你更偏好简写预置，可将 `GLM_ENDPOINT`（或 `providers.glm.endpoint`）设置为 `bigmodel`、`bigmodel-coding`、`zai`、`zai-coding` 之一。若同时设置了 `GLM_BASE_URL`，后者优先级更高。
 
-Example `~/.glm/config.json`:
+`~/.glm/config.json` 示例：
 ```json
 {
   "defaultProvider": "glm",
@@ -61,39 +65,39 @@ Example `~/.glm/config.json`:
 ```
 
 ### `glm config get <key>`
-Reads one supported config key and prints its value. Supported keys:
+读取一个受支持的配置项并输出其值。当前支持：
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
 
 ### `glm config set <key> <value>`
-Writes one supported config key (`defaultProvider`, `defaultModel`, or `approvalPolicy`) to `~/.glm/config.json`.
+将一个受支持的配置项（`defaultProvider`、`defaultModel` 或 `approvalPolicy`）写入 `~/.glm/config.json`。
 
-### Anthropic compatibility
-When provider is not explicitly set, runtime provider resolution order is:
-1. CLI flag: `--provider`
-2. Env override: `GLM_PROVIDER`
-3. Anthropic compatibility env: `ANTHROPIC_AUTH_TOKEN` (auto-selects provider `anthropic`)
-4. OpenAI compatibility env: `OPENAI_API_KEY` (auto-selects provider `openai-compatible`)
-5. Config fallback: `~/.glm/config.json` `defaultProvider`
+### Anthropic 兼容模式
+当未显式指定 provider 时，运行时会按以下顺序决定 provider：
+1. CLI 参数：`--provider`
+2. 环境变量覆盖：`GLM_PROVIDER`
+3. Anthropic 兼容环境变量：`ANTHROPIC_AUTH_TOKEN`（自动选择 `anthropic`）
+4. OpenAI Compatible 环境变量：`OPENAI_API_KEY`（自动选择 `openai-compatible`）
+5. 配置文件回退：`~/.glm/config.json` 中的 `defaultProvider`
 
-In anthropic compatibility mode, model selection prefers `ANTHROPIC_MODEL`, then `GLM_MODEL`, then config fallback.
+在 Anthropic 兼容模式下，模型选择顺序为：`ANTHROPIC_MODEL`、`GLM_MODEL`、配置文件默认值。
 
 ### `--yolo`
-Skip the interactive approval flow (`approvalPolicy` toggles to `never`) for normal tool calls. Dangerous shell commands (for example `rm`) still require explicit confirmation. The flag applies to the current command invocation only.
+跳过普通 tool call 的交互式审批流程（会将 `approvalPolicy` 设为 `never`）。危险 shell 命令（例如 `rm`）仍然必须显式确认。该参数只对当前命令生效。
 
-In interactive mode, you can also switch the policy on the fly:
-- `/approval ask|auto|never` (alias: `/policy`)
+在交互模式下，也可以动态切换策略：
+- `/approval ask|auto|never`（别名：`/policy`）
 
-## MCP (Model Context Protocol)
-glm can load MCP servers from a config file and expose their tools to the agent.
+## MCP（Model Context Protocol）
+glm 可以从配置文件中加载 MCP server，并把它们暴露为可供 agent 调用的工具。
 
-### Config file
-Default path: `~/.glm/mcp.json`  
-Override: `GLM_MCP_CONFIG=/absolute/or/~/path/to/mcp.json`  
-Disable: `GLM_MCP_DISABLED=1`
+### 配置文件
+默认路径：`~/.glm/mcp.json`  
+覆盖路径：`GLM_MCP_CONFIG=/absolute/or/~/path/to/mcp.json`  
+禁用：`GLM_MCP_DISABLED=1`
 
-Supported format (compatible with common MCP clients):
+支持的格式如下（兼容常见 MCP client）：
 ```json
 {
   "mcpServers": {
@@ -108,56 +112,56 @@ Supported format (compatible with common MCP clients):
 }
 ```
 
-### Tool names
-MCP tools are registered with a stable namespaced name:
+### 工具命名
+MCP 工具会被注册为稳定的命名空间形式：
 `mcp__<server>__<tool>`
 
-Example: server `"brave-search"` tool `"web_search"` becomes `mcp__brave-search__web_search` (normalized to lowercase/underscores).
+示例：server `"brave-search"` 下的工具 `"web_search"` 会注册为 `mcp__brave-search__web_search`（内部会归一化为小写和下划线）。
 
-### Interactive usage
-- `/mcp` shows which MCP servers were loaded.
-- `/mcp reload` reloads extensions (use after editing `mcp.json`).
+### 交互模式用法
+- `/mcp`：显示当前已加载的 MCP servers
+- `/mcp reload`：重新加载扩展（修改 `mcp.json` 后可执行）
 
-## Pi Settings (Model/Runtime Basics)
-glm embeds Pi and uses Pi's settings files for many runtime behaviors (compaction, retry, steering modes, etc):
+## Pi 设置（模型 / 运行时基础）
+glm 内嵌了 Pi，并沿用 Pi 的 settings 文件管理很多运行时行为（如 compact、retry、steering 模式等）：
 
-- Global: `~/.glm/agent/settings.json`
-- Per-project: `<project>/.glm/settings.json`
+- 全局：`~/.glm/agent/settings.json`
+- 项目级：`<project>/.glm/settings.json`
 
-While streaming in interactive mode:
-- `Enter` sends a steering message (`steer`) into the current generation.
-- `Alt+Enter` queues a follow-up message (`followUp`) for the next turn.
+在交互模式流式输出时：
+- `Enter` 会发送 steering message（`steer`）到当前生成过程
+- `Alt+Enter` 会将 follow-up message（`followUp`）排队到下一轮
 
-Token/cost stats:
-- `/stats` (or `/usage`) shows a widget with aggregated token usage (input/output/cache) for the session and current branch.
-- `/stats clear` hides the widget.
+Token / 成本统计：
+- `/stats`（或 `/usage`）会在编辑器下方显示当前 session 与当前 branch 的聚合 token 使用情况（input / output / cache）
+- `/stats clear` 用于隐藏该 widget
 
 ## Web Tools
-glm bundles two web-related tools that models can call:
+glm 内置了两个可被模型调用的 web 相关工具：
 
-- `web_search`: web search (requires configuration)
-- `web_fetch`: fetch a URL and extract plain text (HTML is stripped)
+- `web_search`：网页搜索（需额外配置）
+- `web_fetch`：抓取 URL 并提取纯文本内容（会剥离 HTML）
 
-`web_search` configuration (pick one):
-- Brave Search API: set `BRAVE_API_KEY`
-- SearxNG JSON endpoint: set `GLM_WEB_SEARCH_URL` (example: `https://your-searx-instance/search`)
+`web_search` 的配置方式（二选一）：
+- Brave Search API：设置 `BRAVE_API_KEY`
+- SearxNG JSON endpoint：设置 `GLM_WEB_SEARCH_URL`（例如 `https://your-searx-instance/search`）
 
-If you already use MCP for web/search/browsing, you can skip `web_search` and rely on MCP tools instead.
+如果你已经通过 MCP 提供了网页搜索 / 浏览能力，也可以不使用内置的 `web_search`。
 
-## Generation Overrides (Env)
-You can set default generation parameters via env vars (applied to provider request payloads):
+## 生成参数覆盖（环境变量）
+可通过环境变量为请求默认附加生成参数（会直接写入 provider 请求 payload）：
 
 - `GLM_MAX_OUTPUT_TOKENS=8192`
 - `GLM_TEMPERATURE=0.2`
 - `GLM_TOP_P=0.9`
 
-## BigModel/z.ai Capabilities
-BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so Pi works out of the box:
+## BigModel / z.ai 能力适配
+BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions API 存在一些差异。`glm` 已在请求发送前进行补丁处理，以便 Pi 可以直接工作：
 
-- Uses `max_tokens` (BigModel docs) instead of `max_completion_tokens`.
-- Maps Pi "thinking" toggles to BigModel's `thinking: { type: "enabled" | "disabled" }` request format.
-- Enables streaming tool-call argument deltas via `tool_stream: true` when tools are present and `stream: true`.
+- 使用 `max_tokens`（BigModel 文档格式），而不是 `max_completion_tokens`
+- 将 Pi 的 thinking 开关映射为 BigModel 的 `thinking: { type: "enabled" | "disabled" }`
+- 当请求包含 tools 且 `stream: true` 时，启用 `tool_stream: true` 以获得工具参数的流式增量输出
 
-Optional env knobs:
-- `GLM_CLEAR_THINKING=0|1`: sets `thinking.clear_thinking` when the request includes `thinking`. (`0` is preserved thinking, per BigModel docs.)
-- `GLM_RESPONSE_FORMAT=json_object`: adds `response_format: { type: "json_object" }` to requests (can interfere with tool calling; enable only when you need strict JSON output).
+可选环境变量：
+- `GLM_CLEAR_THINKING=0|1`：当请求中包含 `thinking` 时，设置 `thinking.clear_thinking`（按 BigModel 文档，`0` 表示 preserved thinking）
+- `GLM_RESPONSE_FORMAT=json_object`：为请求添加 `response_format: { type: "json_object" }`（可能与 tool calling 互相影响，仅在确实需要严格 JSON 输出时启用）
