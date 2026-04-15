@@ -97,7 +97,7 @@ Default path: `~/.glm/mcp.json`
 Override: `GLM_MCP_CONFIG=/absolute/or/~/path/to/mcp.json`  
 Disable: `GLM_MCP_DISABLED=1`
 
-Supported format (compatible with common MCP clients):
+glm supports local `stdio` MCP servers and remote MCP servers (`streamable-http` / `sse`). Supported format:
 ```json
 {
   "mcpServers": {
@@ -107,10 +107,68 @@ Supported format (compatible with common MCP clients):
       "env": {
         "SOME_API_KEY": "..."
       }
+    },
+    "remote-server": {
+      "type": "streamable-http",
+      "url": "https://example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
     }
   }
 }
 ```
+
+Remote transport values:
+- `type: "streamable-http"`: recommended
+- `type: "http"` / `type: "streamableHttp"`: normalized to `streamable-http`
+- `type: "sse"`: compatibility path for older MCP servers
+- local `stdio` servers can omit `type`
+
+### BigModel Coding Plan MCP Examples
+You can drop the following into `~/.glm/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "vision": {
+      "command": "npx",
+      "args": ["-y", "@z_ai/mcp-server"],
+      "env": {
+        "Z_AI_API_KEY": "YOUR_API_KEY",
+        "Z_AI_MODE": "ZHIPU"
+      }
+    },
+    "search": {
+      "type": "streamable-http",
+      "url": "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    },
+    "reader": {
+      "type": "streamable-http",
+      "url": "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    },
+    "zread": {
+      "type": "streamable-http",
+      "url": "https://open.bigmodel.cn/api/mcp/zread/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+Notes:
+- `vision` is a local stdio MCP server provided as `@z_ai/mcp-server`
+- `search`, `reader`, and `zread` are remote MCP endpoints and require `Authorization: Bearer <API_KEY>`
+- `search` / `reader` partially overlap with the built-in `web_search` / `web_fetch`; if you already use Coding Plan, the MCP path is usually the cleaner integration
+- BigModel currently documents plan-based quota limits for `search` / `reader` / `zread`, so check your account limits before relying on them
 
 ### Tool names
 MCP tools are registered with a stable namespaced name:

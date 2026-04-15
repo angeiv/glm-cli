@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   buildMcpToolName,
   readMcpConfig,
+  resolveMcpServerConfig,
   resolveMcpConfigPath,
 } from "../../resources/extensions/glm-mcp/index.js";
 
@@ -58,5 +59,84 @@ describe("glm-mcp extension helpers", () => {
     const parsed2 = readMcpConfig(path2);
     expect(parsed2.servers?.foo?.command).toBe("node");
   });
-});
 
+  test("readMcpConfig preserves remote MCP fields", () => {
+    const dir = mkdtempSync(join(tmpdir(), "glm-mcp-"));
+    const path = join(dir, "mcp-remote.json");
+    writeFileSync(
+      path,
+      JSON.stringify(
+        {
+          mcpServers: {
+            search: {
+              type: "streamable-http",
+              url: "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
+              headers: {
+                Authorization: "Bearer token",
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    const parsed = readMcpConfig(path);
+    expect(parsed.mcpServers?.search?.type).toBe("streamable-http");
+    expect(parsed.mcpServers?.search?.url).toBe(
+      "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
+    );
+    expect(parsed.mcpServers?.search?.headers?.Authorization).toBe("Bearer token");
+  });
+
+  test("resolveMcpServerConfig infers stdio from command-only config", () => {
+    expect(resolveMcpServerConfig({ command: "npx" })).toMatchObject({
+      type: "stdio",
+      command: "npx",
+      args: [],
+      timeoutMs: 10_000,
+    });
+  });
+
+  test("resolveMcpServerConfig normalizes http aliases to streamable-http", () => {
+    expect(
+      resolveMcpServerConfig({
+        type: "http",
+        url: "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+      }),
+    ).toMatchObject({
+      type: "streamable-http",
+      url: "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+    });
+
+    expect(
+      resolveMcpServerConfig({
+        type: "streamableHttp",
+        url: "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+      }),
+    ).toMatchObject({
+      type: "streamable-http",
+      url: "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+    });
+  });
+
+  test("resolveMcpServerConfig preserves sse transport", () => {
+    expect(
+      resolveMcpServerConfig({
+        type: "sse",
+        url: "https://open.bigmodel.cn/api/mcp/zread/mcp",
+      }),
+    ).toMatchObject({
+      type: "sse",
+      url: "https://open.bigmodel.cn/api/mcp/zread/mcp",
+    });
+  });
+
+  test("resolveMcpServerConfig rejects remote configs without url", () => {
+    expect(() => resolveMcpServerConfig({ type: "streamable-http" })).toThrow(
+      /url/i,
+    );
+  });
+});
