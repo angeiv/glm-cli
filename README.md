@@ -97,7 +97,7 @@ glm 可以从配置文件中加载 MCP server，并把它们暴露为可供 agen
 覆盖路径：`GLM_MCP_CONFIG=/absolute/or/~/path/to/mcp.json`  
 禁用：`GLM_MCP_DISABLED=1`
 
-支持的格式如下（兼容常见 MCP client）：
+支持本地 `stdio` MCP 和远程 MCP（`streamable-http` / `sse`）。格式如下（兼容常见 MCP client）：
 ```json
 {
   "mcpServers": {
@@ -107,10 +107,68 @@ glm 可以从配置文件中加载 MCP server，并把它们暴露为可供 agen
       "env": {
         "SOME_API_KEY": "..."
       }
+    },
+    "remote-server": {
+      "type": "streamable-http",
+      "url": "https://example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
     }
   }
 }
 ```
+
+远程 transport 支持以下写法：
+- `type: "streamable-http"`：推荐
+- `type: "http"` / `type: "streamableHttp"`：会自动归一化为 `streamable-http`
+- `type: "sse"`：兼容旧版 SSE MCP server
+- 本地 `stdio` server 可以省略 `type`
+
+### BigModel Coding Plan MCP 示例
+以下示例可直接写入 `~/.glm/mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "vision": {
+      "command": "npx",
+      "args": ["-y", "@z_ai/mcp-server"],
+      "env": {
+        "Z_AI_API_KEY": "YOUR_API_KEY",
+        "Z_AI_MODE": "ZHIPU"
+      }
+    },
+    "search": {
+      "type": "streamable-http",
+      "url": "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    },
+    "reader": {
+      "type": "streamable-http",
+      "url": "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    },
+    "zread": {
+      "type": "streamable-http",
+      "url": "https://open.bigmodel.cn/api/mcp/zread/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+说明：
+- `vision` 为本地 stdio MCP，官方包名为 `@z_ai/mcp-server`
+- `search` / `reader` / `zread` 为远程 MCP endpoint，需要 `Authorization: Bearer <API_KEY>`
+- `search` 和 `reader` 与内置 `web_search` / `web_fetch` 有一定能力重叠；如果你已经开通 Coding Plan，优先用 MCP 版本更一致
+- 根据 BigModel 当前文档，`search` / `reader` / `zread` 有套餐配额限制，接入前建议先确认账户额度
 
 ### 工具命名
 MCP 工具会被注册为稳定的命名空间形式：

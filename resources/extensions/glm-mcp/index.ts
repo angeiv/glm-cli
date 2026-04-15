@@ -4,13 +4,44 @@ import { homedir } from "node:os";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+type McpServerTransportType = "stdio" | "streamable-http" | "sse";
+
 type McpServerConfig = {
-  command: string;
+  type?: string;
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
   cwd?: string;
   disabled?: boolean;
   timeoutMs?: number;
+  url?: string;
+  headers?: Record<string, string>;
+};
+
+type ResolvedStdioMcpServerConfig = {
+  type: "stdio";
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  disabled: boolean;
+  timeoutMs: number;
+};
+
+type ResolvedRemoteMcpServerConfig = {
+  type: "streamable-http" | "sse";
+  url: string;
+  headers?: Record<string, string>;
+  disabled: boolean;
+  timeoutMs: number;
+};
+
+export type ResolvedMcpServerConfig =
+  | ResolvedStdioMcpServerConfig
+  | ResolvedRemoteMcpServerConfig;
+
+type McpRequestInit = {
+  headers?: Record<string, string>;
 };
 
 type McpConfigFile = {
@@ -30,7 +61,7 @@ type LoadedMcpTool = {
 
 type LoadedServer = {
   name: string;
-  config: McpServerConfig;
+  config: ResolvedMcpServerConfig;
   client: any;
   transport: any;
   tools: LoadedMcpTool[];
@@ -74,6 +105,41 @@ function normalizeMcpConfig(value: unknown): McpConfigFile {
   return { mcpServers, servers };
 }
 
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(String);
+}
+
+function normalizeStringRecord(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value)
+    .filter(([, item]) => typeof item === "string")
+    .map(([key, item]) => [key, item]);
+
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function resolveTransportType(
+  type: unknown,
+  hasCommand: boolean,
+): McpServerTransportType | undefined {
+  if (typeof type !== "string" || !type.trim()) {
+    return hasCommand ? "stdio" : undefined;
+  }
+
+  const normalized = type.trim().toLowerCase().replace(/[_\s]+/g, "-");
+  if (normalized === "stdio") return "stdio";
+  if (normalized === "http" || normalized === "streamable-http" || normalized === "streamablehttp") {
+    return "streamable-http";
+  }
+  if (normalized === "sse") return "sse";
+
+  throw new Error(`Unsupported MCP transport type: ${type}`);
+}
+
 export function readMcpConfig(path: string): McpConfigFile {
   try {
     const raw = readFileSync(path, "utf8");
@@ -85,6 +151,56 @@ export function readMcpConfig(path: string): McpConfigFile {
 
 function asServerMap(config: McpConfigFile): Record<string, McpServerConfig> {
   return config.mcpServers ?? config.servers ?? {};
+}
+
+export function resolveMcpServerConfig(value: unknown): ResolvedMcpServerConfig {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid MCP server config");
+  }
+
+  const maybe = value as Record<string, unknown>;
+  const command = typeof maybe.command === "string" ? maybe.command.trim() : "";
+  const url = typeof maybe.url === "string" ? maybe.url.trim() : "";
+  const type = resolveTransportType(maybe.type, command.length > 0);
+  const timeoutMs =
+    typeof maybe.timeoutMs === "number" && Number.isFinite(maybe.timeoutMs) && maybe.timeoutMs > 0
+      ? maybe.timeoutMs
+      : 10_000;
+  const disabled = maybe.disabled === true;
+
+  if (!type) {
+    throw new Error("MCP server config must define a stdio command or supported transport type");
+  }
+
+  if (type === "stdio") {
+    if (!command) {
+      throw new Error("MCP stdio server requires command");
+    }
+
+    return {
+      type,
+      command,
+      args: normalizeStringArray(maybe.args),
+      ...(normalizeStringRecord(maybe.env) ? { env: normalizeStringRecord(maybe.env) } : {}),
+      ...(typeof maybe.cwd === "string" && maybe.cwd.trim() ? { cwd: maybe.cwd.trim() } : {}),
+      disabled,
+      timeoutMs,
+    };
+  }
+
+  if (!url) {
+    throw new Error(`MCP ${type} server requires url`);
+  }
+
+  return {
+    type,
+    url,
+    ...(normalizeStringRecord(maybe.headers)
+      ? { headers: normalizeStringRecord(maybe.headers) }
+      : {}),
+    disabled,
+    timeoutMs,
+  };
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -122,31 +238,41 @@ async function loadMcpServers(): Promise<LoadedServer[]> {
   const { StdioClientTransport } = await import(
     "@modelcontextprotocol/sdk/client/stdio.js"
   );
+  const { StreamableHTTPClientTransport } = await import(
+    "@modelcontextprotocol/sdk/client/streamableHttp.js"
+  );
+  const { SSEClientTransport } = await import("@modelcontextprotocol/sdk/client/sse.js");
 
   const loaded: LoadedServer[] = [];
 
-  for (const [name, server] of entries) {
-    if (!server || typeof server !== "object") continue;
+  for (const [name, rawServer] of entries) {
+    let server: ResolvedMcpServerConfig;
+    try {
+      server = resolveMcpServerConfig(rawServer);
+    } catch {
+      continue;
+    }
+
     if (server.disabled) continue;
-    if (typeof server.command !== "string" || !server.command.trim()) continue;
 
-    const timeoutMs = typeof server.timeoutMs === "number" ? server.timeoutMs : 10_000;
-    const args = Array.isArray(server.args) ? server.args.map(String) : [];
-    const env =
-      server.env && typeof server.env === "object"
-        ? Object.fromEntries(
-            Object.entries(server.env)
-              .filter(([, v]) => typeof v === "string")
-              .map(([k, v]) => [k, v]),
-          )
+    let transport: any;
+    if (server.type === "stdio") {
+      transport = new StdioClientTransport({
+        command: server.command,
+        args: server.args,
+        ...(server.env ? { env: { ...process.env, ...server.env } } : { env: process.env }),
+        ...(server.cwd ? { cwd: server.cwd } : {}),
+      });
+    } else {
+      const requestInit: McpRequestInit | undefined = server.headers
+        ? { headers: server.headers }
         : undefined;
-
-    const transport = new StdioClientTransport({
-      command: server.command,
-      args,
-      ...(env ? { env: { ...process.env, ...env } } : { env: process.env }),
-      ...(server.cwd ? { cwd: server.cwd } : {}),
-    });
+      const url = new URL(server.url);
+      transport =
+        server.type === "streamable-http"
+          ? new StreamableHTTPClientTransport(url, requestInit ? { requestInit } : undefined)
+          : new SSEClientTransport(url, requestInit ? { requestInit } : undefined);
+    }
 
     const client = new Client(
       { name: "glm", version: "0.0.0" },
@@ -156,8 +282,12 @@ async function loadMcpServers(): Promise<LoadedServer[]> {
     );
 
     try {
-      await withTimeout(client.connect(transport), timeoutMs, `mcp connect ${name}`);
-      const listResult = await withTimeout(client.listTools(), timeoutMs, `mcp listTools ${name}`);
+      await withTimeout(client.connect(transport), server.timeoutMs, `mcp connect ${name}`);
+      const listResult = await withTimeout(
+        client.listTools(),
+        server.timeoutMs,
+        `mcp listTools ${name}`,
+      );
       const tools = (listResult?.tools ?? []) as Array<{
         name: string;
         description?: string;
