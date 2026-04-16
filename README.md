@@ -10,7 +10,7 @@ npm 包名：`@angeiv/glm`
 命令：`glm`
 
 ## 环境要求
-- Node.js 22 或更高版本（内置的 Pi SDK 与原生 ESM 运行方式要求）
+- Node.js 22 或更高版本（当前运行时 SDK 与原生 ESM 运行方式要求）
 
 ## 安装
 ```
@@ -21,7 +21,7 @@ pnpm install
 
 ## 使用方式
 ### `glm`
-启动默认的交互式会话。CLI 会在 `~/.glm` 下初始化产品目录、同步内置 prompts 和 tools，并以 Pi 的交互模式启动。你也可以追加 `--provider`、`--model`、`--cwd`、`--yolo` 等运行参数。
+启动默认的交互式会话。CLI 会在 `~/.glm` 下初始化产品目录、同步内置 prompts 和 tools，并进入默认交互模式。你也可以追加 `--provider`、`--model`、`--cwd`、`--yolo` 等运行参数。
 
 ### `glm chat [path]`
 启动交互式聊天，并可选地将 `[path]` 作为本次会话的工作目录。
@@ -241,8 +241,8 @@ MCP 工具会被注册为稳定的命名空间形式：
 - `/mcp`：显示当前已加载的 MCP servers
 - `/mcp reload`：重新加载扩展（修改 `mcp.json` 后可执行）
 
-## Pi 设置（模型 / 运行时基础）
-glm 内嵌了 Pi，并沿用 Pi 的 settings 文件管理很多运行时行为（如 compact、retry、steering 模式等）：
+## 运行时设置（模型 / 会话基础）
+glm 使用以下 settings 文件管理很多运行时行为（如 compact、retry、steering 模式等）：
 
 - 全局：`~/.glm/agent/settings.json`
 - 项目级：`<project>/.glm/settings.json`
@@ -299,11 +299,11 @@ glm 内置了两个可被模型调用的 web 相关工具：
 - `generation.topP`
 
 ## BigModel / z.ai 能力适配
-BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions API 存在一些差异。`glm` 已在请求发送前进行补丁处理，以便 Pi 可以直接工作：
+BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions API 存在一些差异。`glm` 已在请求发送前进行补丁处理，以便开箱即用：
 
 - 使用 `max_tokens`（BigModel 文档格式），而不是 `max_completion_tokens`
-- 将 Pi 的 thinking 开关映射为 BigModel 的 `thinking: { type: "enabled" | "disabled" }`
-- 支持通过 `thinkingMode` 强制开启/关闭 thinking，而不依赖 Pi 默认开关
+- 将运行时的 thinking 开关映射为 BigModel 的 `thinking: { type: "enabled" | "disabled" }`
+- 支持通过 `thinkingMode` 强制开启/关闭 thinking，而不依赖默认自动开关
 - 当请求包含 tools 且 `stream: true` 时，可通过 `toolStream` 显式控制 `tool_stream`
 - 支持通过 `responseFormat=json_object` 启用结构化 JSON 输出
 

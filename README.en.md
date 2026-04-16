@@ -10,7 +10,7 @@ npm package: `@angeiv/glm`
 command: `glm`
 
 ## Requirements
-- Node.js 22 or newer (required by the embedded Pi SDK and native ECMAScript module usage)
+- Node.js 22 or newer (required by the current runtime SDK and native ECMAScript module usage)
 
 ## Installing
 ```
@@ -21,7 +21,7 @@ This sets up the dependencies and prepares the CLI entrypoint so `pnpm run build
 
 ## Usage
 ### `glm`
-Runs the default interactive chat session. The CLI bootstraps product directories under `~/.glm`, syncs the packaged prompts/tools, and starts Pi in interactive mode. You can add runtime flags like `--provider`, `--model`, `--cwd`, or `--yolo` to adjust the session.
+Runs the default interactive chat session. The CLI bootstraps product directories under `~/.glm`, syncs the packaged prompts/tools, and enters the default interactive mode. You can add runtime flags like `--provider`, `--model`, `--cwd`, or `--yolo` to adjust the session.
 
 ### `glm chat [path]`
 Starts interactive chat and optionally uses `[path]` as the working directory for that session.
@@ -241,8 +241,8 @@ Example: server `"brave-search"` tool `"web_search"` becomes `mcp__brave-search_
 - `/mcp` shows which MCP servers were loaded.
 - `/mcp reload` reloads extensions (use after editing `mcp.json`).
 
-## Pi Settings (Model/Runtime Basics)
-glm embeds Pi and uses Pi's settings files for many runtime behaviors (compaction, retry, steering modes, etc):
+## Runtime Settings (Model/Session Basics)
+glm uses the following settings files for many runtime behaviors (compaction, retry, steering modes, etc):
 
 - Global: `~/.glm/agent/settings.json`
 - Per-project: `<project>/.glm/settings.json`
@@ -299,11 +299,11 @@ Equivalent config file keys:
 - `generation.topP`
 
 ## BigModel/z.ai Capabilities
-BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so Pi works out of the box:
+BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so the runtime works out of the box:
 
 - Uses `max_tokens` (BigModel docs) instead of `max_completion_tokens`.
-- Maps Pi "thinking" toggles to BigModel's `thinking: { type: "enabled" | "disabled" }` request format.
-- Supports forcing `thinking` on/off via `thinkingMode`, even when Pi does not emit a toggle.
+- Maps runtime "thinking" toggles to BigModel's `thinking: { type: "enabled" | "disabled" }` request format.
+- Supports forcing `thinking` on/off via `thinkingMode`, even when the runtime does not emit a toggle.
 - Can explicitly control `tool_stream` via `toolStream` when tools are present and `stream: true`.
 - Supports structured JSON output via `responseFormat=json_object`.
 

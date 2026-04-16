@@ -5,7 +5,7 @@ Status: Approved in discussion
 
 ## Summary
 
-Build a standalone TypeScript/Node.js coding CLI named `glm` that embeds the Pi coding-agent SDK in the same way GSD-2 embeds Pi: Pi provides the low-level session/runtime substrate, while `glm` owns the command surface, configuration layout, resource loading, default prompts, provider defaults, and product identity.
+Build a standalone TypeScript/Node.js coding CLI named `glm` with an embedded agent runtime in the same style as GSD-2: the runtime provides the low-level session/runtime substrate, while `glm` owns the command surface, configuration layout, resource loading, default prompts, provider defaults, and product identity.
 
 The first release is a local-repository coding assistant with:
 
@@ -20,8 +20,8 @@ The first release is a local-repository coding assistant with:
 ## Goals
 
 - Ship a usable coding assistant for local repositories under the `glm` command
-- Keep the product independent from Pi branding and directory conventions
-- Reuse Pi for session/runtime primitives instead of rebuilding an agent loop from scratch
+- Keep the product independent from underlying runtime branding and directory conventions
+- Reuse the embedded runtime for session/runtime primitives instead of rebuilding an agent loop from scratch
 - Support both long-lived interactive sessions and single-task execution on top of the same runtime
 - Make provider configuration flexible enough to support official GLM, OpenAI-compatible gateways, and Anthropic-style environment compatibility
 - Leave room for later additions such as Skills, TUI, context compression, and broader runtime selection without rewriting the MVP
@@ -40,10 +40,10 @@ The first release is a local-repository coding assistant with:
 
 Adopt:
 
-- Standalone branded CLI built on Pi SDK
+- Standalone branded CLI built on an embedded runtime SDK
 - Two-stage startup pattern (`loader` before runtime imports)
 - Product-owned config/resource directories
-- Embedded Pi session creation instead of shelling out to a `pi` binary
+- Embedded session creation instead of shelling out to an external runtime binary
 
 Do not adopt in MVP:
 
@@ -83,7 +83,7 @@ Do not adopt:
 
 ## Product Shape
 
-The CLI is a standalone product named `glm`, not a Pi extension and not a Claude wrapper.
+The CLI is a standalone product named `glm`, not a runtime extension and not a Claude wrapper.
 
 The user-facing model is:
 
@@ -94,7 +94,7 @@ The user-facing model is:
 The architecture is intentionally "GSD-2 style":
 
 - `glm` owns the UX and product shell
-- Pi owns the embedded low-level coding session/runtime
+- The embedded runtime owns the low-level coding session/runtime
 
 ## Command Surface
 
@@ -145,7 +145,7 @@ This layer must not contain runtime or provider logic.
 
 Responsible for:
 
-- setting product environment before Pi imports
+- setting product environment before runtime imports
 - resolving product directories under `~/.glm/`
 - syncing packaged resources into the product-owned agent directory
 - wiring logging and process-level defaults
@@ -156,7 +156,7 @@ This is where the GSD-2-style `loader.ts` pattern is applied.
 
 Responsible for:
 
-- creating embedded Pi sessions
+- creating embedded runtime sessions
 - injecting product-owned prompt and tools
 - maintaining the agent loop for chat and run
 - applying approval policy and safety checks
@@ -222,7 +222,7 @@ glm-agent-cli/
 │  │  ├─ bash-tools.ts
 │  │  ├─ plan-tools.ts
 │  │  └─ adapters/
-│  │     └─ pi-tool-adapter.ts
+│  │     └─ runtime-tool-adapter.ts
 │  └─ tui/
 │     └─ types.ts
 ├─ resources/
@@ -245,7 +245,7 @@ The product owns its filesystem layout under `~/.glm/`.
 - `~/.glm/sessions/`
 - `~/.glm/logs/`
 
-Pi resources are not discovered from ambient global Pi locations by default. The product bundles and syncs its own resources into `~/.glm/agent/`.
+Runtime resources are not discovered from ambient global locations by default. The product bundles and syncs its own resources into `~/.glm/agent/`.
 
 ## Startup Model
 
@@ -254,12 +254,12 @@ Use a two-stage startup:
 1. `src/loader.ts`
    - computes product directories
    - sets required environment variables and package/resource paths
-   - avoids importing Pi runtime modules
+   - avoids importing runtime modules too early
 2. `src/cli.ts`
    - performs static imports
    - constructs commands and launches the runtime
 
-This protects product-specific environment setup from Pi initialization order issues.
+This protects product-specific environment setup from runtime initialization order issues.
 
 ## Runtime Flow
 
@@ -269,7 +269,7 @@ The runtime flow for both `glm` and `glm run` is:
 2. Resolve config and environment-based provider settings
 3. Sync packaged resources into `~/.glm/agent/`
 4. Construct auth/model/settings/session managers
-5. Create an embedded Pi session
+5. Create an embedded runtime session
 6. Inject product-owned system prompt, tools, approval policy, and provider config
 7. Start either:
    - interactive session loop for `glm` / `glm chat`
@@ -525,7 +525,7 @@ The MVP can mock provider HTTP behavior. Live smoke testing can be delegated to 
 - `glm auth`
 - `glm doctor`
 - `~/.glm/` product-owned config/session/resource layout
-- embedded Pi session creation
+- embedded runtime session creation
 - GLM official provider
 - OpenAI-compatible provider
 - `ANTHROPIC_*` compatibility support
@@ -546,7 +546,7 @@ The MVP can mock provider HTTP behavior. Live smoke testing can be delegated to 
 
 The intended evolution path is:
 
-1. ship a stable branded product shell on top of Pi
+1. ship a stable branded product shell on top of the embedded runtime
 2. add Skills and stronger project-context loading
 3. add a richer TUI without changing runtime boundaries
 4. add more selective runtime abstractions only if model/runtime diversity justifies it
