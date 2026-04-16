@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a standalone `glm` coding CLI that embeds the Pi SDK, defaults to interactive chat mode, supports `glm run`, uses GLM official API by default, supports OpenAI-compatible and `ANTHROPIC_*` compatibility inputs, and implements `--yolo`.
+**Goal:** Build a standalone `glm` coding CLI with an embedded agent runtime, defaulting to interactive chat mode, supporting `glm run`, using the GLM official API by default, supporting OpenAI-compatible and `ANTHROPIC_*` compatibility inputs, and implementing `--yolo`.
 
-**Architecture:** The product shell is owned by `glm` and lives in `src/`; Pi is embedded programmatically through `createAgentSession()`, `InteractiveMode`, and `runPrintMode()`. Product-owned resources live under `resources/` and are synced into `~/.glm/agent/`, where Pi discovers provider/policy extensions and the product system prompt.
+**Architecture:** The product shell is owned by `glm` and lives in `src/`; the runtime is embedded programmatically through `createAgentSession()`, `InteractiveMode`, and `runPrintMode()`. Product-owned resources live under `resources/` and are synced into `~/.glm/agent/`, where the runtime discovers provider/policy extensions and the product system prompt.
 
-**Tech Stack:** Node.js 22+, TypeScript, npm, `@mariozechner/pi-coding-agent@^0.66.1`, `commander`, `zod`, `@sinclair/typebox`, `vitest`
+**Tech Stack:** Node.js 22+, TypeScript, npm, embedded runtime SDK, `commander`, `zod`, `@sinclair/typebox`, `vitest`
 
 ---
 
@@ -62,8 +62,8 @@
 
 ### Notes
 
-- Keep Pi-native provider and policy hooks in `resources/extensions/` because Pi loads them naturally from the synced agent directory.
-- Keep CLI-side config parsing and session wiring in `src/` so the product shell stays independent from Pi.
+- Keep runtime-native provider and policy hooks in `resources/extensions/` because the embedded runtime loads them naturally from the synced agent directory.
+- Keep CLI-side config parsing and session wiring in `src/` so the product shell stays independent from the underlying runtime.
 
 ## Task 1: Bootstrap the TypeScript CLI shell
 
@@ -422,7 +422,7 @@ git add src/app/resource-sync.ts src/runtime/prompt.ts resources/prompts/system.
 git commit -m "feat: add product resources and system prompt"
 ```
 
-## Task 5: Register GLM/OpenAI/Anthropic-compat providers and policy hooks as Pi extensions
+## Task 5: Register GLM/OpenAI/Anthropic-compat providers and policy hooks as runtime extensions
 
 **Files:**
 - Create: `resources/extensions/glm-providers/index.ts`
@@ -566,7 +566,7 @@ test("uses ~/.glm/agent and never policy when yolo is enabled", () => {
 Run: `npm test -- tests/session/create-session.test.ts`
 Expected: FAIL with missing `buildSessionOptions`.
 
-- [ ] **Step 3: Implement session creation around Pi SDK**
+- [ ] **Step 3: Implement session creation around the runtime SDK**
 
 ```ts
 // src/session/create-session.ts
@@ -642,7 +642,7 @@ Expected: PASS.
 
 ```bash
 git add src/session/managers.ts src/session/session-paths.ts src/session/create-session.ts src/runtime/chat-runtime.ts src/runtime/run-runtime.ts src/commands/chat.ts src/commands/run.ts tests/session/create-session.test.ts
-git commit -m "feat: wire glm chat and run to embedded pi sessions"
+git commit -m "feat: wire glm chat and run to embedded runtime sessions"
 ```
 
 ## Task 7: Add tool composition and lightweight plan tools
@@ -802,7 +802,7 @@ git commit -m "feat: add doctor command and mvp docs"
 - Keep `glm` as the only binary entrypoint; `glm chat` is explicit, but bare `glm` must remain the default UX.
 - Treat `ANTHROPIC_*` as compatibility input only. Product-owned config keys and docs should still present `GLM_*` as the native path.
 - Preserve the hard distinction between approval policy and hard safety denials.
-- Use Pi's programmatic SDK surface directly:
+- Use the runtime SDK surface directly:
   - `createAgentSession()`
   - `InteractiveMode`
   - `runPrintMode()`
@@ -811,4 +811,4 @@ git commit -m "feat: add doctor command and mvp docs"
   - `SessionManager`
   - `SettingsManager`
   - `DefaultResourceLoader`
-- Keep provider registration and policy interception in `resources/extensions/` because that is Pi's natural customization seam.
+- Keep provider registration and policy interception in `resources/extensions/` because that is the runtime's natural customization seam.
