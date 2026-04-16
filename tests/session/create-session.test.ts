@@ -548,3 +548,37 @@ test("approval policy can be changed at runtime via shared global state", async 
   expect(prompt).toHaveBeenCalled();
   expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
 });
+
+test("resolveRequestedModel reports missing provider configuration before model lookup", async () => {
+  const { resolveRequestedModel } = await import("../../src/session/create-session.js");
+
+  expect(() =>
+    resolveRequestedModel(
+      {
+        find: vi.fn(() => undefined),
+        getAvailable: vi.fn(() => []),
+      },
+      "glm",
+      "glm-5.1",
+    ),
+  ).toThrowError(
+    /No configured providers are available\. Configure GLM_API_KEY, OPENAI_API_KEY, or ANTHROPIC_AUTH_TOKEN, or add credentials to ~\/\.glm\/config\.json\./,
+  );
+});
+
+test("resolveRequestedModel keeps model-not-found errors when the provider is available", async () => {
+  const { resolveRequestedModel } = await import("../../src/session/create-session.js");
+
+  expect(() =>
+    resolveRequestedModel(
+      {
+        find: vi.fn(() => undefined),
+        getAvailable: vi.fn(() => [
+          { provider: "glm", id: "glm-4-flash-250414" },
+        ]),
+      },
+      "glm",
+      "glm-5.1",
+    ),
+  ).toThrowError(/Requested model "glm\/glm-5\.1" is not available\./);
+});
