@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { defineTool } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+import { load } from "cheerio";
 
 type SearchResult = {
   title: string;
@@ -59,11 +60,10 @@ function hostMatchesAllowedDomains(url: URL, allowed: string[]): boolean {
 }
 
 function stripHtml(html: string): string {
-  const withoutScripts = html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "");
-  const withoutTags = withoutScripts.replace(/<\/?[^>]+>/g, " ");
-  return withoutTags.replace(/\s+/g, " ").trim();
+  const $ = load(html);
+  $("script, style").remove();
+  const text = $.root().text();
+  return text.replace(/\s+/g, " ").trim();
 }
 
 function formatSearchResults(results: SearchResult[]): string {
