@@ -1,5 +1,11 @@
 import { readConfigFile } from "../app/config-store.js";
-import { resolveRuntimeConfig } from "../app/env.js";
+import {
+  buildCapabilityEnvironment,
+  buildLoopEnvironment,
+  resolveLoopRuntimeOptions,
+  resolveRuntimeConfig,
+} from "../app/env.js";
+import type { LoopFailureMode } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
 import { runChatSession } from "../runtime/chat-runtime.js";
 import {
@@ -13,6 +19,10 @@ export type ChatCommandInput = {
   model?: string;
   provider?: ProviderName;
   yolo?: boolean;
+  loop?: boolean;
+  verify?: string;
+  maxRounds?: number;
+  failMode?: LoopFailureMode;
 };
 
 export async function runChatCommand(input: ChatCommandInput): Promise<void> {
@@ -26,10 +36,25 @@ export async function runChatCommand(input: ChatCommandInput): Promise<void> {
     process.env,
     fileConfig,
   );
+  const loopOptions = resolveLoopRuntimeOptions(
+    {
+      model: input.model,
+      provider: input.provider,
+      yolo: input.yolo,
+      loop: input.loop,
+      verify: input.verify,
+      maxRounds: input.maxRounds,
+      failMode: input.failMode,
+    },
+    process.env,
+    fileConfig,
+  );
 
   await withPreservedProcessCwd(async () =>
     withScopedEnvironment(
       {
+        ...buildCapabilityEnvironment(process.env, fileConfig),
+        ...buildLoopEnvironment(loopOptions),
         GLM_APPROVAL_POLICY: runtimeConfig.approvalPolicy,
         // Default to skipping Pi's npm version check for the embedded SDK. Users can opt back in
         // by setting PI_SKIP_VERSION_CHECK to an empty string before launching glm.

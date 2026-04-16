@@ -27,7 +27,19 @@ pnpm install
 启动交互式聊天，并可选地将 `[path]` 作为本次会话的工作目录。
 
 ### `glm run "<task>" [path]`
-通过 Pi 的 `runPrintMode` 执行单次任务。如果任务描述包含空格，请用引号包裹。`--provider`、`--model`、`--cwd`、`--yolo` 等全局参数与交互模式保持一致。
+默认执行单次任务。如果任务描述包含空格，请用引号包裹。`--provider`、`--model`、`--cwd`、`--yolo` 等全局参数与交互模式保持一致。
+
+可显式开启交付质量 loop：
+```bash
+glm run "修复测试失败" --loop
+glm run "修复测试失败" --loop --verify "pnpm test" --max-rounds 4 --fail-mode handoff
+```
+
+loop 当前为 `code` 优先实现，行为为：
+- 首轮发送 loop contract + 任务
+- 每轮结束后执行 verifier
+- verifier 失败时发送 repair prompt 进入下一轮
+- verifier 持续失败或不可用时，根据 `handoff` / `fail` 结束
 
 ### `glm doctor`
 在启动会话前执行本地健康检查：
@@ -57,6 +69,24 @@ pnpm install
   "defaultProvider": "glm",
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
+  "generation": {
+    "maxOutputTokens": 8192,
+    "temperature": 0.2,
+    "topP": 0.9
+  },
+  "glmCapabilities": {
+    "thinkingMode": "enabled",
+    "clearThinking": false,
+    "toolStream": "on",
+    "responseFormat": "json_object"
+  },
+  "loop": {
+    "enabledByDefault": false,
+    "profile": "code",
+    "maxRounds": 3,
+    "failureMode": "handoff",
+    "autoVerify": true
+  },
   "providers": {
     "glm": { "apiKey": "your_glm_key", "baseURL": "", "endpoint": "bigmodel-coding" },
     "openai-compatible": { "apiKey": "your_openai_key", "baseURL": "" }
@@ -69,9 +99,40 @@ pnpm install
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
+- `glmEndpoint`
+- `maxOutputTokens`
+- `temperature`
+- `topP`
+- `thinkingMode`
+- `clearThinking`
+- `toolStream`
+- `responseFormat`
+- `loopEnabledByDefault`
+- `loopProfile`
+- `loopMaxRounds`
+- `loopFailureMode`
+- `loopAutoVerify`
+- `loopVerifyCommand`
 
 ### `glm config set <key> <value>`
-将一个受支持的配置项（`defaultProvider`、`defaultModel` 或 `approvalPolicy`）写入 `~/.glm/config.json`。
+将受支持的配置项写入 `~/.glm/config.json`。
+
+常用示例：
+- `glm config set glmEndpoint bigmodel-coding`
+- `glm config set maxOutputTokens 8192`
+- `glm config set thinkingMode enabled`
+- `glm config set clearThinking false`
+- `glm config set toolStream on`
+- `glm config set responseFormat json_object`
+- `glm config set loopEnabledByDefault true`
+- `glm config set loopMaxRounds 4`
+- `glm config set loopVerifyCommand "pnpm test"`
+
+可清空的可选项支持使用 `unset`：
+- `glm config set glmEndpoint unset`
+- `glm config set maxOutputTokens unset`
+- `glm config set clearThinking unset`
+- `glm config set responseFormat unset`
 
 ### Anthropic 兼容模式
 当未显式指定 provider 时，运行时会按以下顺序决定 provider：
@@ -194,6 +255,25 @@ Token / 成本统计：
 - `/stats`（或 `/usage`）会在编辑器下方显示当前 session 与当前 branch 的聚合 token 使用情况（input / output / cache）
 - `/stats clear` 用于隐藏该 widget
 
+交付质量 loop：
+- `/loop status`
+- `/loop history [n]`
+- `/loop show <index>`
+- `/loop on`
+- `/loop off`
+- `/loop verify <cmd>`
+- `/loop clear-verify`
+- `/loop run <task>`
+
+说明：
+- `/loop on` / `/loop off` 用于会话级 arm/disarm；armed 后，普通聊天回合也会在 `agent_end` 后自动 verify，并在失败时自动发送 repair prompt
+- `/loop run` 会在当前 session 内执行一轮显式 loop；该命令内部会屏蔽自动钩子，避免重复 verify
+- `/loop status` 除了静态配置，还会显示当前活动中的 loop 轮次和 verifier 来源，以及最近一次 loop 的验证结果/终态摘要
+- `/loop history [n]` 会按时间倒序显示本 session 最近的 loop 结果，默认显示 5 条
+- `/loop show <index>` 会展开查看 `history` 中对应索引的单条结果详情，包括 verifier kind、exit code 和 stdout/stderr 摘要
+- 交互式 footer/status 会显示简短的 loop 状态，例如 `loop armed`、`loop auto r2/3`
+- verifier 优先级为：显式 `/loop verify` > 配置文件 `loop.verifyCommand` > 自动探测
+
 ## Web Tools
 glm 内置了两个可被模型调用的 web 相关工具：
 
@@ -213,13 +293,28 @@ glm 内置了两个可被模型调用的 web 相关工具：
 - `GLM_TEMPERATURE=0.2`
 - `GLM_TOP_P=0.9`
 
+对应配置文件键：
+- `generation.maxOutputTokens`
+- `generation.temperature`
+- `generation.topP`
+
 ## BigModel / z.ai 能力适配
 BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions API 存在一些差异。`glm` 已在请求发送前进行补丁处理，以便 Pi 可以直接工作：
 
 - 使用 `max_tokens`（BigModel 文档格式），而不是 `max_completion_tokens`
 - 将 Pi 的 thinking 开关映射为 BigModel 的 `thinking: { type: "enabled" | "disabled" }`
-- 当请求包含 tools 且 `stream: true` 时，启用 `tool_stream: true` 以获得工具参数的流式增量输出
+- 支持通过 `thinkingMode` 强制开启/关闭 thinking，而不依赖 Pi 默认开关
+- 当请求包含 tools 且 `stream: true` 时，可通过 `toolStream` 显式控制 `tool_stream`
+- 支持通过 `responseFormat=json_object` 启用结构化 JSON 输出
 
 可选环境变量：
+- `GLM_THINKING_MODE=auto|enabled|disabled`
 - `GLM_CLEAR_THINKING=0|1`：当请求中包含 `thinking` 时，设置 `thinking.clear_thinking`（按 BigModel 文档，`0` 表示 preserved thinking）
+- `GLM_TOOL_STREAM=auto|on|off`
 - `GLM_RESPONSE_FORMAT=json_object`：为请求添加 `response_format: { type: "json_object" }`（可能与 tool calling 互相影响，仅在确实需要严格 JSON 输出时启用）
+
+对应配置文件键：
+- `glmCapabilities.thinkingMode`
+- `glmCapabilities.clearThinking`
+- `glmCapabilities.toolStream`
+- `glmCapabilities.responseFormat`

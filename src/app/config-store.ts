@@ -20,11 +20,40 @@ export type ProviderConfig = {
 
 export type StorageProviderKey = "glm" | "openai-compatible";
 export type ApprovalPolicy = "ask" | "auto" | "never";
+export type ThinkingMode = "auto" | "enabled" | "disabled";
+export type ToolStreamMode = "auto" | "on" | "off";
+export type ResponseFormatType = "json_object";
+export type LoopProfileName = "code";
+export type LoopFailureMode = "handoff" | "fail";
+export type GenerationConfig = {
+  maxOutputTokens?: number;
+  temperature?: number;
+  topP?: number;
+};
+export type GlmCapabilitiesConfig = {
+  thinkingMode?: ThinkingMode;
+  clearThinking?: boolean;
+  toolStream?: ToolStreamMode;
+  responseFormat?: ResponseFormatType;
+};
+export type LoopConfig = {
+  enabledByDefault?: boolean;
+  profile?: LoopProfileName;
+  maxRounds?: number;
+  failureMode?: LoopFailureMode;
+  autoVerify?: boolean;
+  verifyCommand?: string;
+};
 
 type PersistedProviderName = StorageProviderKey;
 const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = ["glm", "openai-compatible"];
 
 const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
+const VALID_THINKING_MODES: ThinkingMode[] = ["auto", "enabled", "disabled"];
+const VALID_TOOL_STREAM_MODES: ToolStreamMode[] = ["auto", "on", "off"];
+const VALID_RESPONSE_FORMAT_TYPES: ResponseFormatType[] = ["json_object"];
+const VALID_LOOP_PROFILES: LoopProfileName[] = ["code"];
+const VALID_LOOP_FAILURE_MODES: LoopFailureMode[] = ["handoff", "fail"];
 
 const BASE_DEFAULT_CONFIG_FILE = buildDefaultConfigFile();
 
@@ -32,11 +61,35 @@ function createEmptyProviderConfig(): ProviderConfig {
   return { apiKey: "", baseURL: "" };
 }
 
+function createDefaultGenerationConfig(): GenerationConfig {
+  return {};
+}
+
+function createDefaultGlmCapabilitiesConfig(): GlmCapabilitiesConfig {
+  return {
+    thinkingMode: "auto",
+    toolStream: "auto",
+  };
+}
+
+function createDefaultLoopConfig(): LoopConfig {
+  return {
+    enabledByDefault: false,
+    profile: "code",
+    maxRounds: 3,
+    failureMode: "handoff",
+    autoVerify: true,
+  };
+}
+
 function buildDefaultConfigFile(): GlmConfigFile {
   return {
     defaultProvider: "glm",
     defaultModel: "glm-5.1",
     approvalPolicy: "ask",
+    generation: createDefaultGenerationConfig(),
+    glmCapabilities: createDefaultGlmCapabilitiesConfig(),
+    loop: createDefaultLoopConfig(),
     providers: {
       glm: createEmptyProviderConfig(),
       "openai-compatible": createEmptyProviderConfig(),
@@ -48,6 +101,9 @@ export type GlmConfigFile = {
   defaultProvider?: PersistedProviderName;
   defaultModel?: string;
   approvalPolicy?: ApprovalPolicy;
+  generation: GenerationConfig;
+  glmCapabilities: GlmCapabilitiesConfig;
+  loop: LoopConfig;
   providers: Record<StorageProviderKey, ProviderConfig>;
 };
 
@@ -75,6 +131,80 @@ function cloneProviderConfig(config?: ProviderConfig): ProviderConfig {
   return { ...base, endpoint };
 }
 
+function cloneGenerationConfig(config?: GenerationConfig): GenerationConfig {
+  const maxOutputTokens =
+    typeof config?.maxOutputTokens === "number" ? config.maxOutputTokens : undefined;
+  const temperature =
+    typeof config?.temperature === "number" ? config.temperature : undefined;
+  const topP = typeof config?.topP === "number" ? config.topP : undefined;
+
+  return {
+    ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
+    ...(temperature === undefined ? {} : { temperature }),
+    ...(topP === undefined ? {} : { topP }),
+  };
+}
+
+function cloneGlmCapabilitiesConfig(config?: GlmCapabilitiesConfig): GlmCapabilitiesConfig {
+  const rawThinkingMode = (config as unknown as { thinkingMode?: unknown })?.thinkingMode;
+  const rawClearThinking = (config as unknown as { clearThinking?: unknown })?.clearThinking;
+  const rawToolStream = (config as unknown as { toolStream?: unknown })?.toolStream;
+  const rawResponseFormat = (config as unknown as { responseFormat?: unknown })?.responseFormat;
+
+  return {
+    thinkingMode:
+      rawThinkingMode === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.glmCapabilities.thinkingMode
+        : (rawThinkingMode as ThinkingMode),
+    ...(rawClearThinking === undefined
+      ? {}
+      : { clearThinking: rawClearThinking as boolean }),
+    toolStream:
+      rawToolStream === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.glmCapabilities.toolStream
+        : (rawToolStream as ToolStreamMode),
+    ...(rawResponseFormat === undefined
+      ? {}
+      : { responseFormat: rawResponseFormat as ResponseFormatType }),
+  };
+}
+
+function cloneLoopConfig(config?: LoopConfig): LoopConfig {
+  const rawEnabledByDefault =
+    (config as unknown as { enabledByDefault?: unknown })?.enabledByDefault;
+  const rawProfile = (config as unknown as { profile?: unknown })?.profile;
+  const rawMaxRounds = (config as unknown as { maxRounds?: unknown })?.maxRounds;
+  const rawFailureMode = (config as unknown as { failureMode?: unknown })?.failureMode;
+  const rawAutoVerify = (config as unknown as { autoVerify?: unknown })?.autoVerify;
+  const rawVerifyCommand = (config as unknown as { verifyCommand?: unknown })?.verifyCommand;
+
+  return {
+    enabledByDefault:
+      rawEnabledByDefault === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.loop.enabledByDefault
+        : (rawEnabledByDefault as boolean),
+    profile:
+      rawProfile === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.loop.profile
+        : (rawProfile as LoopProfileName),
+    maxRounds:
+      rawMaxRounds === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.loop.maxRounds
+        : (rawMaxRounds as number),
+    failureMode:
+      rawFailureMode === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.loop.failureMode
+        : (rawFailureMode as LoopFailureMode),
+    autoVerify:
+      rawAutoVerify === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.loop.autoVerify
+        : (rawAutoVerify as boolean),
+    ...(rawVerifyCommand === undefined
+      ? {}
+      : { verifyCommand: rawVerifyCommand as string }),
+  };
+}
+
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
   const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
   const defaultProvider =
@@ -86,6 +216,18 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
     defaultProvider,
     defaultModel: config?.defaultModel ?? BASE_DEFAULT_CONFIG_FILE.defaultModel,
     approvalPolicy: config?.approvalPolicy ?? BASE_DEFAULT_CONFIG_FILE.approvalPolicy,
+    generation: cloneGenerationConfig(
+      (config as unknown as { generation?: GenerationConfig })?.generation ??
+        BASE_DEFAULT_CONFIG_FILE.generation,
+    ),
+    glmCapabilities: cloneGlmCapabilitiesConfig(
+      (config as unknown as { glmCapabilities?: GlmCapabilitiesConfig })?.glmCapabilities ??
+        BASE_DEFAULT_CONFIG_FILE.glmCapabilities,
+    ),
+    loop: cloneLoopConfig(
+      (config as unknown as { loop?: LoopConfig })?.loop ??
+        BASE_DEFAULT_CONFIG_FILE.loop,
+    ),
     providers: {
       glm: cloneProviderConfig(
         config?.providers?.glm ?? BASE_DEFAULT_CONFIG_FILE.providers.glm,
@@ -109,6 +251,26 @@ function isApprovalPolicy(value?: string): value is ApprovalPolicy {
   return VALID_APPROVAL_POLICIES.includes(value as ApprovalPolicy);
 }
 
+function isThinkingMode(value?: string): value is ThinkingMode {
+  return VALID_THINKING_MODES.includes(value as ThinkingMode);
+}
+
+function isToolStreamMode(value?: string): value is ToolStreamMode {
+  return VALID_TOOL_STREAM_MODES.includes(value as ToolStreamMode);
+}
+
+function isResponseFormatType(value?: string): value is ResponseFormatType {
+  return VALID_RESPONSE_FORMAT_TYPES.includes(value as ResponseFormatType);
+}
+
+function isLoopProfileName(value?: string): value is LoopProfileName {
+  return VALID_LOOP_PROFILES.includes(value as LoopProfileName);
+}
+
+function isLoopFailureMode(value?: string): value is LoopFailureMode {
+  return VALID_LOOP_FAILURE_MODES.includes(value as LoopFailureMode);
+}
+
 function validateConfigFile(config: GlmConfigFile): void {
   if (!isPersistedProviderName(config.defaultProvider)) {
     throw new Error(`Invalid default provider in config file: ${config.defaultProvider}`);
@@ -122,9 +284,83 @@ function validateConfigFile(config: GlmConfigFile): void {
     throw new Error(`Invalid approval policy in config file: ${config.approvalPolicy}`);
   }
 
+  validateGenerationConfig(config.generation);
+  validateGlmCapabilitiesConfig(config.glmCapabilities);
+  validateLoopConfig(config.loop);
+
   Object.entries(config.providers).forEach(([key, value]) => {
     validateProviderConfig(value, key as StorageProviderKey);
   });
+}
+
+function validateGenerationConfig(config: GenerationConfig): void {
+  if (
+    config.maxOutputTokens !== undefined &&
+    (!Number.isInteger(config.maxOutputTokens) || config.maxOutputTokens <= 0)
+  ) {
+    throw new Error(`Invalid maxOutputTokens in config file: ${config.maxOutputTokens}`);
+  }
+
+  if (
+    config.temperature !== undefined &&
+    (!Number.isFinite(config.temperature) || config.temperature < 0)
+  ) {
+    throw new Error(`Invalid temperature in config file: ${config.temperature}`);
+  }
+
+  if (
+    config.topP !== undefined &&
+    (!Number.isFinite(config.topP) || config.topP <= 0 || config.topP > 1)
+  ) {
+    throw new Error(`Invalid topP in config file: ${config.topP}`);
+  }
+}
+
+function validateGlmCapabilitiesConfig(config: GlmCapabilitiesConfig): void {
+  if (!isThinkingMode(config.thinkingMode)) {
+    throw new Error(`Invalid thinkingMode in config file: ${config.thinkingMode}`);
+  }
+
+  if (config.clearThinking !== undefined && typeof config.clearThinking !== "boolean") {
+    throw new Error(`Invalid clearThinking in config file: ${typeof config.clearThinking}`);
+  }
+
+  if (!isToolStreamMode(config.toolStream)) {
+    throw new Error(`Invalid toolStream in config file: ${config.toolStream}`);
+  }
+
+  if (
+    config.responseFormat !== undefined &&
+    !isResponseFormatType(config.responseFormat)
+  ) {
+    throw new Error(`Invalid responseFormat in config file: ${config.responseFormat}`);
+  }
+}
+
+function validateLoopConfig(config: LoopConfig): void {
+  if (typeof config.enabledByDefault !== "boolean") {
+    throw new Error(`Invalid loop.enabledByDefault in config file: ${typeof config.enabledByDefault}`);
+  }
+
+  if (!isLoopProfileName(config.profile)) {
+    throw new Error(`Invalid loop.profile in config file: ${config.profile}`);
+  }
+
+  if (!Number.isInteger(config.maxRounds) || (config.maxRounds ?? 0) <= 0) {
+    throw new Error(`Invalid loop.maxRounds in config file: ${config.maxRounds}`);
+  }
+
+  if (!isLoopFailureMode(config.failureMode)) {
+    throw new Error(`Invalid loop.failureMode in config file: ${config.failureMode}`);
+  }
+
+  if (typeof config.autoVerify !== "boolean") {
+    throw new Error(`Invalid loop.autoVerify in config file: ${typeof config.autoVerify}`);
+  }
+
+  if (config.verifyCommand !== undefined && typeof config.verifyCommand !== "string") {
+    throw new Error(`Invalid loop.verifyCommand in config file: ${typeof config.verifyCommand}`);
+  }
 }
 
 function validateProviderConfig(config: ProviderConfig, key: StorageProviderKey): void {

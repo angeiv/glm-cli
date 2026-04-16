@@ -27,7 +27,19 @@ Runs the default interactive chat session. The CLI bootstraps product directorie
 Starts interactive chat and optionally uses `[path]` as the working directory for that session.
 
 ### `glm run "<task>" [path]`
-Executes a single task through Pi's `runPrintMode`. Wrap the task description in quotes if it contains spaces. Global flags such as `--provider`, `--model`, `--cwd`, and `--yolo` behave the same as in the interactive mode.
+Runs a single task by default. Wrap the task description in quotes if it contains spaces. Global flags such as `--provider`, `--model`, `--cwd`, and `--yolo` behave the same as in the interactive mode.
+
+You can explicitly enable the delivery-quality loop:
+```bash
+glm run "fix the failing tests" --loop
+glm run "fix the failing tests" --loop --verify "pnpm test" --max-rounds 4 --fail-mode handoff
+```
+
+The current loop implementation is `code`-first:
+- sends a loop contract + task on round 1
+- runs a verifier after each round
+- sends a repair prompt when verification fails
+- exits with either `handoff` or `fail` when verification keeps failing or is unavailable
 
 ### `glm doctor`
 Performs local health checks before you start a session:
@@ -57,6 +69,24 @@ Example `~/.glm/config.json`:
   "defaultProvider": "glm",
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
+  "generation": {
+    "maxOutputTokens": 8192,
+    "temperature": 0.2,
+    "topP": 0.9
+  },
+  "glmCapabilities": {
+    "thinkingMode": "enabled",
+    "clearThinking": false,
+    "toolStream": "on",
+    "responseFormat": "json_object"
+  },
+  "loop": {
+    "enabledByDefault": false,
+    "profile": "code",
+    "maxRounds": 3,
+    "failureMode": "handoff",
+    "autoVerify": true
+  },
   "providers": {
     "glm": { "apiKey": "your_glm_key", "baseURL": "", "endpoint": "bigmodel-coding" },
     "openai-compatible": { "apiKey": "your_openai_key", "baseURL": "" }
@@ -69,9 +99,40 @@ Reads one supported config key and prints its value. Supported keys:
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
+- `glmEndpoint`
+- `maxOutputTokens`
+- `temperature`
+- `topP`
+- `thinkingMode`
+- `clearThinking`
+- `toolStream`
+- `responseFormat`
+- `loopEnabledByDefault`
+- `loopProfile`
+- `loopMaxRounds`
+- `loopFailureMode`
+- `loopAutoVerify`
+- `loopVerifyCommand`
 
 ### `glm config set <key> <value>`
-Writes one supported config key (`defaultProvider`, `defaultModel`, or `approvalPolicy`) to `~/.glm/config.json`.
+Writes supported config keys to `~/.glm/config.json`.
+
+Common examples:
+- `glm config set glmEndpoint bigmodel-coding`
+- `glm config set maxOutputTokens 8192`
+- `glm config set thinkingMode enabled`
+- `glm config set clearThinking false`
+- `glm config set toolStream on`
+- `glm config set responseFormat json_object`
+- `glm config set loopEnabledByDefault true`
+- `glm config set loopMaxRounds 4`
+- `glm config set loopVerifyCommand "pnpm test"`
+
+Optional fields can be cleared with `unset`:
+- `glm config set glmEndpoint unset`
+- `glm config set maxOutputTokens unset`
+- `glm config set clearThinking unset`
+- `glm config set responseFormat unset`
 
 ### Anthropic compatibility
 When provider is not explicitly set, runtime provider resolution order is:
@@ -194,6 +255,25 @@ Token/cost stats:
 - `/stats` (or `/usage`) shows a widget with aggregated token usage (input/output/cache) for the session and current branch.
 - `/stats clear` hides the widget.
 
+Delivery-quality loop:
+- `/loop status`
+- `/loop history [n]`
+- `/loop show <index>`
+- `/loop on`
+- `/loop off`
+- `/loop verify <cmd>`
+- `/loop clear-verify`
+- `/loop run <task>`
+
+Notes:
+- `/loop on` and `/loop off` arm or disarm the loop at the session level. Once armed, normal chat turns are also verified after `agent_end`, and failed verification sends a repair prompt automatically.
+- `/loop run` executes an explicit loop inside the current session. It suppresses the automatic hook for that session while the manual loop is running.
+- `/loop status` shows static loop config, the currently active loop round / verifier source, and the most recent loop result / terminal summary.
+- `/loop history [n]` shows recent session-local loop results in reverse chronological order. The default limit is 5.
+- `/loop show <index>` expands one entry from the reverse-chronological history view, including verifier kind, exit code, and stdout/stderr summaries.
+- The interactive footer/status bar shows a compact loop state such as `loop armed` or `loop auto r2/3`.
+- verifier priority is: explicit `/loop verify` > config `loop.verifyCommand` > auto-detection.
+
 ## Web Tools
 glm bundles two web-related tools that models can call:
 
@@ -213,13 +293,28 @@ You can set default generation parameters via env vars (applied to provider requ
 - `GLM_TEMPERATURE=0.2`
 - `GLM_TOP_P=0.9`
 
+Equivalent config file keys:
+- `generation.maxOutputTokens`
+- `generation.temperature`
+- `generation.topP`
+
 ## BigModel/z.ai Capabilities
 BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so Pi works out of the box:
 
 - Uses `max_tokens` (BigModel docs) instead of `max_completion_tokens`.
 - Maps Pi "thinking" toggles to BigModel's `thinking: { type: "enabled" | "disabled" }` request format.
-- Enables streaming tool-call argument deltas via `tool_stream: true` when tools are present and `stream: true`.
+- Supports forcing `thinking` on/off via `thinkingMode`, even when Pi does not emit a toggle.
+- Can explicitly control `tool_stream` via `toolStream` when tools are present and `stream: true`.
+- Supports structured JSON output via `responseFormat=json_object`.
 
 Optional env knobs:
+- `GLM_THINKING_MODE=auto|enabled|disabled`
 - `GLM_CLEAR_THINKING=0|1`: sets `thinking.clear_thinking` when the request includes `thinking`. (`0` is preserved thinking, per BigModel docs.)
+- `GLM_TOOL_STREAM=auto|on|off`
 - `GLM_RESPONSE_FORMAT=json_object`: adds `response_format: { type: "json_object" }` to requests (can interfere with tool calling; enable only when you need strict JSON output).
+
+Equivalent config file keys:
+- `glmCapabilities.thinkingMode`
+- `glmCapabilities.clearThinking`
+- `glmCapabilities.toolStream`
+- `glmCapabilities.responseFormat`

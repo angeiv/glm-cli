@@ -20,6 +20,36 @@ describe("parseCliArgs", () => {
     });
   });
 
+  test("parses loop flags for run", () => {
+    expect(
+      parseCliArgs([
+        "run",
+        "fix tests",
+        "--loop",
+        "--verify",
+        "pnpm test",
+        "--max-rounds",
+        "4",
+        "--fail-mode",
+        "fail",
+      ]),
+    ).toMatchObject({
+      command: "run",
+      task: "fix tests",
+      loop: true,
+      verify: "pnpm test",
+      maxRounds: 4,
+      failMode: "fail",
+    });
+  });
+
+  test("parses loop arming flag for chat", () => {
+    expect(parseCliArgs(["chat", "--loop"])).toMatchObject({
+      command: "chat",
+      loop: true,
+    });
+  });
+
   test("parses chat positional path as cwd", () => {
     expect(parseCliArgs(["chat", "/tmp/project"])).toMatchObject({
       command: "chat",

@@ -1,7 +1,9 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 export type ZhipuPayloadOverrides = {
+  thinkingMode?: "auto" | "enabled" | "disabled";
   clearThinking?: boolean;
+  toolStream?: "auto" | "on" | "off";
   responseFormatType?: "json_object";
 };
 
@@ -30,12 +32,44 @@ function normalizeResponseFormatType(value: string | undefined): "json_object" |
   return undefined;
 }
 
+function normalizeThinkingMode(
+  value: string | undefined,
+): "auto" | "enabled" | "disabled" | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  if (normalized === "auto" || normalized === "enabled" || normalized === "disabled") {
+    return normalized;
+  }
+
+  return undefined;
+}
+
+function normalizeToolStreamMode(
+  value: string | undefined,
+): "auto" | "on" | "off" | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  if (normalized === "auto" || normalized === "on" || normalized === "off") {
+    return normalized;
+  }
+
+  return undefined;
+}
+
 export function resolveZhipuPayloadOverrides(env: NodeJS.ProcessEnv): ZhipuPayloadOverrides {
+  const thinkingMode = normalizeThinkingMode(env.GLM_THINKING_MODE);
   const clearThinking = parseBoolean(env.GLM_CLEAR_THINKING);
+  const toolStream = normalizeToolStreamMode(env.GLM_TOOL_STREAM);
   const responseFormatType = normalizeResponseFormatType(env.GLM_RESPONSE_FORMAT);
 
   return {
+    thinkingMode,
     clearThinking,
+    toolStream,
     responseFormatType,
   };
 }
@@ -73,6 +107,10 @@ function shouldEnableThinkingFromReasoningEffort(value: unknown): boolean {
   return normalized !== "" && normalized !== "none" && normalized !== "disabled" && normalized !== "off";
 }
 
+function hasToolDefinitions(tools: unknown): boolean {
+  return Array.isArray(tools) && tools.length > 0;
+}
+
 export function applyZhipuPayloadPatches(
   payload: unknown,
   overrides: ZhipuPayloadOverrides,
@@ -98,18 +136,35 @@ export function applyZhipuPayloadPatches(
     next.tools = stripStrictFromTools(next.tools);
   }
 
-  // `tool_stream` is only meaningful for streaming.
-  if (next.tool_stream === true && next.stream !== true) {
+  // `tool_stream` is only meaningful for streaming tool calls.
+  const hasTools = hasToolDefinitions(next.tools);
+  const shouldStreamTools = next.stream === true && hasTools;
+  if (!shouldStreamTools) {
     delete next.tool_stream;
+  } else if (overrides.toolStream === "off") {
+    delete next.tool_stream;
+  } else if (overrides.toolStream === "on" || overrides.toolStream === "auto") {
+    next.tool_stream = true;
   }
 
   // Map pi-ai's `enable_thinking` / `reasoning_effort` into BigModel's `thinking` object.
   const hasEnableThinking = Object.prototype.hasOwnProperty.call(next, "enable_thinking");
   const hasReasoningEffort = Object.prototype.hasOwnProperty.call(next, "reasoning_effort");
-  if (hasEnableThinking || hasReasoningEffort) {
-    const enabled = hasEnableThinking
-      ? !!next.enable_thinking
-      : shouldEnableThinkingFromReasoningEffort(next.reasoning_effort);
+  const hasExistingThinking =
+    Object.prototype.hasOwnProperty.call(next, "thinking") &&
+    next.thinking &&
+    typeof next.thinking === "object";
+  const forcedThinkingMode =
+    overrides.thinkingMode && overrides.thinkingMode !== "auto"
+      ? overrides.thinkingMode
+      : undefined;
+
+  if (forcedThinkingMode || hasEnableThinking || hasReasoningEffort || (hasExistingThinking && overrides.clearThinking !== undefined)) {
+    const enabled = forcedThinkingMode
+      ? forcedThinkingMode === "enabled"
+      : hasEnableThinking
+        ? !!next.enable_thinking
+        : shouldEnableThinkingFromReasoningEffort(next.reasoning_effort);
 
     const existingThinking =
       next.thinking && typeof next.thinking === "object"
@@ -123,9 +178,10 @@ export function applyZhipuPayloadPatches(
     }
 
     next.thinking = thinking;
-    delete next.enable_thinking;
-    delete next.reasoning_effort;
   }
+
+  delete next.enable_thinking;
+  delete next.reasoning_effort;
 
   if (overrides.responseFormatType && !Object.prototype.hasOwnProperty.call(next, "response_format")) {
     next.response_format = { type: overrides.responseFormatType };
@@ -145,4 +201,3 @@ export default function (pi: ExtensionAPI) {
     return applyZhipuPayloadPatches(event.payload, overrides);
   });
 }
-

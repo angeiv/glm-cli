@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { resolveRuntimeConfig } from "../../src/app/env.js";
+import { buildCapabilityEnvironment, resolveRuntimeConfig } from "../../src/app/env.js";
 import {
   fileSystem,
   normalizeConfigFile,
@@ -40,6 +40,23 @@ describe("config store normalization", () => {
     expect(first.providers.glm).not.toBe(second.providers.glm);
     first.providers.glm.apiKey = "mutated";
     expect(second.providers.glm.apiKey).toBe("");
+  });
+
+  test("normalizeConfigFile returns independent capability configs", () => {
+    const first = normalizeConfigFile();
+    const second = normalizeConfigFile();
+
+    expect(first.generation).not.toBe(second.generation);
+    expect(first.glmCapabilities).not.toBe(second.glmCapabilities);
+    expect(first.loop).not.toBe(second.loop);
+
+    first.generation.maxOutputTokens = 4096;
+    first.glmCapabilities.thinkingMode = "enabled";
+    first.loop.maxRounds = 5;
+
+    expect(second.generation.maxOutputTokens).toBeUndefined();
+    expect(second.glmCapabilities.thinkingMode).toBe("auto");
+    expect(second.loop.maxRounds).toBe(3);
   });
 
   test("readConfigFile surfaces parse errors instead of silently defaulting", async () => {
@@ -166,5 +183,77 @@ describe("config store normalization", () => {
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
     await expect(readConfigFile()).rejects.toThrow(/endpoint/i);
+  });
+
+  test("readConfigFile rejects invalid glm capability values", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+      glmCapabilities: {
+        thinkingMode: "max",
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/thinkingMode/i);
+  });
+
+  test("readConfigFile rejects invalid loop config values", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+      loop: {
+        maxRounds: 0,
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/maxRounds/i);
+  });
+
+  test("buildCapabilityEnvironment prefers explicit env and falls back to config", () => {
+    const config = normalizeConfigFile({
+      generation: {
+        maxOutputTokens: 4096,
+        temperature: 0.2,
+        topP: 0.9,
+      },
+      glmCapabilities: {
+        thinkingMode: "enabled",
+        clearThinking: false,
+        toolStream: "on",
+        responseFormat: "json_object",
+      },
+      providers: {
+        glm: { apiKey: "", baseURL: "", endpoint: "bigmodel-coding" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+    });
+
+    const env = buildCapabilityEnvironment(
+      {
+        GLM_TEMPERATURE: "0.8",
+      },
+      config,
+    );
+
+    expect(env).toMatchObject({
+      GLM_MAX_OUTPUT_TOKENS: "4096",
+      GLM_TEMPERATURE: "0.8",
+      GLM_TOP_P: "0.9",
+      GLM_THINKING_MODE: "enabled",
+      GLM_CLEAR_THINKING: "0",
+      GLM_TOOL_STREAM: "on",
+      GLM_RESPONSE_FORMAT: "json_object",
+      GLM_ENDPOINT: "bigmodel-coding",
+    });
   });
 });

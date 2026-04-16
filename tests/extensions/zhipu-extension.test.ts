@@ -58,5 +58,40 @@ describe("glm-zhipu extension", () => {
     expect(next.thinking).toEqual({ type: "disabled" });
     expect(next).not.toHaveProperty("reasoning_effort");
   });
-});
 
+  test("applyZhipuPayloadPatches enables tool streaming when configured", () => {
+    const payload = {
+      model: "glm-5.1",
+      stream: true,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "demo",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+    };
+
+    const next = applyZhipuPayloadPatches(payload, { toolStream: "on" }) as any;
+    expect(next.tool_stream).toBe(true);
+  });
+
+  test("applyZhipuPayloadPatches can force thinking without pi toggles", () => {
+    const payload = {
+      model: "glm-5.1",
+      messages: [{ role: "user", content: "hi" }],
+    };
+
+    const next = applyZhipuPayloadPatches(payload, {
+      thinkingMode: "enabled",
+      clearThinking: true,
+    }) as any;
+
+    expect(next.thinking).toEqual({
+      type: "enabled",
+      clear_thinking: true,
+    });
+  });
+});
