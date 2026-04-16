@@ -48,12 +48,15 @@ describe("config store normalization", () => {
 
     expect(first.generation).not.toBe(second.generation);
     expect(first.glmCapabilities).not.toBe(second.glmCapabilities);
+    expect(first.loop).not.toBe(second.loop);
 
     first.generation.maxOutputTokens = 4096;
     first.glmCapabilities.thinkingMode = "enabled";
+    first.loop.maxRounds = 5;
 
     expect(second.generation.maxOutputTokens).toBeUndefined();
     expect(second.glmCapabilities.thinkingMode).toBe("auto");
+    expect(second.loop.maxRounds).toBe(3);
   });
 
   test("readConfigFile surfaces parse errors instead of silently defaulting", async () => {
@@ -197,6 +200,23 @@ describe("config store normalization", () => {
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
     await expect(readConfigFile()).rejects.toThrow(/thinkingMode/i);
+  });
+
+  test("readConfigFile rejects invalid loop config values", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+      loop: {
+        maxRounds: 0,
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/maxRounds/i);
   });
 
   test("buildCapabilityEnvironment prefers explicit env and falls back to config", () => {

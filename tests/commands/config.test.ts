@@ -35,6 +35,23 @@ describe("configGet", () => {
     expect(value).toBe("enabled");
     expect(log).toHaveBeenCalledWith("enabled");
   });
+
+  test("reads loop keys", async () => {
+    const log = vi.fn();
+    const value = await configGet("loopMaxRounds", {
+      readConfigFile: async () => ({
+        ...getDefaultConfigFile(),
+        loop: {
+          ...getDefaultConfigFile().loop,
+          maxRounds: 5,
+        },
+      }),
+      log,
+    });
+
+    expect(value).toBe("5");
+    expect(log).toHaveBeenCalledWith("5");
+  });
 });
 
 describe("configSet", () => {
@@ -88,5 +105,24 @@ describe("configSet", () => {
     });
 
     expect(updated.providers.glm.endpoint).toBe("zai-coding");
+  });
+
+  test("updates loop keys and persists them", async () => {
+    const writeConfigFile = vi.fn(async () => undefined);
+
+    const updated = await configSet("loopFailureMode", "fail", {
+      readConfigFile: async () => getDefaultConfigFile(),
+      writeConfigFile,
+      log: vi.fn(),
+    });
+
+    expect(updated.loop.failureMode).toBe("fail");
+    expect(writeConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        loop: expect.objectContaining({
+          failureMode: "fail",
+        }),
+      }),
+    );
   });
 });

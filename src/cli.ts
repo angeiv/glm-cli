@@ -2,6 +2,7 @@ import { runChatCommand } from "./commands/chat.js";
 import { runRunCommand } from "./commands/run.js";
 import { runDoctorCommand, DoctorCommandArgs } from "./commands/doctor.js";
 import { configGet, configSet } from "./commands/config.js";
+import type { LoopFailureMode } from "./app/config-store.js";
 import type { ProviderName } from "./providers/types.js";
 import { normalizeProviderName } from "./providers/types.js";
 import type { ChatCommandInput } from "./commands/chat.js";
@@ -12,6 +13,10 @@ type GlobalFlags = {
   model?: string;
   cwd?: string;
   yolo: boolean;
+  loop: boolean;
+  verify?: string;
+  maxRounds?: number;
+  failMode?: LoopFailureMode;
 };
 
 type BaseCliArgs = {
@@ -19,6 +24,10 @@ type BaseCliArgs = {
   provider?: ProviderName;
   model?: string;
   yolo: boolean;
+  loop: boolean;
+  verify?: string;
+  maxRounds?: number;
+  failMode?: LoopFailureMode;
 };
 
 export type ParsedCliArgs =
@@ -54,9 +63,16 @@ function extractFlagPresence(args: string[], flag: string): boolean {
   return true;
 }
 
+function normalizeFailMode(value?: string): LoopFailureMode | undefined {
+  if (value === "handoff" || value === "fail") {
+    return value;
+  }
+  return undefined;
+}
+
 export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const args = [...argv];
-  const flags: GlobalFlags = { yolo: false };
+  const flags: GlobalFlags = { yolo: false, loop: false };
 
   const providerFlag = extractFlagValue(args, "--provider");
   if (providerFlag) {
@@ -79,6 +95,33 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
 
   if (extractFlagPresence(args, "--yolo")) {
     flags.yolo = true;
+  }
+
+  if (extractFlagPresence(args, "--loop")) {
+    flags.loop = true;
+  }
+
+  const verifyFlag = extractFlagValue(args, "--verify");
+  if (verifyFlag) {
+    flags.verify = verifyFlag;
+  }
+
+  const maxRoundsFlag = extractFlagValue(args, "--max-rounds");
+  if (maxRoundsFlag) {
+    const parsed = Number(maxRoundsFlag);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error("--max-rounds must be a positive integer");
+    }
+    flags.maxRounds = parsed;
+  }
+
+  const failModeFlag = extractFlagValue(args, "--fail-mode");
+  if (failModeFlag) {
+    const normalized = normalizeFailMode(failModeFlag);
+    if (!normalized) {
+      throw new Error(`Unknown fail mode: ${failModeFlag}`);
+    }
+    flags.failMode = normalized;
   }
 
   const command = args.shift();
@@ -169,6 +212,10 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         provider: parsed.provider,
         model: parsed.model,
         yolo: parsed.yolo,
+        loop: parsed.loop,
+        verify: parsed.verify,
+        maxRounds: parsed.maxRounds,
+        failMode: parsed.failMode,
       });
     case "run":
       return mergedHandlers.run({
@@ -177,6 +224,10 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         provider: parsed.provider,
         model: parsed.model,
         yolo: parsed.yolo,
+        loop: parsed.loop,
+        verify: parsed.verify,
+        maxRounds: parsed.maxRounds,
+        failMode: parsed.failMode,
       });
     case "doctor":
       return mergedHandlers.doctor({

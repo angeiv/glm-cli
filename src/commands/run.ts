@@ -1,7 +1,13 @@
 import { readConfigFile } from "../app/config-store.js";
-import { buildCapabilityEnvironment, resolveRuntimeConfig } from "../app/env.js";
+import {
+  buildCapabilityEnvironment,
+  buildLoopEnvironment,
+  resolveLoopRuntimeOptions,
+  resolveRuntimeConfig,
+} from "../app/env.js";
+import type { LoopFailureMode } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
-import { runSingleTask } from "../runtime/run-runtime.js";
+import { runSingleTask, runTaskLoop } from "../runtime/run-runtime.js";
 import {
   createGlmRuntime,
   withPreservedProcessCwd,
@@ -14,6 +20,10 @@ export type RunCommandInput = {
   model?: string;
   provider?: ProviderName;
   yolo?: boolean;
+  loop?: boolean;
+  verify?: string;
+  maxRounds?: number;
+  failMode?: LoopFailureMode;
 };
 
 export async function runRunCommand(input: RunCommandInput): Promise<number> {
@@ -27,11 +37,25 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
     process.env,
     fileConfig,
   );
+  const loopOptions = resolveLoopRuntimeOptions(
+    {
+      model: input.model,
+      provider: input.provider,
+      yolo: input.yolo,
+      loop: input.loop,
+      verify: input.verify,
+      maxRounds: input.maxRounds,
+      failMode: input.failMode,
+    },
+    process.env,
+    fileConfig,
+  );
 
   return withPreservedProcessCwd(async () =>
     withScopedEnvironment(
       {
         ...buildCapabilityEnvironment(process.env, fileConfig),
+        ...buildLoopEnvironment(loopOptions),
         GLM_APPROVAL_POLICY: runtimeConfig.approvalPolicy,
         // Default to skipping Pi's npm version check for the embedded SDK. Users can opt back in
         // by setting PI_SKIP_VERSION_CHECK to an empty string before launching glm.
@@ -42,6 +66,10 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
           cwd: input.cwd,
           ...runtimeConfig,
         });
+
+        if (loopOptions.enabled) {
+          return runTaskLoop(runtime, input.task, loopOptions);
+        }
 
         return runSingleTask(runtime, input.task);
       },

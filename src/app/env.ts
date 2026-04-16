@@ -1,4 +1,8 @@
-import type { GlmConfigFile } from "./config-store.js";
+import type {
+  GlmConfigFile,
+  LoopFailureMode,
+  LoopProfileName,
+} from "./config-store.js";
 import type { ProviderName } from "../providers/types.js";
 import { resolveProviderSelection } from "../providers/index.js";
 
@@ -6,6 +10,10 @@ export type RuntimeCliFlags = {
   provider?: ProviderName;
   model?: string;
   yolo?: boolean;
+  loop?: boolean;
+  verify?: string;
+  maxRounds?: number;
+  failMode?: LoopFailureMode;
 };
 
 export type RuntimeEnvVars = Partial<{
@@ -19,6 +27,12 @@ export type RuntimeEnvVars = Partial<{
   GLM_CLEAR_THINKING: string;
   GLM_TOOL_STREAM: string;
   GLM_RESPONSE_FORMAT: string;
+  GLM_LOOP_ENABLED: string;
+  GLM_LOOP_PROFILE: string;
+  GLM_LOOP_MAX_ROUNDS: string;
+  GLM_LOOP_FAILURE_MODE: string;
+  GLM_LOOP_AUTO_VERIFY: string;
+  GLM_LOOP_VERIFY_COMMAND: string;
   OPENAI_API_KEY: string;
   OPENAI_MODEL: string;
   ANTHROPIC_AUTH_TOKEN: string;
@@ -29,6 +43,15 @@ export type RuntimeConfig = {
   provider: ProviderName;
   model: string;
   approvalPolicy: "ask" | "auto" | "never";
+};
+
+export type LoopRuntimeOptions = {
+  enabled: boolean;
+  profile: LoopProfileName;
+  maxRounds: number;
+  failureMode: LoopFailureMode;
+  autoVerify: boolean;
+  verifyCommand?: string;
 };
 
 export function resolveRuntimeConfig(
@@ -163,5 +186,95 @@ export function buildCapabilityEnvironment(
             fileConfig.glmCapabilities?.responseFormat,
           )!,
         }),
+  };
+}
+
+function parseBoolean(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") {
+    return true;
+  }
+  if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") {
+    return false;
+  }
+  return undefined;
+}
+
+function parsePositiveInteger(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value.trim());
+  if (!Number.isInteger(parsed) || parsed <= 0) return undefined;
+  return parsed;
+}
+
+function parseLoopFailureMode(value: string | undefined): LoopFailureMode | undefined {
+  if (value === "handoff" || value === "fail") return value;
+  return undefined;
+}
+
+function parseLoopProfile(value: string | undefined): LoopProfileName | undefined {
+  if (value === "code") return value;
+  return undefined;
+}
+
+export function resolveLoopRuntimeOptions(
+  cli: RuntimeCliFlags,
+  env: RuntimeEnvVars,
+  fileConfig: GlmConfigFile,
+): LoopRuntimeOptions {
+  const fileLoop = fileConfig.loop;
+  const envEnabled = parseBoolean(env.GLM_LOOP_ENABLED);
+  const envProfile = parseLoopProfile(env.GLM_LOOP_PROFILE);
+  const envMaxRounds = parsePositiveInteger(env.GLM_LOOP_MAX_ROUNDS);
+  const envFailureMode = parseLoopFailureMode(env.GLM_LOOP_FAILURE_MODE);
+  const envAutoVerify = parseBoolean(env.GLM_LOOP_AUTO_VERIFY);
+  const envVerifyCommand = readConfiguredEnvValue(
+    env.GLM_LOOP_VERIFY_COMMAND,
+    undefined,
+  );
+
+  return {
+    enabled:
+      cli.loop ??
+      envEnabled ??
+      fileLoop?.enabledByDefault ??
+      false,
+    profile:
+      envProfile ??
+      fileLoop?.profile ??
+      "code",
+    maxRounds:
+      cli.maxRounds ??
+      envMaxRounds ??
+      fileLoop?.maxRounds ??
+      3,
+    failureMode:
+      cli.failMode ??
+      envFailureMode ??
+      fileLoop?.failureMode ??
+      "handoff",
+    autoVerify:
+      envAutoVerify ??
+      fileLoop?.autoVerify ??
+      true,
+    verifyCommand:
+      cli.verify ??
+      envVerifyCommand ??
+      fileLoop?.verifyCommand,
+  };
+}
+
+export function buildLoopEnvironment(
+  loop: LoopRuntimeOptions,
+): Partial<NodeJS.ProcessEnv> {
+  return {
+    GLM_LOOP_ENABLED: loop.enabled ? "1" : "0",
+    GLM_LOOP_PROFILE: loop.profile,
+    GLM_LOOP_MAX_ROUNDS: String(loop.maxRounds),
+    GLM_LOOP_FAILURE_MODE: loop.failureMode,
+    GLM_LOOP_AUTO_VERIFY: loop.autoVerify ? "1" : "0",
+    ...(loop.verifyCommand ? { GLM_LOOP_VERIFY_COMMAND: loop.verifyCommand } : { GLM_LOOP_VERIFY_COMMAND: undefined }),
   };
 }
