@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { defineTool } from "@mariozechner/pi-coding-agent";
+import { Parser } from "htmlparser2";
 import { Type } from "@sinclair/typebox";
 
 type SearchResult = {
@@ -59,11 +60,37 @@ function hostMatchesAllowedDomains(url: URL, allowed: string[]): boolean {
 }
 
 function stripHtml(html: string): string {
-  const withoutScripts = html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "");
-  const withoutTags = withoutScripts.replace(/<\/?[^>]+>/g, " ");
-  return withoutTags.replace(/\s+/g, " ").trim();
+  const textParts: string[] = [];
+  let ignoredTag: "script" | "style" | null = null;
+
+  const parser = new Parser(
+    {
+      onopentag: (name) => {
+        const tag = name.toLowerCase();
+        if (tag === "script" || tag === "style") {
+          ignoredTag = tag;
+        }
+      },
+      ontext: (text) => {
+        if (ignoredTag !== null || !text.trim()) {
+          return;
+        }
+        textParts.push(text);
+      },
+      onclosetag: (name) => {
+        const tag = name.toLowerCase();
+        if (ignoredTag === tag) {
+          ignoredTag = null;
+        }
+      },
+    },
+    { decodeEntities: true },
+  );
+
+  parser.write(html);
+  parser.end();
+
+  return textParts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 function formatSearchResults(results: SearchResult[]): string {
@@ -278,4 +305,3 @@ export default function (pi: ExtensionAPI) {
     }),
   );
 }
-
