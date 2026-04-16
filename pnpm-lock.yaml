@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@mariozechner/pi-ai':
         specifier: ^0.67.1
-        version: 0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
+        version: 0.67.3(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
       '@mariozechner/pi-coding-agent':
         specifier: ^0.67.1
         version: 0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
@@ -354,8 +354,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@google/genai@1.50.0':
-    resolution: {integrity: sha512-oHv7JfdI6SLUitERptYoHqpn4Y2wWyPOBfWtpw8kfKTqqEiMJpUC6SEtiQPogb55Ip8fymj4bxGnGBTVV/Z9Ew==}
+  '@google/genai@1.50.1':
+    resolution: {integrity: sha512-YbkX7H9+1Pt8wOt7DDREy8XSoiL6fRDzZQRyaVBarFf8MR3zHGqVdvM4cLbDXqPhxqvegZShgfxb8kw9C7YhAQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       '@modelcontextprotocol/sdk': ^1.25.2
@@ -448,8 +448,8 @@ packages:
     resolution: {integrity: sha512-hs1xCimrlhXY+DszumOGLpM73NuKgt3/N7Wepr7hzFrxqDNPCfAk7z4QqiRqs5ChKlT0xd+QAA4sk8hbfIqNAA==}
     engines: {node: '>=20.0.0'}
 
-  '@mariozechner/pi-ai@0.67.1':
-    resolution: {integrity: sha512-4ShQ+g3uH01oCEoM4GaOcXricR4BG5Yrg2Ii7aIOXDJl0tYtH6vcNuR4mxhu7vtH/wuIUuugvT0z621O0Y66ug==}
+  '@mariozechner/pi-ai@0.67.3':
+    resolution: {integrity: sha512-0GDT2osCfBPYKffaeEzGmrDKGCAF2QQ2eqTGGE5akhBvw1fSA3TYjOCQyLPgzWz3ZHUzZwb6EQ5Yb1Bn3H14CQ==}
     engines: {node: '>=20.0.0'}
     hasBin: true
 
@@ -949,8 +949,8 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  basic-ftp@5.2.2:
-    resolution: {integrity: sha512-1tDrzKsdCg70WGvbFss/ulVAxupNauGnOlgpyjKzeQxzyllBLS0CGLV7tjIXTK3ZQA9/FBEm9qyFFN1bciA6pw==}
+  basic-ftp@5.3.0:
+    resolution: {integrity: sha512-5K9eNNn7ywHPsYnFwjKgYH8Hf8B5emh7JKcPaVjjrMJFQQwGpwowEnZNEtHs7DfR7hCZsmaK3VA4HUK0YarT+w==}
     engines: {node: '>=10.0.0'}
 
   bignumber.js@9.3.1:
@@ -1549,8 +1549,8 @@ packages:
   proper-lockfile@4.1.2:
     resolution: {integrity: sha512-TjNPblN4BwAWMXU8s9AEz4JmQxnD1NNL7bNOY/AKUzyamc379FWASUhc/K1pL2noVb+XmZKLL68cjzLsiOAMaA==}
 
-  protobufjs@7.5.4:
-    resolution: {integrity: sha512-CvexbZtbov6jW2eXAvLukXjXUW1TzFaivC46BpWc/3BpcCysb5Vffu+B3XHMm8lVEuy2Mm4XGex8hBSg1yapPg==}
+  protobufjs@7.5.5:
+    resolution: {integrity: sha512-3wY1AxV+VBNW8Yypfd1yQY9pXnqTAN+KwQxL8iYm3/BjKYMNg4i0owhEe26PWDOMaIrzeeF98Lqd5NGz4omiIg==}
     engines: {node: '>=12.0.0'}
 
   proxy-addr@2.0.7:
@@ -2403,11 +2403,11 @@ snapshots:
   '@esbuild/win32-x64@0.27.7':
     optional: true
 
-  '@google/genai@1.50.0(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))':
+  '@google/genai@1.50.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))':
     dependencies:
       google-auth-library: 10.6.2
       p-retry: 4.6.2
-      protobufjs: 7.5.4
+      protobufjs: 7.5.5
       ws: 8.20.0
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.29.0(zod@3.25.76)
@@ -2473,7 +2473,7 @@ snapshots:
 
   '@mariozechner/pi-agent-core@0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)':
     dependencies:
-      '@mariozechner/pi-ai': 0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
+      '@mariozechner/pi-ai': 0.67.3(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
       - aws-crt
@@ -2483,11 +2483,11 @@ snapshots:
       - ws
       - zod
 
-  '@mariozechner/pi-ai@0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)':
+  '@mariozechner/pi-ai@0.67.3(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)':
     dependencies:
       '@anthropic-ai/sdk': 0.73.0(zod@3.25.76)
       '@aws-sdk/client-bedrock-runtime': 3.1030.0
-      '@google/genai': 1.50.0(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))
+      '@google/genai': 1.50.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))
       '@mistralai/mistralai': 1.14.1
       '@sinclair/typebox': 0.34.49
       ajv: 8.18.0
@@ -2511,7 +2511,7 @@ snapshots:
     dependencies:
       '@mariozechner/jiti': 2.6.5
       '@mariozechner/pi-agent-core': 0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
-      '@mariozechner/pi-ai': 0.67.1(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
+      '@mariozechner/pi-ai': 0.67.3(@modelcontextprotocol/sdk@1.29.0(zod@3.25.76))(ws@8.20.0)(zod@3.25.76)
       '@mariozechner/pi-tui': 0.67.1
       '@silvia-odwyer/photon-node': 0.3.4
       ajv: 8.18.0
@@ -3097,7 +3097,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  basic-ftp@5.2.2: {}
+  basic-ftp@5.3.0: {}
 
   bignumber.js@9.3.1: {}
 
@@ -3457,7 +3457,7 @@ snapshots:
 
   get-uri@6.0.5:
     dependencies:
-      basic-ftp: 5.2.2
+      basic-ftp: 5.3.0
       data-uri-to-buffer: 6.0.2
       debug: 4.4.3
     transitivePeerDependencies:
@@ -3712,7 +3712,7 @@ snapshots:
       retry: 0.12.0
       signal-exit: 3.0.7
 
-  protobufjs@7.5.4:
+  protobufjs@7.5.5:
     dependencies:
       '@protobufjs/aspromise': 1.1.2
       '@protobufjs/base64': 1.1.2
