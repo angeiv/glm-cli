@@ -19,7 +19,7 @@
     "url": "git+https://github.com/angeiv/glm-cli.git"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.12.0"
   },
   "piConfig": {
     "name": "glm",
