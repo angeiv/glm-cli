@@ -168,14 +168,39 @@ export function buildApprovalPolicyEnvironment(
 }
 
 export function resolveRequestedModel(
-  modelRegistry: Pick<ModelRegistry, "find">,
+  modelRegistry: Pick<ModelRegistry, "find"> &
+    Partial<Pick<ModelRegistry, "getAvailable">>,
   provider: string,
   modelId: string,
 ) {
   const model = modelRegistry.find(provider, modelId);
 
   if (!model) {
-    throw new Error(`Requested model "${provider}/${modelId}" is not available`);
+    const availableModels =
+      typeof modelRegistry.getAvailable === "function"
+        ? modelRegistry.getAvailable()
+        : [];
+    const availableProviderModels = availableModels.filter(
+      (candidate) => candidate.provider === provider,
+    );
+
+    if (availableModels.length === 0) {
+      throw new Error(
+        "No configured providers are available. Configure GLM_API_KEY, OPENAI_API_KEY, or ANTHROPIC_AUTH_TOKEN, or add credentials to ~/.glm/config.json.",
+      );
+    }
+
+    if (availableProviderModels.length === 0) {
+      const providers = [...new Set(availableModels.map((candidate) => candidate.provider))];
+      throw new Error(
+        `Provider "${provider}" is not configured or has no available models. Available providers: ${providers.join(", ")}.`,
+      );
+    }
+
+    const availableIds = availableProviderModels.map((candidate) => candidate.id);
+    throw new Error(
+      `Requested model "${provider}/${modelId}" is not available. Available models for ${provider}: ${availableIds.join(", ")}.`,
+    );
   }
 
   return model;
