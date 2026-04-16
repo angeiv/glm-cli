@@ -1,6 +1,6 @@
 import { test, expect, vi } from "vitest";
-import glmPolicyExtension, { isDangerousCommand } from "../../resources/extensions/glm-policy/index.js";
-import { resolveProviderSettings } from "../../resources/extensions/glm-providers/index.js";
+import glmPolicyExtension, { isDangerousCommand } from "../../resources/extensions/glm-policy/index.ts";
+import { resolveProviderSettings } from "../../resources/extensions/glm-providers/index.ts";
 
 const rmVariants = [
   "rm -rf /tmp/demo",

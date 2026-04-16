@@ -7,6 +7,40 @@ import type { ProviderName } from "./providers/types.js";
 import { normalizeProviderName } from "./providers/types.js";
 import type { ChatCommandInput } from "./commands/chat.js";
 import type { RunCommandInput } from "./commands/run.js";
+import { VERSION } from "./version.js";
+
+const HELP_TEXT = `
+glm - local-repository coding assistant
+
+Usage:
+  glm [options]                        Start interactive chat (default)
+  glm chat [path] [options]            Start interactive chat in path
+  glm run "<task>" [path] [options]    Execute a single task and exit
+  glm doctor                           Run diagnostics
+  glm config get <key>                 Get config value
+  glm config set <key> <value>         Set config value
+
+Options:
+  --provider <name>     Provider: glm, openai-compatible, anthropic
+  --model <id>          Model ID (e.g., glm-5.1, glm-4-flash)
+  --cwd <path>          Working directory
+  --yolo                Skip approval prompts (dangerous commands still blocked)
+  --loop                Enable the delivery-quality loop
+  --verify <command>    Verification command to run after each loop round
+  --max-rounds <n>      Maximum loop rounds before stopping
+  --fail-mode <mode>    Loop failure mode: handoff or fail
+  --help, -h            Show help
+  --version, -v         Show version
+
+Examples:
+  glm
+  glm --provider glm
+  glm run "fix the tests"
+  glm run "fix the tests" --loop --verify "pnpm test" --max-rounds 4
+  glm --yolo run "refactor X"
+
+Version: ${VERSION}
+`;
 
 type GlobalFlags = {
   provider?: ProviderName;
@@ -73,6 +107,16 @@ function normalizeFailMode(value?: string): LoopFailureMode | undefined {
 export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const args = [...argv];
   const flags: GlobalFlags = { yolo: false, loop: false };
+
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(HELP_TEXT);
+    process.exit(0);
+  }
+
+  if (args.includes("--version") || args.includes("-v")) {
+    console.log(`glm v${VERSION}`);
+    process.exit(0);
+  }
 
   const providerFlag = extractFlagValue(args, "--provider");
   if (providerFlag) {

@@ -1,8 +1,46 @@
 import { readFileSync } from "node:fs";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { CliHandlers, parseCliArgs, runCli } from "../../src/cli.js";
 
+const originalExit = process.exit;
+
+afterEach(() => {
+  process.exit = originalExit;
+});
+
 describe("parseCliArgs", () => {
+  test("--help prints help and exits", () => {
+    const mockExit = vi.fn((code: number) => {
+      throw new Error(`exit(${code})`);
+    });
+    process.exit = mockExit as typeof process.exit;
+    expect(() => parseCliArgs(["--help"])).toThrow("exit(0)");
+  });
+
+  test("-h prints help and exits", () => {
+    const mockExit = vi.fn((code: number) => {
+      throw new Error(`exit(${code})`);
+    });
+    process.exit = mockExit as typeof process.exit;
+    expect(() => parseCliArgs(["-h"])).toThrow("exit(0)");
+  });
+
+  test("--version prints version and exits", () => {
+    const mockExit = vi.fn((code: number) => {
+      throw new Error(`exit(${code})`);
+    });
+    process.exit = mockExit as typeof process.exit;
+    expect(() => parseCliArgs(["--version"])).toThrow("exit(0)");
+  });
+
+  test("-v prints version and exits", () => {
+    const mockExit = vi.fn((code: number) => {
+      throw new Error(`exit(${code})`);
+    });
+    process.exit = mockExit as typeof process.exit;
+    expect(() => parseCliArgs(["-v"])).toThrow("exit(0)");
+  });
+
   test("defaults to chat with process cwd when no subcommand provided", () => {
     expect(parseCliArgs([])).toMatchObject({
       command: "chat",
@@ -127,7 +165,10 @@ describe("runCli", () => {
     await runCli(["doctor", "--yolo", "--provider", "glm"], handlers);
     expect(handlers.doctor).toHaveBeenCalledWith(
       expect.objectContaining({
-        cli: expect.objectContaining({ yolo: true, provider: "glm" }),
+        cli: expect.objectContaining({
+          yolo: true,
+          provider: "glm",
+        }),
       }),
     );
   });
