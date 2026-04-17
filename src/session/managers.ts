@@ -10,6 +10,8 @@ import type { ProviderName } from "../providers/types.js";
 import { readConfigFile } from "../app/config-store.js";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { buildRuntimePromptStack } from "../runtime/prompt.js";
+import type { PromptMode } from "../prompt/mode-overlays.js";
 
 export type CreateGlmManagersInput = {
   cwd: string;
@@ -19,6 +21,7 @@ export type CreateGlmManagersInput = {
   modelsPath: string;
   provider: ProviderName;
   model: string;
+  promptMode: PromptMode;
 };
 
 export type GlmManagers = {
@@ -97,6 +100,11 @@ export async function createGlmServices(
   input: CreateGlmManagersInput,
 ): Promise<GlmServices> {
   const managers = createGlmManagers(input);
+  const promptStack = await buildRuntimePromptStack({
+    agentDir: input.agentDir,
+    cwd: input.cwd,
+    mode: input.promptMode,
+  });
   const config = await readConfigFile();
   const glmApiKey = (process.env.GLM_API_KEY ?? config.providers.glm.apiKey ?? "").trim();
   const openAiCompatApiKey = (process.env.OPENAI_API_KEY ?? config.providers["openai-compatible"].apiKey ?? "").trim();
@@ -120,6 +128,10 @@ export async function createGlmServices(
     authStorage: managers.authStorage,
     modelRegistry: managers.modelRegistry,
     settingsManager: managers.settingsManager,
+    resourceLoaderOptions: {
+      systemPromptOverride: () => promptStack.systemPrompt,
+      appendSystemPromptOverride: () => [...promptStack.appendSystemPrompt],
+    },
   });
 
   return {

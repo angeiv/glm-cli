@@ -13,15 +13,18 @@ import { isProviderName } from "../providers/types.js";
 import { createGlmServices, createGlmSessionManager } from "./managers.js";
 import { resolveGlmSessionPaths } from "./session-paths.js";
 import { createBuiltinTools, createPlanTools } from "../tools/index.js";
+import type { PromptMode } from "../prompt/mode-overlays.js";
 
 export type GlmSessionInput = {
   cwd: string;
   model: string;
   provider: ProviderName;
   approvalPolicy: ApprovalPolicy;
+  promptMode?: PromptMode;
 };
 
 export type GlmSessionOptions = GlmSessionInput & {
+  promptMode: PromptMode;
   agentDir: string;
   sessionDir: string;
   authPath: string;
@@ -347,6 +350,7 @@ export function buildSessionOptions(input: GlmSessionInput): GlmSessionOptions {
 
   return {
     ...input,
+    promptMode: input.promptMode ?? "standard",
     ...paths,
     tools: createBuiltinTools(input.cwd),
     customTools: createPlanTools(),

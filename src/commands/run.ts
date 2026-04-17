@@ -65,6 +65,7 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
         const runtime = await createGlmRuntime({
           cwd: input.cwd,
           ...runtimeConfig,
+          promptMode: loopOptions.enabled ? "intensive" : "standard",
         });
 
         if (loopOptions.enabled) {
