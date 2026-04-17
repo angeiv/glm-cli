@@ -5,6 +5,7 @@ import { createLoopProfile } from "../loop/profiles/index.js";
 import { detectCodeVerifier } from "../loop/verify-detect.js";
 import { runVerificationCommand } from "../loop/verify-runner.js";
 import type { VerificationCommandResolution, VerificationResult } from "../loop/types.js";
+import { composeTaskPrompt } from "./prompt.js";
 
 function writeStdout(text: string): void {
   process.stdout.write(text);
@@ -14,7 +15,7 @@ export async function runSingleTask(
   runtime: AgentSessionRuntime,
   task: string,
 ): Promise<number> {
-  return runPromptSequence(runtime, [task]);
+  return runPromptSequence(runtime, [composeTaskPrompt(task, "standard")]);
 }
 
 type AgentAssistantMessage = {

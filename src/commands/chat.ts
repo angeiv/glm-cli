@@ -64,6 +64,7 @@ export async function runChatCommand(input: ChatCommandInput): Promise<void> {
         const runtime = await createGlmRuntime({
           cwd: input.cwd,
           ...runtimeConfig,
+          promptMode: "standard",
         });
 
         await runChatSession(runtime);
