@@ -1,6 +1,11 @@
-import { test, expect, vi } from "vitest";
+import { afterEach, test, expect, vi } from "vitest";
 import glmPolicyExtension, { isDangerousCommand } from "../../resources/extensions/glm-policy/index.ts";
 import { resolveProviderSettings } from "../../resources/extensions/glm-providers/index.ts";
+import { clearRuntimeEvents, getRuntimeEvents } from "../../src/diagnostics/event-log.js";
+
+afterEach(() => {
+  clearRuntimeEvents();
+});
 
 const rmVariants = [
   "rm -rf /tmp/demo",
@@ -48,6 +53,9 @@ test("dangerous bash commands always require explicit confirmation even when app
       "rm -rf /tmp/demo",
     );
     expect(denyResult).toMatchObject({ block: true, reason: "Denied dangerous command" });
+    expect(getRuntimeEvents().at(-1)).toMatchObject({
+      type: "approval.dangerous_command_denied",
+    });
 
     confirm.mockResolvedValueOnce(true);
     const allowResult = await handler(

@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { appendRuntimeEvent } from "../shared/runtime-state.js";
 
 const COMMAND_SEPARATORS = new Set([";", "&&", "||", "|"]);
 type ApprovalPolicy = "ask" | "auto" | "never";
@@ -401,6 +402,10 @@ export default function (pi: ExtensionAPI) {
 
         setCurrentApprovalPolicy(next);
         updateApprovalStatus(next, ctx);
+        appendRuntimeEvent({
+          type: "approval.changed",
+          summary: `approvalPolicy set to ${next}`,
+        });
         ctx.ui.notify(`approvalPolicy set to ${next}`, "info");
       },
     });
@@ -431,8 +436,18 @@ export default function (pi: ExtensionAPI) {
       }
 
       if (!ok) {
+        appendRuntimeEvent({
+          type: "approval.dangerous_command_denied",
+          level: "warn",
+          summary: command,
+        });
         return { block: true, reason: "Denied dangerous command" };
       }
+
+      appendRuntimeEvent({
+        type: "approval.dangerous_command_approved",
+        summary: command,
+      });
 
       return;
     }
@@ -444,7 +459,17 @@ export default function (pi: ExtensionAPI) {
 
     const ok = await ctx.ui.confirm("Allow command?", command);
     if (!ok) {
+      appendRuntimeEvent({
+        type: "approval.command_denied",
+        level: "warn",
+        summary: command,
+      });
       return { block: true, reason: "Denied by glm approval policy" };
     }
+
+    appendRuntimeEvent({
+      type: "approval.command_approved",
+      summary: command,
+    });
   });
 }

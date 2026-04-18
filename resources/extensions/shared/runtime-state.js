@@ -1,0 +1,99 @@
+const GLM_EVENT_LOG_STATE = Symbol.for("glm.eventLog");
+const GLM_RUNTIME_STATUS = Symbol.for("glm.runtimeStatus");
+
+function getRuntimeEventLogState() {
+  const existing = globalThis[GLM_EVENT_LOG_STATE];
+  if (
+    existing &&
+    typeof existing === "object" &&
+    typeof existing.limit === "number" &&
+    typeof existing.nextId === "number" &&
+    Array.isArray(existing.events)
+  ) {
+    return existing;
+  }
+
+  const state = {
+    limit: 200,
+    nextId: 1,
+    events: [],
+  };
+  globalThis[GLM_EVENT_LOG_STATE] = state;
+  return state;
+}
+
+export function appendRuntimeEvent({
+  type,
+  summary,
+  level = "info",
+  details,
+}) {
+  const state = getRuntimeEventLogState();
+  const event = {
+    id: state.nextId++,
+    at: new Date().toISOString(),
+    type,
+    summary,
+    level,
+    ...(details ? { details } : {}),
+  };
+  state.events.push(event);
+  if (state.events.length > state.limit) {
+    state.events = state.events.slice(state.events.length - state.limit);
+  }
+  return event;
+}
+
+export function getRuntimeEvents() {
+  return [...getRuntimeEventLogState().events];
+}
+
+export function clearRuntimeEvents() {
+  getRuntimeEventLogState().events = [];
+}
+
+export function getRuntimeStatus() {
+  const store = globalThis[GLM_RUNTIME_STATUS];
+  const status = store && typeof store === "object" ? store.status : undefined;
+  if (!status || typeof status !== "object") {
+    return undefined;
+  }
+
+  return {
+    ...status,
+    diagnostics: {
+      ...status.diagnostics,
+      eventCount: getRuntimeEvents().length,
+    },
+  };
+}
+
+export function buildRuntimeStatusLines(status) {
+  return [
+    `Cwd: ${status.cwd}`,
+    `Provider: ${status.provider}`,
+    `Model: ${status.model}`,
+    `Approval policy: ${status.approvalPolicy}`,
+    `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
+    `Verifier: ${status.loop.verifyCommand ?? "auto-detect"}`,
+    `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount}`,
+    `Diagnostics: debugRuntime=${status.diagnostics.debugRuntime} | eventLogLimit=${status.diagnostics.eventLogLimit} | events=${status.diagnostics.eventCount}`,
+    `Session dir: ${status.paths.sessionDir}`,
+  ];
+}
+
+export function buildRuntimeEventLines(events) {
+  if (!events.length) {
+    return [
+      "Recent events: 0",
+      "No runtime events recorded in this session yet.",
+    ];
+  }
+
+  return [
+    `Recent events: ${events.length}`,
+    ...events.map(
+      (event) => `${event.id}. [${event.level}] ${event.type} | ${event.summary}`,
+    ),
+  ];
+}

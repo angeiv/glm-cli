@@ -8,12 +8,22 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { syncPackagedResources } from "../app/resource-sync.js";
 import type { ApprovalPolicy } from "../app/config-store.js";
+import { readConfigFile } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
 import { isProviderName } from "../providers/types.js";
 import { createGlmServices, createGlmSessionManager } from "./managers.js";
 import { resolveGlmSessionPaths } from "./session-paths.js";
 import { createBuiltinTools, createPlanTools } from "../tools/index.js";
 import type { PromptMode } from "../prompt/mode-overlays.js";
+import {
+  resolveDiagnosticsRuntimeOptions,
+  resolveLoopRuntimeOptions,
+} from "../app/env.js";
+import {
+  buildRuntimeStatus,
+  setRuntimeStatus,
+} from "../diagnostics/runtime-status.js";
+import { configureRuntimeEventLog } from "../diagnostics/event-log.js";
 
 export type GlmSessionInput = {
   cwd: string;
@@ -49,6 +59,13 @@ export type RuntimeModelStrategy = {
 
 const GLM_APPROVAL_POLICY_STATE = Symbol.for("glm.approvalPolicy");
 type GlmApprovalPolicyState = { policy: ApprovalPolicy };
+
+function resolveStatusProvider(
+  provider: string | undefined,
+  fallback: ProviderName,
+): ProviderName {
+  return provider && isProviderName(provider) ? provider : fallback;
+}
 
 function getGlmApprovalPolicyState(): GlmApprovalPolicyState {
   const existing = (globalThis as any)[GLM_APPROVAL_POLICY_STATE] as unknown;
@@ -320,6 +337,28 @@ async function prepareGlmSession(
   model?: ReturnType<typeof resolveRequestedModel>;
 }> {
   await syncPackagedResources(options.agentDir);
+  const config = await readConfigFile();
+  const diagnostics = resolveDiagnosticsRuntimeOptions(config);
+  configureRuntimeEventLog({ limit: diagnostics.eventLogLimit });
+  setRuntimeStatus(
+    await buildRuntimeStatus({
+      cwd: options.cwd,
+      runtime: {
+        provider: resolveStatusProvider(strategy.selection?.provider, options.provider),
+        model: strategy.selection?.model ?? options.model,
+        approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
+      },
+      loop: resolveLoopRuntimeOptions({}, process.env, config),
+      diagnostics,
+      paths: {
+        agentDir: options.agentDir,
+        sessionDir: options.sessionDir,
+        authPath: options.authPath,
+        modelsPath: options.modelsPath,
+      },
+      env: process.env,
+    }),
+  );
 
   return withScopedEnvironment(
     {
@@ -370,10 +409,10 @@ export async function createGlmSession(
     },
     shouldPassExplicitModel: true,
   });
-  const result = await createAgentSessionFromServices({
-    services,
-    sessionManager,
-    model,
+      const result = await createAgentSessionFromServices({
+        services,
+        sessionManager,
+        model,
     tools: options.tools,
     customTools: options.customTools,
   });
@@ -422,9 +461,34 @@ export async function createGlmRuntime(
       model,
       tools: options.tools,
       customTools: options.customTools,
-    });
-    preferredSelection =
-      getGlmModelSelection(result.session.model) ?? preferredSelection;
+      });
+      const activeSelection =
+        getGlmModelSelection(result.session.model) ?? strategy.selection;
+      if (activeSelection) {
+        await syncPackagedResources(options.agentDir);
+        const config = await readConfigFile();
+        setRuntimeStatus(
+          await buildRuntimeStatus({
+            cwd: options.cwd,
+            runtime: {
+              provider: resolveStatusProvider(activeSelection.provider, options.provider),
+              model: activeSelection.model,
+              approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
+            },
+            loop: resolveLoopRuntimeOptions({}, process.env, config),
+            diagnostics: resolveDiagnosticsRuntimeOptions(config),
+            paths: {
+              agentDir: options.agentDir,
+              sessionDir: options.sessionDir,
+              authPath: options.authPath,
+              modelsPath: options.modelsPath,
+            },
+            env: process.env,
+          }),
+        );
+      }
+      preferredSelection =
+        getGlmModelSelection(result.session.model) ?? preferredSelection;
 
     return {
       ...result,

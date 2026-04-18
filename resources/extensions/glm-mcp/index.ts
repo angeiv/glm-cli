@@ -3,6 +3,7 @@ import { defineTool } from "@mariozechner/pi-coding-agent";
 import { homedir } from "node:os";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { appendRuntimeEvent } from "../shared/runtime-state.js";
 
 type McpServerTransportType = "stdio" | "streamable-http" | "sse";
 
@@ -249,7 +250,12 @@ async function loadMcpServers(): Promise<LoadedServer[]> {
     let server: ResolvedMcpServerConfig;
     try {
       server = resolveMcpServerConfig(rawServer);
-    } catch {
+    } catch (error) {
+      appendRuntimeEvent({
+        type: "mcp.config_invalid",
+        level: "warn",
+        summary: `${name}: ${error instanceof Error ? error.message : String(error)}`,
+      });
       continue;
     }
 
@@ -307,7 +313,16 @@ async function loadMcpServers(): Promise<LoadedServer[]> {
             tool,
           })),
       });
-    } catch {
+      appendRuntimeEvent({
+        type: "mcp.connected",
+        summary: `${name}: ${tools.length} tool${tools.length === 1 ? "" : "s"}`,
+      });
+    } catch (error) {
+      appendRuntimeEvent({
+        type: "mcp.connect_failed",
+        level: "error",
+        summary: `${name}: ${error instanceof Error ? error.message : String(error)}`,
+      });
       try {
         await client.close();
       } catch {
@@ -418,6 +433,10 @@ export default async function (pi: ExtensionAPI) {
     handler: async (args, ctx) => {
       const trimmed = args.trim();
       if (trimmed === "reload") {
+        appendRuntimeEvent({
+          type: "mcp.reload",
+          summary: "MCP runtime reload requested",
+        });
         await ctx.reload();
         return;
       }
