@@ -11,7 +11,7 @@ export function resolveProviderSelection(
   env: NodeJS.ProcessEnv,
   fallbackProvider: ProviderName,
   fallbackModel: string,
-) {
+): { provider: ProviderName; model: string } {
   const determineModel = (provider: ProviderName): string => {
     if (cli.model) {
       return cli.model;
@@ -21,7 +21,7 @@ export function resolveProviderSelection(
       return env.ANTHROPIC_MODEL ?? env.GLM_MODEL ?? fallbackModel;
     }
 
-    if (provider === "openai-compatible") {
+    if (provider === "openai-compatible" || provider === "openai-responses") {
       return env.OPENAI_MODEL ?? env.GLM_MODEL ?? fallbackModel;
     }
 
@@ -51,9 +51,12 @@ export function resolveProviderSelection(
   }
 
   if (env.OPENAI_API_KEY) {
+    const openAiProvider = fallbackProvider === "openai-responses"
+      ? "openai-responses"
+      : "openai-compatible";
     return {
-      provider: "openai-compatible" as const,
-      model: determineModel("openai-compatible"),
+      provider: openAiProvider,
+      model: determineModel(openAiProvider),
     };
   }
 

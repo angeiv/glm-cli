@@ -80,15 +80,15 @@ function credentialDetails(provider: ProviderName, env: NodeJS.ProcessEnv, confi
   if (provider === "anthropic") {
     ok = hasEnvCredential(env, "ANTHROPIC_AUTH_TOKEN");
     details = ok ? "anthropic auth token detected" : "missing ANTHROPIC_AUTH_TOKEN for anthropic compatibility";
-  } else if (provider === "openai-compatible") {
+  } else if (provider === "openai-compatible" || provider === "openai-responses") {
     ok = hasEnvCredential(env, "OPENAI_API_KEY");
     if (!ok && hasConfigCredential(config, "openai-compatible")) {
       ok = true;
-      details = "openai-compatible api key stored in config";
+      details = `${provider} api key stored in config`;
     } else if (ok) {
-      details = "openai-compatible api key detected via environment";
+      details = `${provider} api key detected via environment`;
     } else {
-      details = "missing OPENAI_API_KEY or stored openai-compatible credentials";
+      details = `missing OPENAI_API_KEY or stored ${provider} credentials`;
     }
   } else {
     ok = hasEnvCredential(env, "GLM_API_KEY");

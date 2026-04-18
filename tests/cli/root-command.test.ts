@@ -58,6 +58,15 @@ describe("parseCliArgs", () => {
     });
   });
 
+
+  test("parses openai-responses provider", () => {
+    expect(parseCliArgs(["run", "fix tests", "--provider", "openai-responses"])).toMatchObject({
+      command: "run",
+      task: "fix tests",
+      provider: "openai-responses",
+    });
+  });
+
   test("parses loop flags for run", () => {
     expect(
       parseCliArgs([

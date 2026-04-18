@@ -103,6 +103,22 @@ describe("config store normalization", () => {
     await expect(readConfigFile()).rejects.toThrow(/default provider/i);
   });
 
+
+
+  test("readConfigFile accepts openai-responses as defaultProvider", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "openai-responses",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    const config = await readConfigFile();
+    expect(config.defaultProvider).toBe("openai-responses");
+  });
   test("readConfigFile rejects persisted default providers not backed by storage", async () => {
     const payload = JSON.stringify({
       defaultProvider: "anthropic",

@@ -72,6 +72,82 @@ test("dangerous bash commands always require explicit confirmation even when app
   }
 });
 
+test("approval command offers three policy completions", async () => {
+  const commands = new Map<string, { handler: unknown; getArgumentCompletions?: (prefix: string) => Array<{ value: string; label: string }> | null }>();
+
+  glmPolicyExtension({
+    on: vi.fn(),
+    registerCommand: (
+      name: string,
+      options: {
+        handler: unknown;
+        getArgumentCompletions?: (prefix: string) => Array<{ value: string; label: string }> | null;
+      },
+    ) => {
+      commands.set(name, options);
+    },
+  } as unknown as Parameters<typeof glmPolicyExtension>[0]);
+
+  const approval = commands.get("approval");
+  expect(approval?.getArgumentCompletions).toBeTypeOf("function");
+
+  expect(approval?.getArgumentCompletions?.("")).toEqual([
+    {
+      value: "ask",
+      label: "ask - confirm every non-dangerous bash command",
+    },
+    {
+      value: "auto",
+      label: "auto - allow low-risk commands automatically; still ask for sensitive ones",
+    },
+    {
+      value: "never",
+      label: "never - skip non-dangerous approvals; dangerous commands still require approval",
+    },
+  ]);
+  expect(approval?.getArgumentCompletions?.("a")).toEqual([
+    {
+      value: "ask",
+      label: "ask - confirm every non-dangerous bash command",
+    },
+    {
+      value: "auto",
+      label: "auto - allow low-risk commands automatically; still ask for sensitive ones",
+    },
+  ]);
+});
+
+test("approval auto shows a risk warning when toggled", async () => {
+  const commands = new Map<string, { handler: (args: string, ctx: any) => Promise<void> }>();
+
+  glmPolicyExtension({
+    on: vi.fn(),
+    registerCommand: (
+      name: string,
+      options: {
+        handler: (args: string, ctx: any) => Promise<void>;
+      },
+    ) => {
+      commands.set(name, options);
+    },
+  } as unknown as Parameters<typeof glmPolicyExtension>[0]);
+
+  const notify = vi.fn();
+  const setStatus = vi.fn();
+  await commands.get("approval")?.handler("auto", {
+    ui: {
+      notify,
+      setStatus,
+    },
+  });
+
+  expect(setStatus).toHaveBeenCalledWith("glm.approvalPolicy", "approval: auto");
+  expect(notify).toHaveBeenCalledWith(
+    "approvalPolicy set to auto. Low-risk bash commands will run without confirmation; sensitive and dangerous commands still require approval.",
+    "warning",
+  );
+});
+
 test("resolveProviderSettings prefers persisted config when env vars missing", () => {
   const settings = resolveProviderSettings({
     envApiKey: undefined,

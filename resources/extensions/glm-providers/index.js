@@ -1,15 +1,13 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { AssistantMessageEventStream, streamSimple, type Context, type Model, type SimpleStreamOptions } from "@mariozechner/pi-ai";
+// resources/extensions/glm-providers/index.ts
+import { AssistantMessageEventStream, streamSimple } from "@mariozechner/pi-ai";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
-
-const OPENAI_COMPAT = {
+var OPENAI_COMPAT = {
   // Many OpenAI-compatible servers reject the newer "developer" role.
-  supportsDeveloperRole: false,
-} as const;
-
-const ZHIPU_OPENAI_COMPAT = {
+  supportsDeveloperRole: false
+};
+var ZHIPU_OPENAI_COMPAT = {
   // BigModel / z.ai OpenAI-compatible endpoints are close to OpenAI Chat Completions, but
   // differ in a few fields (tokens/thinking/streaming-tool).
   supportsDeveloperRole: false,
@@ -19,218 +17,123 @@ const ZHIPU_OPENAI_COMPAT = {
   supportsReasoningEffort: false,
   maxTokensField: "max_tokens",
   thinkingFormat: "zai",
-  zaiToolStream: true,
-} as const;
-
-function isZhipuOpenAiCompatBaseUrl(baseUrl: string): boolean {
+  zaiToolStream: true
+};
+function isZhipuOpenAiCompatBaseUrl(baseUrl) {
   const normalized = baseUrl.trim().toLowerCase();
   return normalized.includes("open.bigmodel.cn") || normalized.includes("api.z.ai");
 }
-
-const GLM_BASE_URL_PRESETS = {
+var GLM_BASE_URL_PRESETS = {
   // BigModel
   bigmodel: "https://open.bigmodel.cn/api/paas/v4/",
   "bigmodel-coding": "https://open.bigmodel.cn/api/coding/paas/v4/",
   // z.ai
   zai: "https://api.z.ai/api/paas/v4/",
-  "zai-coding": "https://api.z.ai/api/coding/paas/v4/",
-} as const;
-
-type GlmBaseUrlPreset = keyof typeof GLM_BASE_URL_PRESETS;
-
-function normalizeGlmBaseUrlPreset(value?: string): GlmBaseUrlPreset | undefined {
-  if (!value) return undefined;
+  "zai-coding": "https://api.z.ai/api/coding/paas/v4/"
+};
+function normalizeGlmBaseUrlPreset(value) {
+  if (!value) return void 0;
   const normalized = value.trim().toLowerCase();
-  if (!normalized) return undefined;
-
-  const aliases: Record<string, GlmBaseUrlPreset> = {
+  if (!normalized) return void 0;
+  const aliases = {
     "bigmodel-api": "bigmodel",
     "open.bigmodel": "bigmodel",
     "open.bigmodel.cn": "bigmodel",
     "bigmodel-coding-plan": "bigmodel-coding",
-
     "zai-api": "zai",
     "z.ai": "zai",
     "api.z.ai": "zai",
-    "zai-coding-plan": "zai-coding",
+    "zai-coding-plan": "zai-coding"
   };
-
   const mapped = aliases[normalized];
   if (mapped) return mapped;
-
-  return Object.prototype.hasOwnProperty.call(GLM_BASE_URL_PRESETS, normalized)
-    ? (normalized as GlmBaseUrlPreset)
-    : undefined;
+  return Object.prototype.hasOwnProperty.call(GLM_BASE_URL_PRESETS, normalized) ? normalized : void 0;
 }
-
-function resolveGlmBaseUrlPreset(
-  envPreset?: string,
-  persistedPreset?: string,
-): string | undefined {
+function resolveGlmBaseUrlPreset(envPreset, persistedPreset) {
   const preset = normalizeGlmBaseUrlPreset(envPreset) ?? normalizeGlmBaseUrlPreset(persistedPreset);
-  if (!preset) return undefined;
+  if (!preset) return void 0;
   return GLM_BASE_URL_PRESETS[preset];
 }
-
-type AnthropicContentBlock =
-  | { type: "text"; text: string }
-  | {
-      type: "image";
-      source: { type: "base64"; media_type: string; data: string };
-    }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | {
-      type: "tool_result";
-      tool_use_id: string;
-      content: string | Array<{ type: "text"; text: string }>;
-      is_error?: boolean;
-    }
-  | { type: "thinking"; thinking: string; signature?: string }
-  | { type: "redacted_thinking"; data: string };
-
-type AnthropicMessage = {
-  role: "user" | "assistant";
-  content: string | AnthropicContentBlock[];
-};
-
-type AnthropicToolDefinition = {
-  name: string;
-  description?: string;
-  input_schema: Record<string, unknown>;
-};
-
-type AnthropicMessagesResponse = {
-  id?: string;
-  model?: string;
-  role?: string;
-  content?: Array<Record<string, unknown>>;
-  stop_reason?: string | null;
-  usage?: { input_tokens?: number; output_tokens?: number };
-  error?: { message?: string };
-  detail?: string;
-};
-
-function isModelscopeAnthropicBaseUrl(baseUrl: string): boolean {
+function isModelscopeAnthropicBaseUrl(baseUrl) {
   const normalized = baseUrl.trim().toLowerCase();
   return normalized.includes("api-inference.modelscope.cn");
 }
-
-function asTextBlocks(
-  content: string | Array<{ type: "text"; text: string }>,
-): Array<{ type: "text"; text: string }> {
-  if (typeof content === "string") {
-    return [{ type: "text", text: content }];
-  }
-  return content;
-}
-
-function toAnthropicUserContent(
-  content: string | Array<{ type: string; text?: string; data?: string; mimeType?: string }>,
-): string | AnthropicContentBlock[] {
+function toAnthropicUserContent(content) {
   if (typeof content === "string") return content;
   if (!Array.isArray(content) || content.length === 0) return "";
-
-  const blocks: AnthropicContentBlock[] = [];
+  const blocks = [];
   for (const item of content) {
     if (item.type === "text") {
       const text = String(item.text ?? "");
       blocks.push({ type: "text", text });
       continue;
     }
-
     if (item.type === "image") {
       blocks.push({
         type: "image",
         source: {
           type: "base64",
           media_type: String(item.mimeType ?? "application/octet-stream"),
-          data: String(item.data ?? ""),
-        },
+          data: String(item.data ?? "")
+        }
       });
       continue;
     }
   }
-
   if (blocks.length === 0) return "";
   const hasImages = blocks.some((b) => b.type === "image");
   if (!hasImages) {
-    return blocks
-      .filter((b): b is { type: "text"; text: string } => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
+    return blocks.filter((b) => b.type === "text").map((b) => b.text).join("\n");
   }
   return blocks;
 }
-
-function toAnthropicAssistantContent(
-  content: Array<{ type: string; text?: string; thinking?: string; id?: string; name?: string; arguments?: Record<string, unknown> }>,
-): string | AnthropicContentBlock[] {
+function toAnthropicAssistantContent(content) {
   if (!Array.isArray(content) || content.length === 0) return "";
-
-  const blocks: AnthropicContentBlock[] = [];
+  const blocks = [];
   for (const item of content) {
     if (item.type === "text") {
       blocks.push({ type: "text", text: String(item.text ?? "") });
       continue;
     }
-
     if (item.type === "toolCall") {
       blocks.push({
         type: "tool_use",
         id: String(item.id ?? ""),
         name: String(item.name ?? ""),
-        input: (item.arguments ?? {}) as Record<string, unknown>,
+        input: item.arguments ?? {}
       });
       continue;
     }
-
-    // Skip thinking blocks when sending context back to the model.
   }
-
   if (blocks.length === 0) return "";
   const hasNonText = blocks.some((b) => b.type !== "text");
   if (!hasNonText) {
-    return blocks
-      .filter((b): b is { type: "text"; text: string } => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
+    return blocks.filter((b) => b.type === "text").map((b) => b.text).join("\n");
   }
   return blocks;
 }
-
-function toAnthropicToolResultContent(
-  content: Array<{ type: string; text?: string }>,
-): string | Array<{ type: "text"; text: string }> {
+function toAnthropicToolResultContent(content) {
   if (!Array.isArray(content) || content.length === 0) return "";
-
-  const texts = content
-    .filter((c) => c.type === "text")
-    .map((c) => String(c.text ?? ""));
-
-  // Tool results should be plain text for broad compatibility.
+  const texts = content.filter((c) => c.type === "text").map((c) => String(c.text ?? ""));
   return texts.join("\n");
 }
-
-function toAnthropicMessages(context: Context): AnthropicMessage[] {
-  const messages: AnthropicMessage[] = [];
-
+function toAnthropicMessages(context) {
+  const messages = [];
   for (const msg of context.messages) {
     if (msg.role === "user") {
       messages.push({
         role: "user",
-        content: toAnthropicUserContent(msg.content as any),
+        content: toAnthropicUserContent(msg.content)
       });
       continue;
     }
-
     if (msg.role === "assistant") {
       messages.push({
         role: "assistant",
-        content: toAnthropicAssistantContent(msg.content as any),
+        content: toAnthropicAssistantContent(msg.content)
       });
       continue;
     }
-
     if (msg.role === "toolResult") {
       messages.push({
         role: "user",
@@ -238,47 +141,40 @@ function toAnthropicMessages(context: Context): AnthropicMessage[] {
           {
             type: "tool_result",
             tool_use_id: msg.toolCallId,
-            content: toAnthropicToolResultContent(msg.content as any),
-            ...(msg.isError ? { is_error: true } : {}),
-          },
-        ],
+            content: toAnthropicToolResultContent(msg.content),
+            ...msg.isError ? { is_error: true } : {}
+          }
+        ]
       });
     }
   }
-
   return messages;
 }
-
-function toAnthropicTools(context: Context): AnthropicToolDefinition[] | undefined {
-  if (!context.tools || context.tools.length === 0) return undefined;
-
+function toAnthropicTools(context) {
+  if (!context.tools || context.tools.length === 0) return void 0;
   return context.tools.map((tool) => ({
     name: tool.name,
     description: tool.description,
-    input_schema: tool.parameters as unknown as Record<string, unknown>,
+    input_schema: tool.parameters
   }));
 }
-
-function mapAnthropicStopReason(reason: string | null | undefined): "stop" | "length" | "toolUse" {
+function mapAnthropicStopReason(reason) {
   if (!reason) return "stop";
   if (reason === "max_tokens") return "length";
   if (reason === "tool_use") return "toolUse";
   return "stop";
 }
-
-function isModelscopeTerminatedErrorMessage(message: string | undefined): boolean {
+function isModelscopeTerminatedErrorMessage(message) {
   if (!message) return false;
   return message.toLowerCase().includes("terminated");
 }
-
 function createNonStreamingModelscopeAnthropicApi() {
-  return (model: Model<any>, context: Context, options?: SimpleStreamOptions) => {
+  return (model, context, options) => {
     const stream = new AssistantMessageEventStream();
-
     (async () => {
       const output = {
-        role: "assistant" as const,
-        content: [] as Array<any>,
+        role: "assistant",
+        content: [],
         api: model.api,
         provider: model.provider,
         model: model.id,
@@ -288,59 +184,50 @@ function createNonStreamingModelscopeAnthropicApi() {
           cacheRead: 0,
           cacheWrite: 0,
           totalTokens: 0,
-          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
         },
-        stopReason: "stop" as const,
-        timestamp: Date.now(),
+        stopReason: "stop",
+        timestamp: Date.now()
       };
-
       try {
         const url = new URL("/v1/messages", model.baseUrl).toString();
-        const maxTokens = options?.maxTokens || Math.min(model.maxTokens, 32000);
-
+        const maxTokens = options?.maxTokens || Math.min(model.maxTokens, 32e3);
         const payload = {
           model: model.id,
           max_tokens: maxTokens,
           messages: toAnthropicMessages(context),
-          ...(context.systemPrompt ? { system: context.systemPrompt } : {}),
-          ...(toAnthropicTools(context) ? { tools: toAnthropicTools(context) } : {}),
-          ...(typeof options?.temperature === "number" ? { temperature: options.temperature } : {}),
-          stream: false,
+          ...context.systemPrompt ? { system: context.systemPrompt } : {},
+          ...toAnthropicTools(context) ? { tools: toAnthropicTools(context) } : {},
+          ...typeof options?.temperature === "number" ? { temperature: options.temperature } : {},
+          stream: false
         };
-
         const nextPayload = await options?.onPayload?.(payload, model);
-        const finalPayload = (nextPayload === undefined ? payload : nextPayload) as Record<string, unknown>;
-
+        const finalPayload = nextPayload === void 0 ? payload : nextPayload;
         const res = await fetch(url, {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            ...(options?.apiKey ? { "x-api-key": options.apiKey } : {}),
-            ...(options?.headers ?? {}),
+            ...options?.apiKey ? { "x-api-key": options.apiKey } : {},
+            ...options?.headers ?? {}
           },
           body: JSON.stringify(finalPayload),
-          signal: options?.signal,
+          signal: options?.signal
         });
-
         const rawText = await res.text();
-        let parsed: AnthropicMessagesResponse | undefined;
+        let parsed;
         try {
-          parsed = rawText ? (JSON.parse(rawText) as AnthropicMessagesResponse) : undefined;
+          parsed = rawText ? JSON.parse(rawText) : void 0;
         } catch {
-          parsed = undefined;
+          parsed = void 0;
         }
-
         if (!res.ok) {
           const detail = parsed?.error?.message || parsed?.detail || rawText || `HTTP ${res.status}`;
           throw new Error(`${res.status} ${detail}`.trim());
         }
-
         stream.push({ type: "start", partial: output });
-
-        const blocks = (parsed?.content ?? []) as Array<Record<string, unknown>>;
+        const blocks = parsed?.content ?? [];
         for (const block of blocks) {
           const type = String(block.type ?? "");
-
           if (type === "text") {
             const text = String(block.text ?? "");
             output.content.push({ type: "text", text });
@@ -352,9 +239,8 @@ function createNonStreamingModelscopeAnthropicApi() {
             stream.push({ type: "text_end", contentIndex: idx, content: text, partial: output });
             continue;
           }
-
           if (type === "thinking") {
-            const thinking = String((block as any).thinking ?? "");
+            const thinking = String(block.thinking ?? "");
             output.content.push({ type: "thinking", thinking });
             const idx = output.content.length - 1;
             stream.push({ type: "thinking_start", contentIndex: idx, partial: output });
@@ -364,15 +250,14 @@ function createNonStreamingModelscopeAnthropicApi() {
             stream.push({ type: "thinking_end", contentIndex: idx, content: thinking, partial: output });
             continue;
           }
-
           if (type === "redacted_thinking") {
-            const signature = String((block as any).data ?? "");
+            const signature = String(block.data ?? "");
             const thinking = "[Reasoning redacted]";
             output.content.push({
               type: "thinking",
               thinking,
               thinkingSignature: signature,
-              redacted: true,
+              redacted: true
             });
             const idx = output.content.length - 1;
             stream.push({ type: "thinking_start", contentIndex: idx, partial: output });
@@ -380,13 +265,12 @@ function createNonStreamingModelscopeAnthropicApi() {
             stream.push({ type: "thinking_end", contentIndex: idx, content: thinking, partial: output });
             continue;
           }
-
           if (type === "tool_use") {
             const toolCall = {
               type: "toolCall",
-              id: String((block as any).id ?? ""),
-              name: String((block as any).name ?? ""),
-              arguments: ((block as any).input ?? {}) as Record<string, unknown>,
+              id: String(block.id ?? ""),
+              name: String(block.name ?? ""),
+              arguments: block.input ?? {}
             };
             output.content.push(toolCall);
             const idx = output.content.length - 1;
@@ -395,17 +279,14 @@ function createNonStreamingModelscopeAnthropicApi() {
             continue;
           }
         }
-
         const inputTokens = parsed?.usage?.input_tokens ?? 0;
         const outputTokens = parsed?.usage?.output_tokens ?? 0;
         output.usage.input = inputTokens;
         output.usage.output = outputTokens;
         output.usage.totalTokens = inputTokens + outputTokens;
-
         const stopReason = mapAnthropicStopReason(parsed?.stop_reason);
         output.stopReason = stopReason;
         output.responseId = parsed?.id;
-
         stream.push({ type: "done", reason: stopReason, message: output });
         stream.end();
       } catch (error) {
@@ -414,26 +295,21 @@ function createNonStreamingModelscopeAnthropicApi() {
         stream.push({
           type: "error",
           reason: output.stopReason,
-          error: output,
+          error: output
         });
         stream.end();
       }
     })();
-
     return stream;
   };
 }
-
 function createStreamFirstModelscopeAnthropicApi() {
   const fallback = createNonStreamingModelscopeAnthropicApi();
-
-  return (model: Model<any>, context: Context, options?: SimpleStreamOptions) => {
+  return (model, context, options) => {
     const stream = new AssistantMessageEventStream();
-
     (async () => {
-      const buffered: any[] = [];
+      const buffered = [];
       let flushed = false;
-
       const flush = () => {
         if (flushed) return;
         flushed = true;
@@ -442,104 +318,74 @@ function createStreamFirstModelscopeAnthropicApi() {
         }
         buffered.length = 0;
       };
-
       try {
         const primary = streamSimple({ ...model, api: "anthropic-messages" }, context, options);
-
         for await (const event of primary) {
           if (event.type === "error" && isModelscopeTerminatedErrorMessage(event.error?.errorMessage)) {
             if (options?.signal?.aborted) {
-              stream.push(event as any);
-              stream.end(event.error as any);
+              stream.push(event);
+              stream.end(event.error);
               return;
             }
-
             const fallbackStream = fallback(model, context, options);
-
             if (!flushed) {
-              // If the stream aborted before any meaningful output, fall back to a non-streaming request
-              // without showing Pi's retry UI.
               for await (const fallbackEvent of fallbackStream) {
-                stream.push(fallbackEvent as any);
+                stream.push(fallbackEvent);
               }
               stream.end(await fallbackStream.result());
               return;
             }
-
-            // We already emitted partial output; finish the message with a non-streaming request.
             const final = await fallbackStream.result();
             if (final.stopReason === "error" || final.stopReason === "aborted") {
               stream.push({ type: "error", reason: final.stopReason, error: final });
             } else {
               stream.push({ type: "done", reason: final.stopReason, message: final });
             }
-            stream.end(final as any);
+            stream.end(final);
             return;
           }
-
           if (event.type === "error" && !flushed) {
-            // Hide the buffered "start" event for early failures (e.g. invalid auth).
-            stream.push(event as any);
-            stream.end(event.error as any);
+            stream.push(event);
+            stream.end(event.error);
             return;
           }
-
           if (!flushed) {
-            buffered.push(event as any);
-
-            // Don't emit a start event until we see actual output. ModelScope sometimes terminates
-            // streaming connections early (undici "terminated"), and delaying avoids Pi's retry UI.
-            if (
-              event.type === "text_delta" ||
-              event.type === "thinking_delta" ||
-              event.type === "toolcall_delta" ||
-              event.type === "toolcall_start" ||
-              event.type === "done"
-            ) {
+            buffered.push(event);
+            if (event.type === "text_delta" || event.type === "thinking_delta" || event.type === "toolcall_delta" || event.type === "toolcall_start" || event.type === "done") {
               flush();
             }
-
-            // Keep buffering until flush.
             continue;
           }
-
-          stream.push(event as any);
+          stream.push(event);
         }
-
         if (!flushed) {
           flush();
         }
-
         stream.end(await primary.result());
       } catch (error) {
-        // Defensive: If anything goes wrong before we emitted output, fall back to non-streaming.
         const message = error instanceof Error ? error.message : String(error);
         const stopReason = options?.signal?.aborted ? "aborted" : "error";
-
         if (isModelscopeTerminatedErrorMessage(message) && !options?.signal?.aborted) {
           const fallbackStream = fallback(model, context, options);
-
           if (!flushed) {
             for await (const fallbackEvent of fallbackStream) {
-              stream.push(fallbackEvent as any);
+              stream.push(fallbackEvent);
             }
             stream.end(await fallbackStream.result());
             return;
           }
-
           const final = await fallbackStream.result();
           if (final.stopReason === "error" || final.stopReason === "aborted") {
             stream.push({ type: "error", reason: final.stopReason, error: final });
           } else {
             stream.push({ type: "done", reason: final.stopReason, message: final });
           }
-          stream.end(final as any);
+          stream.end(final);
           return;
         }
-
         const output = {
-          role: "assistant" as const,
-          content: [] as Array<any>,
+          role: "assistant",
+          content: [],
           api: model.api,
           provider: model.provider,
           model: model.id,
@@ -549,31 +395,28 @@ function createStreamFirstModelscopeAnthropicApi() {
             cacheRead: 0,
             cacheWrite: 0,
             totalTokens: 0,
-            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
           },
           stopReason,
           errorMessage: message,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
-
         stream.push({ type: "error", reason: stopReason, error: output });
         stream.end(output);
       }
     })();
-
     return stream;
   };
 }
-
-const glmBaseModels = [
+var glmBaseModels = [
   {
     id: "glm-5.1",
     name: "GLM 5.1",
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
+    contextWindow: 204800,
+    maxTokens: 131072
   },
   {
     id: "glm-5-turbo",
@@ -581,8 +424,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
+    contextWindow: 204800,
+    maxTokens: 131072
   },
   {
     id: "glm-5",
@@ -590,8 +433,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
+    contextWindow: 204800,
+    maxTokens: 131072
   },
   {
     id: "glm-4.7",
@@ -599,8 +442,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
+    contextWindow: 204800,
+    maxTokens: 131072
   },
   {
     id: "glm-4.7-flash",
@@ -608,8 +451,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
+    contextWindow: 204800,
+    maxTokens: 131072
   },
   {
     id: "glm-4.7-flashx",
@@ -617,8 +460,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
+    contextWindow: 204800,
+    maxTokens: 131072
   },
   {
     id: "glm-4.6",
@@ -626,8 +469,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
+    contextWindow: 204800,
+    maxTokens: 131072
   },
   {
     id: "glm-4.5-air",
@@ -635,8 +478,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 98_304,
+    contextWindow: 131072,
+    maxTokens: 98304
   },
   {
     id: "glm-4.5-airx",
@@ -644,8 +487,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 98_304,
+    contextWindow: 131072,
+    maxTokens: 98304
   },
   {
     id: "glm-4.5-flash",
@@ -653,8 +496,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 98_304,
+    contextWindow: 131072,
+    maxTokens: 98304
   },
   {
     id: "glm-4-flash-250414",
@@ -662,8 +505,8 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 16_384,
+    contextWindow: 131072,
+    maxTokens: 16384
   },
   {
     id: "glm-4-flashx-250414",
@@ -671,97 +514,73 @@ const glmBaseModels = [
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 16_384,
-  },
+    contextWindow: 131072,
+    maxTokens: 16384
+  }
 ];
-
-const glmModels = glmBaseModels.map((model) => ({
+var glmModels = glmBaseModels.map((model) => ({
   ...model,
-  compat: ZHIPU_OPENAI_COMPAT,
+  compat: ZHIPU_OPENAI_COMPAT
 }));
-
-function normalizeBigModelModelId(value: string): string {
+function normalizeBigModelModelId(value) {
   const trimmed = value.trim();
   if (trimmed.toLowerCase().startsWith("glm-")) {
     return trimmed.toLowerCase();
   }
   return trimmed;
 }
-
-function resolveModelId(...candidates: Array<string | undefined>): string | undefined {
+function resolveModelId(...candidates) {
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate.trim().length > 0) {
       return normalizeBigModelModelId(candidate);
     }
   }
-  return undefined;
+  return void 0;
 }
-
-function buildCustomModelDefinition(modelId: string, compat: typeof OPENAI_COMPAT = OPENAI_COMPAT) {
+function buildCustomModelDefinition(modelId, compat = OPENAI_COMPAT) {
   return {
     id: modelId,
     name: modelId,
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128_000,
-    maxTokens: 8_192,
-    compat,
+    contextWindow: 128e3,
+    maxTokens: 8192,
+    compat
   };
 }
-
-function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string) {
+function resolveOpenAiCompatibleModelDefinition(modelId, baseUrl) {
   const compat = isZhipuOpenAiCompatBaseUrl(baseUrl) ? ZHIPU_OPENAI_COMPAT : OPENAI_COMPAT;
   const base = glmBaseModels.find((model) => model.id === modelId);
   return base ? { ...base, compat } : buildCustomModelDefinition(modelId, compat);
 }
-
-function resolveOpenAiResponsesModelDefinition(modelId: string) {
+function resolveOpenAiResponsesModelDefinition(modelId) {
   const base = glmBaseModels.find((model) => model.id === modelId);
   if (base) {
-    const { compat: _compat, ...withoutCompat } = base as typeof base & { compat?: unknown };
+    const { compat: _compat, ...withoutCompat } = base;
     return withoutCompat;
   }
   return buildCustomModelDefinition(modelId);
 }
-
-export function resolveAnthropicModels(requestedModelId: string) {
+function resolveAnthropicModels(requestedModelId) {
   if (glmModels.some((model) => model.id === requestedModelId)) {
     return glmModels;
   }
-
   return [
     ...glmModels,
-    buildCustomModelDefinition(requestedModelId),
+    buildCustomModelDefinition(requestedModelId)
   ];
 }
-
-type PersistedProviderConfig = {
-  apiKey?: string;
-  baseURL?: string;
-  endpoint?: string;
-};
-
-type PersistedConfig = {
-  defaultModel?: string;
-  providers?: {
-    glm?: PersistedProviderConfig;
-    "openai-compatible"?: PersistedProviderConfig;
-  };
-};
-
-function normalizeProvider(value: unknown): PersistedProviderConfig | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  const maybe = value as Record<string, unknown>;
-  const apiKey = typeof maybe.apiKey === "string" ? maybe.apiKey : undefined;
-  const baseURL = typeof maybe.baseURL === "string" ? maybe.baseURL : undefined;
-  const endpoint = typeof maybe.endpoint === "string" ? maybe.endpoint : undefined;
-  if (!apiKey && !baseURL && !endpoint) return undefined;
+function normalizeProvider(value) {
+  if (typeof value !== "object" || value === null) return void 0;
+  const maybe = value;
+  const apiKey = typeof maybe.apiKey === "string" ? maybe.apiKey : void 0;
+  const baseURL = typeof maybe.baseURL === "string" ? maybe.baseURL : void 0;
+  const endpoint = typeof maybe.endpoint === "string" ? maybe.endpoint : void 0;
+  if (!apiKey && !baseURL && !endpoint) return void 0;
   return { apiKey, baseURL, endpoint };
 }
-
-function readPersistedConfig(): PersistedConfig {
+function readPersistedConfig() {
   const configPath = join(homedir(), ".glm", "config.json");
   try {
     const contents = readFileSync(configPath, "utf8");
@@ -769,106 +588,87 @@ function readPersistedConfig(): PersistedConfig {
     if (typeof parsed !== "object" || parsed === null) {
       return {};
     }
-    const providers = (parsed as { providers?: Record<string, unknown> }).providers;
+    const providers = parsed.providers;
     return {
-      defaultModel: typeof (parsed as { defaultModel?: string }).defaultModel === "string"
-        ? (parsed as { defaultModel?: string }).defaultModel
-        : undefined,
+      defaultModel: typeof parsed.defaultModel === "string" ? parsed.defaultModel : void 0,
       providers: {
         glm: normalizeProvider(providers?.glm),
-        "openai-compatible": normalizeProvider(providers?.["openai-compatible"]),
-      },
+        "openai-compatible": normalizeProvider(providers?.["openai-compatible"])
+      }
     };
   } catch {
     return {};
   }
 }
-
-const persistedConfig = readPersistedConfig();
-
-export function resolveProviderSettings(options: {
-  envApiKey?: string;
-  envBaseUrl?: string;
-  persisted?: PersistedProviderConfig;
-  defaultBaseUrl: string;
-}) {
+var persistedConfig = readPersistedConfig();
+function resolveProviderSettings(options) {
   const envApiKey = options.envApiKey?.trim();
   const persistedApiKey = options.persisted?.apiKey?.trim();
   const envBaseUrl = options.envBaseUrl?.trim();
   const persistedBaseUrl = options.persisted?.baseURL?.trim();
-
   const apiKey = envApiKey || persistedApiKey;
   const baseUrl = envBaseUrl || persistedBaseUrl || options.defaultBaseUrl;
   return { apiKey, baseUrl };
 }
-
-function resolveConfigDefaultModel(): string | undefined {
+function resolveConfigDefaultModel() {
   return persistedConfig.defaultModel;
 }
-
-export default function (pi: ExtensionAPI) {
+function index_default(pi) {
   const glmPresetBaseUrl = resolveGlmBaseUrlPreset(
     process.env.GLM_ENDPOINT,
-    persistedConfig.providers?.glm?.endpoint,
+    persistedConfig.providers?.glm?.endpoint
   );
   const glmSettings = resolveProviderSettings({
     envApiKey: process.env.GLM_API_KEY,
     envBaseUrl: process.env.GLM_BASE_URL,
     persisted: persistedConfig.providers?.glm,
-    defaultBaseUrl: glmPresetBaseUrl ?? GLM_BASE_URL_PRESETS["bigmodel-coding"],
+    defaultBaseUrl: glmPresetBaseUrl ?? GLM_BASE_URL_PRESETS["bigmodel-coding"]
   });
-
   if (glmSettings.apiKey) {
     pi.registerProvider("glm", {
       baseUrl: glmSettings.baseUrl,
       apiKey: glmSettings.apiKey,
       api: "openai-completions",
-      models: glmModels,
+      models: glmModels
     });
   }
-
   const openaiSettings = resolveProviderSettings({
     envApiKey: process.env.OPENAI_API_KEY,
     envBaseUrl: process.env.OPENAI_BASE_URL,
     persisted: persistedConfig.providers?.["openai-compatible"],
-    defaultBaseUrl: "https://api.openai.com/v1",
+    defaultBaseUrl: "https://api.openai.com/v1"
   });
-
   if (openaiSettings.apiKey) {
     const openaiModelId = resolveModelId(
       process.env.OPENAI_MODEL,
       process.env.GLM_MODEL,
-      resolveConfigDefaultModel(),
+      resolveConfigDefaultModel()
     ) ?? "glm-5.1";
     pi.registerProvider("openai-compatible", {
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-completions",
       models: [
-        resolveOpenAiCompatibleModelDefinition(openaiModelId, openaiSettings.baseUrl),
-      ],
+        resolveOpenAiCompatibleModelDefinition(openaiModelId, openaiSettings.baseUrl)
+      ]
     });
-
     pi.registerProvider("openai-responses", {
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-responses",
       models: [
-        resolveOpenAiResponsesModelDefinition(openaiModelId),
-      ],
+        resolveOpenAiResponsesModelDefinition(openaiModelId)
+      ]
     });
   }
-
   if (process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_MODEL || process.env.ANTHROPIC_BASE_URL) {
     const anthropicModelId = resolveModelId(
       process.env.ANTHROPIC_MODEL,
       process.env.GLM_MODEL,
-      resolveConfigDefaultModel(),
+      resolveConfigDefaultModel()
     ) ?? "glm-5.1";
-
     const baseUrl = process.env.ANTHROPIC_BASE_URL ?? "https://open.bigmodel.cn/api/anthropic";
     const isModelscope = isModelscopeAnthropicBaseUrl(baseUrl);
-
     pi.registerProvider("anthropic", {
       baseUrl,
       apiKey: "ANTHROPIC_AUTH_TOKEN",
@@ -876,8 +676,13 @@ export default function (pi: ExtensionAPI) {
       // connections early (undici "terminated"). Prefer streaming and automatically fall back
       // to a non-streaming request to surface real HTTP errors without Pi's retry UI.
       api: isModelscope ? "anthropic-messages-modelscope" : "anthropic-messages",
-      ...(isModelscope ? { streamSimple: createStreamFirstModelscopeAnthropicApi() } : {}),
-      models: resolveAnthropicModels(anthropicModelId),
+      ...isModelscope ? { streamSimple: createStreamFirstModelscopeAnthropicApi() } : {},
+      models: resolveAnthropicModels(anthropicModelId)
     });
   }
 }
+export {
+  index_default as default,
+  resolveAnthropicModels,
+  resolveProviderSettings
+};
