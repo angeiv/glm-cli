@@ -15,6 +15,8 @@ const CONFIG_KEYS = [
   "defaultProvider",
   "defaultModel",
   "approvalPolicy",
+  "debugRuntime",
+  "eventLogLimit",
   "glmEndpoint",
   "maxOutputTokens",
   "temperature",
@@ -56,6 +58,12 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   }
   if (key === "approvalPolicy") {
     return config.approvalPolicy ?? "ask";
+  }
+  if (key === "debugRuntime") {
+    return String(config.debugRuntime ?? false);
+  }
+  if (key === "eventLogLimit") {
+    return String(config.eventLogLimit ?? 200);
   }
   if (key === "glmEndpoint") {
     return config.providers.glm.endpoint ?? CLEARABLE_VALUE;
@@ -118,6 +126,21 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
 
   if (key === "approvalPolicy" && !["ask", "auto", "never"].includes(trimmed)) {
     throw new Error("approvalPolicy must be ask, auto, or never");
+  }
+
+  if (key === "debugRuntime") {
+    if (trimmed !== "true" && trimmed !== "false") {
+      throw new Error("debugRuntime must be true or false");
+    }
+    return trimmed === "true";
+  }
+
+  if (key === "eventLogLimit") {
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error("eventLogLimit must be a positive integer");
+    }
+    return parsed;
   }
 
   if (key === "glmEndpoint") {
@@ -266,6 +289,10 @@ export async function configSet(
     config.defaultProvider = parsedValue as GlmConfigFile["defaultProvider"];
   } else if (key === "approvalPolicy") {
     config.approvalPolicy = parsedValue as ApprovalPolicy;
+  } else if (key === "debugRuntime") {
+    config.debugRuntime = parsedValue as boolean;
+  } else if (key === "eventLogLimit") {
+    config.eventLogLimit = parsedValue as number;
   } else if (key === "glmEndpoint") {
     if (parsedValue === undefined) {
       delete config.providers.glm.endpoint;

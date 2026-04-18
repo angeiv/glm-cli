@@ -1,3 +1,40 @@
+// resources/extensions/shared/runtime-state.js
+var GLM_EVENT_LOG_STATE = /* @__PURE__ */ Symbol.for("glm.eventLog");
+function getRuntimeEventLogState() {
+  const existing = globalThis[GLM_EVENT_LOG_STATE];
+  if (existing && typeof existing === "object" && typeof existing.limit === "number" && typeof existing.nextId === "number" && Array.isArray(existing.events)) {
+    return existing;
+  }
+  const state = {
+    limit: 200,
+    nextId: 1,
+    events: []
+  };
+  globalThis[GLM_EVENT_LOG_STATE] = state;
+  return state;
+}
+function appendRuntimeEvent({
+  type,
+  summary,
+  level = "info",
+  details
+}) {
+  const state = getRuntimeEventLogState();
+  const event = {
+    id: state.nextId++,
+    at: (/* @__PURE__ */ new Date()).toISOString(),
+    type,
+    summary,
+    level,
+    ...details ? { details } : {}
+  };
+  state.events.push(event);
+  if (state.events.length > state.limit) {
+    state.events = state.events.slice(state.events.length - state.limit);
+  }
+  return event;
+}
+
 // resources/extensions/glm-policy/index.ts
 var COMMAND_SEPARATORS = /* @__PURE__ */ new Set([";", "&&", "||", "|"]);
 var GLM_APPROVAL_POLICY_STATE = /* @__PURE__ */ Symbol.for("glm.approvalPolicy");
@@ -359,6 +396,10 @@ function index_default(pi) {
         }
         setCurrentApprovalPolicy(next);
         updateApprovalStatus(next, ctx);
+        appendRuntimeEvent({
+          type: "approval.changed",
+          summary: `approvalPolicy set to ${next}`
+        });
         const notification = getApprovalPolicyNotification(next);
         ctx.ui.notify(notification.message, notification.level);
       }
@@ -385,8 +426,17 @@ function index_default(pi) {
         ok2 = false;
       }
       if (!ok2) {
+        appendRuntimeEvent({
+          type: "approval.dangerous_command_denied",
+          level: "warn",
+          summary: command
+        });
         return { block: true, reason: "Denied dangerous command" };
       }
+      appendRuntimeEvent({
+        type: "approval.dangerous_command_approved",
+        summary: command
+      });
       return;
     }
     const policy = getCurrentApprovalPolicy();
@@ -395,8 +445,17 @@ function index_default(pi) {
     if (policy === "auto" && !sensitive) return;
     const ok = await ctx.ui.confirm("Allow command?", command);
     if (!ok) {
+      appendRuntimeEvent({
+        type: "approval.command_denied",
+        level: "warn",
+        summary: command
+      });
       return { block: true, reason: "Denied by glm approval policy" };
     }
+    appendRuntimeEvent({
+      type: "approval.command_approved",
+      summary: command
+    });
   });
 }
 export {

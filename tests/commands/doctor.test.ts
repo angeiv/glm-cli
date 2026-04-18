@@ -94,4 +94,20 @@ describe("runDoctor", () => {
     expect(credentialsCheck?.ok).toBe(false);
     expect(credentialsCheck?.details).toContain("missing ANTHROPIC_AUTH_TOKEN");
   });
+
+  test("includes a runtime snapshot summary", async () => {
+    const result = await runDoctor({
+      ...baseOptions,
+      env: { GLM_API_KEY: "secret" },
+    });
+
+    expect(result.status).toMatchObject({
+      provider: "glm",
+      model: "glm-5.1",
+      diagnostics: {
+        debugRuntime: false,
+        eventLogLimit: 200,
+      },
+    });
+  });
 });

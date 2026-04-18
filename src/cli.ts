@@ -2,6 +2,7 @@ import { runChatCommand } from "./commands/chat.js";
 import { runRunCommand } from "./commands/run.js";
 import { runDoctorCommand, DoctorCommandArgs } from "./commands/doctor.js";
 import { configGet, configSet } from "./commands/config.js";
+import { runInspectCommand, type InspectCommandArgs } from "./commands/inspect.js";
 import type { LoopFailureMode } from "./app/config-store.js";
 import type { ProviderName } from "./providers/types.js";
 import { normalizeProviderName } from "./providers/types.js";
@@ -16,6 +17,7 @@ Usage:
   glm [options]                        Start interactive chat (default)
   glm chat [path] [options]            Start interactive chat in path
   glm run "<task>" [path] [options]    Execute a single task and exit
+  glm inspect [options]                Show effective runtime state
   glm doctor                           Run diagnostics
   glm config get <key>                 Get config value
   glm config set <key> <value>         Set config value
@@ -29,6 +31,7 @@ Options:
   --verify <command>    Verification command to run after each loop round
   --max-rounds <n>      Maximum loop rounds before stopping
   --fail-mode <mode>    Loop failure mode: handoff or fail
+  --json                Print inspect output as JSON
   --help, -h            Show help
   --version, -v         Show version
 
@@ -67,6 +70,7 @@ type BaseCliArgs = {
 export type ParsedCliArgs =
   | (BaseCliArgs & { command: "chat" })
   | (BaseCliArgs & { command: "run"; task: string })
+  | (BaseCliArgs & { command: "inspect"; json: boolean })
   | (BaseCliArgs & { command: "doctor" })
   | { command: "config"; subcommand: "get"; key: string; cwd: string }
   | { command: "config"; subcommand: "set"; key: string; value: string; cwd: string };
@@ -75,6 +79,7 @@ export type CliHandlers = {
   chat: (input: ChatCommandInput & { yolo: boolean }) => Promise<number>;
   run: (input: RunCommandInput & { yolo: boolean }) => Promise<number>;
   doctor: (input: DoctorCommandArgs) => Promise<number>;
+  inspect: (input: InspectCommandArgs) => Promise<number>;
   configGet: (key: string) => Promise<number>;
   configSet: (key: string, value: string) => Promise<number>;
 };
@@ -167,6 +172,7 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     }
     flags.failMode = normalized;
   }
+  const jsonFlag = extractFlagPresence(args, "--json");
 
   const command = args.shift();
   const cwd = flags.cwd ?? process.cwd();
@@ -202,6 +208,13 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     return { command: "doctor", cwd, ...flags };
   }
 
+  if (command === "inspect") {
+    if (args.length > 0) {
+      throw new Error("The inspect command does not accept positional arguments");
+    }
+    return { command: "inspect", cwd, json: jsonFlag, ...flags };
+  }
+
   if (command === "config") {
     const subcommand = args.shift();
 
@@ -235,6 +248,7 @@ const defaultHandlers: CliHandlers = {
   },
   run: async (input) => runRunCommand(input),
   doctor: async (input) => runDoctorCommand(input),
+  inspect: async (input) => runInspectCommand(input),
   configGet: async (key) => {
     await configGet(key);
     return 0;
@@ -276,7 +290,29 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
     case "doctor":
       return mergedHandlers.doctor({
         cwd: parsed.cwd,
-        cli: { provider: parsed.provider, model: parsed.model, yolo: parsed.yolo },
+        cli: {
+          provider: parsed.provider,
+          model: parsed.model,
+          yolo: parsed.yolo,
+          loop: parsed.loop,
+          verify: parsed.verify,
+          maxRounds: parsed.maxRounds,
+          failMode: parsed.failMode,
+        },
+      });
+    case "inspect":
+      return mergedHandlers.inspect({
+        cwd: parsed.cwd,
+        json: parsed.json,
+        cli: {
+          provider: parsed.provider,
+          model: parsed.model,
+          yolo: parsed.yolo,
+          loop: parsed.loop,
+          verify: parsed.verify,
+          maxRounds: parsed.maxRounds,
+          failMode: parsed.failMode,
+        },
       });
     case "config":
       if (parsed.subcommand === "get") {

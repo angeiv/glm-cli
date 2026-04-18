@@ -1,10 +1,22 @@
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
-import { RuntimeCliFlags, RuntimeConfig, resolveRuntimeConfig } from "../app/env.js";
+import {
+  RuntimeCliFlags,
+  RuntimeConfig,
+  resolveDiagnosticsRuntimeOptions,
+  resolveLoopRuntimeOptions,
+  resolveRuntimeConfig,
+} from "../app/env.js";
 import { getGlmAgentDir } from "../app/dirs.js";
 import { readConfigFile, GlmConfigFile } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
+import {
+  buildRuntimeStatus,
+  formatRuntimeStatusLines,
+} from "../diagnostics/runtime-status.js";
+import type { RuntimeStatus } from "../diagnostics/types.js";
+import { resolveGlmSessionPaths } from "../session/session-paths.js";
 
 export type DoctorCheck = {
   id: "cwd" | "credentials" | "resources";
@@ -16,6 +28,7 @@ export type DoctorResult = {
   ok: boolean;
   checks: DoctorCheck[];
   runtime?: RuntimeConfig;
+  status?: RuntimeStatus;
 };
 
 export type DoctorDependencies = {
@@ -111,6 +124,8 @@ async function checkResources(agentDir: string, pathExists: (path: string) => Pr
 export async function runDoctor(options: DoctorDependencies): Promise<DoctorResult> {
   const config = await options.readConfigFile();
   const runtime = resolveRuntimeConfig(options.cli, options.env, config);
+  const loop = resolveLoopRuntimeOptions(options.cli, options.env, config);
+  const diagnostics = resolveDiagnosticsRuntimeOptions(config);
 
   const checks = await Promise.all([
     checkCwd(options.cwd, options.pathExists),
@@ -122,6 +137,14 @@ export async function runDoctor(options: DoctorDependencies): Promise<DoctorResu
     ok: checks.every((check) => check.ok),
     checks,
     runtime,
+    status: await buildRuntimeStatus({
+      cwd: options.cwd,
+      runtime,
+      loop,
+      diagnostics,
+      paths: resolveGlmSessionPaths(options.cwd),
+      env: options.env,
+    }),
   };
 }
 
@@ -139,6 +162,12 @@ export async function runDoctorCommand(input: DoctorCommandArgs): Promise<number
     const status = check.ok ? "ok" : "fail";
     console.log(`[${status}] ${check.id} - ${check.details}`);
   });
+  if (result.status) {
+    console.log("");
+    formatRuntimeStatusLines(result.status).forEach((line) => {
+      console.log(line);
+    });
+  }
 
   if (!result.ok) {
     console.warn(

@@ -7,6 +7,7 @@ import type {
 } from "@mariozechner/pi-coding-agent";
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
+import { appendRuntimeEvent } from "../shared/runtime-state.js";
 
 type LoopProfileName = "code";
 type LoopFailureMode = "handoff" | "fail";
@@ -814,6 +815,10 @@ async function executeLoopRun(
 ): Promise<void> {
   const verifier = await resolveVerifier(ctx.cwd, state);
   const rounds: VerificationResult[] = [];
+  appendRuntimeEvent({
+    type: "loop.run_started",
+    summary: `${task} | mode=manual`,
+  });
 
   const runTurn = async (message: string) => {
     pi.sendUserMessage(message);
@@ -833,6 +838,11 @@ async function executeLoopRun(
             kind: verifier.kind,
             summary: verifier.summary,
           };
+    appendRuntimeEvent({
+      type: "loop.verify",
+      level: verification.kind === "fail" ? "warn" : "info",
+      summary: `${verification.kind}${verification.command ? ` | ${verification.command}` : ""} | ${verification.summary}`,
+    });
     rounds.push(verification);
 
     if (verification.kind === "pass") {
@@ -846,6 +856,10 @@ async function executeLoopRun(
       }));
       setLoopTerminalStatus(ctx.sessionManager, "loop done");
       refreshLoopStatus(ctx, state);
+      appendRuntimeEvent({
+        type: "loop.result",
+        summary: `succeeded | ${task} | rounds=${rounds.length}`,
+      });
       emitLoopMessage(pi, buildSuccessSummary(rounds).split("\n"));
       return;
     }
@@ -877,6 +891,11 @@ async function executeLoopRun(
       status === "failed" ? "loop failed" : "loop handoff",
     );
     refreshLoopStatus(ctx, state);
+    appendRuntimeEvent({
+      type: "loop.result",
+      level: status === "failed" ? "error" : "warn",
+      summary: `${status} | ${task} | rounds=${rounds.length}`,
+    });
     emitLoopMessage(
       pi,
       outcome.split("\n"),
@@ -919,6 +938,10 @@ async function startAutoLoopIfNeeded(
     verifier,
     announceSuccess: false,
   });
+  appendRuntimeEvent({
+    type: "loop.run_started",
+    summary: `${task} | mode=auto`,
+  });
 }
 
 async function continueAutoLoop(
@@ -943,6 +966,11 @@ async function continueAutoLoop(
           kind: active.verifier.kind,
           summary: active.verifier.summary,
         };
+  appendRuntimeEvent({
+    type: "loop.verify",
+    level: verification.kind === "fail" ? "warn" : "info",
+    summary: `${verification.kind}${verification.command ? ` | ${verification.command}` : ""} | ${verification.summary}`,
+  });
   active.rounds.push(verification);
 
   if (verification.kind === "pass") {
@@ -956,6 +984,10 @@ async function continueAutoLoop(
       outcome,
     }));
     setLoopTerminalStatus(ctx.sessionManager, "loop done");
+    appendRuntimeEvent({
+      type: "loop.result",
+      summary: `succeeded | ${active.task} | rounds=${active.rounds.length}`,
+    });
     if (active.announceSuccess) {
       emitLoopMessage(pi, outcome.split("\n"));
     }
@@ -995,6 +1027,11 @@ async function continueAutoLoop(
     ctx.sessionManager,
     status === "failed" ? "loop failed" : "loop handoff",
   );
+  appendRuntimeEvent({
+    type: "loop.result",
+    level: status === "failed" ? "error" : "warn",
+    summary: `${status} | ${active.task} | rounds=${active.rounds.length}`,
+  });
   emitLoopMessage(
     pi,
     outcome.split("\n"),

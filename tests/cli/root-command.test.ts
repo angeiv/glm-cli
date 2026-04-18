@@ -138,6 +138,14 @@ describe("parseCliArgs", () => {
       value: "glm-5-air",
     });
   });
+
+  test("parses inspect command with --json", () => {
+    expect(parseCliArgs(["inspect", "--json", "--cwd", "/tmp/project"])).toMatchObject({
+      command: "inspect",
+      cwd: "/tmp/project",
+      json: true,
+    });
+  });
 });
 
 describe("runCli", () => {
@@ -148,6 +156,7 @@ describe("runCli", () => {
       chat: vi.fn(async () => 0) as CliHandlers["chat"],
       run: vi.fn(async () => 0) as CliHandlers["run"],
       doctor: vi.fn(async () => 0) as CliHandlers["doctor"],
+      inspect: vi.fn(async () => 0) as CliHandlers["inspect"],
       configGet: vi.fn(async () => 0),
       configSet: vi.fn(async () => 0),
     };
@@ -190,6 +199,18 @@ describe("runCli", () => {
   test("dispatches to config set", async () => {
     await runCli(["config", "set", "defaultModel", "glm-5-air"], handlers);
     expect(handlers.configSet).toHaveBeenCalledWith("defaultModel", "glm-5-air");
+  });
+
+  test("dispatches to inspect with parsed flags", async () => {
+    await runCli(["inspect", "--json", "--provider", "glm"], handlers);
+    expect(handlers.inspect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: true,
+        cli: expect.objectContaining({
+          provider: "glm",
+        }),
+      }),
+    );
   });
 
   test("passes positional run path as cwd", async () => {
