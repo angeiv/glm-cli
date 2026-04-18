@@ -111,8 +111,8 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
   }
 
   if (key === "defaultProvider") {
-    if (trimmed !== "glm" && trimmed !== "openai-compatible") {
-      throw new Error("defaultProvider must be glm or openai-compatible");
+    if (trimmed !== "glm" && trimmed !== "openai-compatible" && trimmed !== "openai-responses") {
+      throw new Error("defaultProvider must be glm, openai-compatible, or openai-responses");
     }
   }
 

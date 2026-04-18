@@ -28,6 +28,24 @@ function withEnv(overrides: Partial<Record<(typeof trackedEnvKeys)[number], stri
   }
 }
 
+
+
+function registerProviderByName(
+  name: string,
+  overrides: Partial<Record<(typeof trackedEnvKeys)[number], string>>,
+) {
+  withEnv(overrides);
+
+  const registrations: Array<{ name: string; config: Record<string, unknown> }> = [];
+  registerGlmProviders({
+    registerProvider(providerName: string, config: Record<string, unknown>) {
+      registrations.push({ name: providerName, config });
+    },
+  } as unknown as ExtensionAPI);
+
+  return registrations.find((registration) => registration.name === name);
+}
+
 function registerAnthropicProvider(overrides: Partial<Record<(typeof trackedEnvKeys)[number], string>>) {
   withEnv(overrides);
 
@@ -127,3 +145,20 @@ describe("anthropic provider extension model registration", () => {
     expect(typeof anthropic!.config.streamSimple).toBe("function");
   });
 });
+
+describe("openai-responses provider extension registration", () => {
+  test("registers openai-responses with shared OPENAI_* credentials", () => {
+    const provider = registerProviderByName("openai-responses", {
+      OPENAI_API_KEY: "token",
+      OPENAI_MODEL: "glm-5.1",
+      OPENAI_BASE_URL: "https://example.com/v1",
+    });
+
+    expect(provider).toBeDefined();
+    expect(provider!.config.api).toBe("openai-responses");
+    expect(provider!.config.baseUrl).toBe("https://example.com/v1");
+    const models = provider!.config.models as Array<{ id: string }>;
+    expect(models).toEqual([expect.objectContaining({ id: "glm-5.1" })]);
+  });
+});
+

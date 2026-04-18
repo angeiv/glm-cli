@@ -70,6 +70,19 @@ describe("runDoctor", () => {
     expect(credentialsCheck?.details).toContain("missing OPENAI_API_KEY");
   });
 
+
+
+  test("treats whitespace-only OPENAI_API_KEY as missing for openai-responses", async () => {
+    const result = await runDoctor({
+      ...baseOptions,
+      cli: { provider: "openai-responses", model: undefined, yolo: false },
+      env: { OPENAI_API_KEY: "   " },
+    });
+
+    const credentialsCheck = result.checks.find((check) => check.id === "credentials");
+    expect(credentialsCheck?.ok).toBe(false);
+    expect(credentialsCheck?.details).toContain("missing OPENAI_API_KEY");
+  });
   test("treats whitespace-only ANTHROPIC_AUTH_TOKEN as missing for anthropic mode", async () => {
     const result = await runDoctor({
       ...baseOptions,

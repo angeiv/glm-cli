@@ -70,6 +70,16 @@ describe("resolveRuntimeConfig", () => {
     expect(runtime.model).toBe("foo");
   });
 
+
+
+  test("supports openai-responses as a file default provider", () => {
+    const config = createConfigFile({ defaultProvider: "openai-responses", defaultModel: "foo" });
+    const runtime = resolveRuntimeConfig({}, {}, config);
+
+    expect(runtime.provider).toBe("openai-responses");
+    expect(runtime.model).toBe("foo");
+  });
+
   test("explicit GLM provider env wins over compatibility credentials", () => {
     const config = createConfigFile({
       defaultProvider: "openai-compatible",
@@ -97,5 +107,19 @@ describe("resolveRuntimeConfig", () => {
     );
 
     expect(runtime.provider).toBe("glm");
+  });
+});
+
+
+describe("openai-responses autodetection", () => {
+  test("OPENAI_API_KEY alone does not override an explicit openai-responses default", () => {
+    const resolved = resolveProviderSelection(
+      {},
+      { OPENAI_API_KEY: "key" } as NodeJS.ProcessEnv,
+      "openai-responses",
+      "glm-5",
+    );
+
+    expect(resolved.provider).toBe("openai-responses");
   });
 });

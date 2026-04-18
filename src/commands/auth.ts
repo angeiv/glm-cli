@@ -2,7 +2,7 @@ import { createInterface } from "node:readline";
 import { readConfigFile, StorageProviderKey, writeConfigFile } from "../app/config-store.js";
 import { normalizeProviderName, ProviderName } from "../providers/types.js";
 
-type ProviderOptions = Exclude<ProviderName, "anthropic">;
+type ProviderOptions = Extract<ProviderName, "glm" | "openai-compatible">;
 const DEFAULT_PROVIDER: ProviderOptions = "glm";
 
 type PromptFn = (question: string) => Promise<string>;
@@ -82,7 +82,7 @@ async function runAuthLogin(deps: AuthDependencies): Promise<void> {
     `Provider (${DEFAULT_PROVIDER}/openai-compatible) [${DEFAULT_PROVIDER}]: `,
   );
   const selected = normalizeProviderName(providerValue?.trim() || DEFAULT_PROVIDER);
-  if (!selected || selected === "anthropic") {
+  if (!selected || selected === "anthropic" || selected === "openai-responses") {
     throw new Error("Only glm and openai-compatible providers are supported for auth login.");
   }
 
