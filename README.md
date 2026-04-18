@@ -52,6 +52,17 @@ loop 当前为 `code` 优先实现，行为为：
 - 校验当前工作目录是否可访问。
 - 仅检查当前生效 provider 的凭据（`glm`、`openai-compatible`、`anthropic` 兼容模式）。
 - 检查 `~/.glm/agent/prompts/system.md` 是否已经同步；若尚未同步，会报告为“首次运行时将自动同步”，而不是直接报错。
+- 输出一份精简的 runtime snapshot，展示当前 provider、model、approval、loop、MCP 和 diagnostics 生效值。
+
+### `glm inspect`
+输出当前命令上下文下的有效 runtime snapshot，可用于排查 provider/model/approval/loop/MCP 配置是否按预期生效。
+
+常用示例：
+```bash
+glm inspect
+glm inspect --json
+glm inspect --provider anthropic --model "ZhipuAI/GLM-5"
+```
 
 ### 凭据配置
 可通过环境变量或 `~/.glm/config.json` 配置 provider 凭据：
@@ -74,6 +85,8 @@ loop 当前为 `code` 优先实现，行为为：
   "defaultProvider": "glm",
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
+  "debugRuntime": false,
+  "eventLogLimit": 200,
   "generation": {
     "maxOutputTokens": 8192,
     "temperature": 0.2,
@@ -104,6 +117,8 @@ loop 当前为 `code` 优先实现，行为为：
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
+- `debugRuntime`
+- `eventLogLimit`
 - `glmEndpoint`
 - `maxOutputTokens`
 - `temperature`
@@ -124,6 +139,8 @@ loop 当前为 `code` 优先实现，行为为：
 
 常用示例：
 - `glm config set glmEndpoint bigmodel-coding`
+- `glm config set debugRuntime true`
+- `glm config set eventLogLimit 500`
 - `glm config set maxOutputTokens 8192`
 - `glm config set thinkingMode enabled`
 - `glm config set clearThinking false`
@@ -154,6 +171,9 @@ loop 当前为 `code` 优先实现，行为为：
 
 在交互模式下，也可以动态切换策略：
 - `/approval ask|auto|never`（别名：`/policy`）
+- `/inspect`
+- `/events`
+- `/events clear`
 
 ## MCP（Model Context Protocol）
 glm 可以从配置文件中加载 MCP server，并把它们暴露为可供 agent 调用的工具。

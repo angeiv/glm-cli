@@ -52,6 +52,17 @@ Performs local health checks before you start a session:
 - Validates the current working directory is accessible.
 - Verifies credentials for the effective provider only (glm, openai-compatible, or anthropic compatibility mode).
 - Reports whether `~/.glm/agent/prompts/system.md` is already synced; missing resources are reported as "will sync on first run" instead of failing because the main CLI populates them automatically.
+- Prints a compact runtime snapshot so you can see the effective provider, model, approval, loop, MCP, and diagnostics state.
+
+### `glm inspect`
+Prints the effective runtime snapshot for the current command context. This is useful when you need to explain why provider/model/approval/loop/MCP settings resolved the way they did.
+
+Common examples:
+```bash
+glm inspect
+glm inspect --json
+glm inspect --provider anthropic --model "ZhipuAI/GLM-5"
+```
 
 ### Credentials
 Configure provider credentials via environment variables or `~/.glm/config.json`:
@@ -74,6 +85,8 @@ Example `~/.glm/config.json`:
   "defaultProvider": "glm",
   "defaultModel": "glm-5.1",
   "approvalPolicy": "ask",
+  "debugRuntime": false,
+  "eventLogLimit": 200,
   "generation": {
     "maxOutputTokens": 8192,
     "temperature": 0.2,
@@ -104,6 +117,8 @@ Reads one supported config key and prints its value. Supported keys:
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
+- `debugRuntime`
+- `eventLogLimit`
 - `glmEndpoint`
 - `maxOutputTokens`
 - `temperature`
@@ -124,6 +139,8 @@ Writes supported config keys to `~/.glm/config.json`.
 
 Common examples:
 - `glm config set glmEndpoint bigmodel-coding`
+- `glm config set debugRuntime true`
+- `glm config set eventLogLimit 500`
 - `glm config set maxOutputTokens 8192`
 - `glm config set thinkingMode enabled`
 - `glm config set clearThinking false`
@@ -154,6 +171,9 @@ Skip the interactive approval flow (`approvalPolicy` toggles to `never`) for nor
 
 In interactive mode, you can also switch the policy on the fly:
 - `/approval ask|auto|never` (alias: `/policy`)
+- `/inspect`
+- `/events`
+- `/events clear`
 
 ## MCP (Model Context Protocol)
 glm can load MCP servers from a config file and expose their tools to the agent.

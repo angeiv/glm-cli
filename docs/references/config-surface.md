@@ -21,6 +21,8 @@ Supported persisted keys today:
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
+- `debugRuntime`
+- `eventLogLimit`
 - `generation.maxOutputTokens`
 - `generation.temperature`
 - `generation.topP`
@@ -49,6 +51,8 @@ Anthropic-compatible credentials are env-only today.
 - `defaultProvider`
 - `defaultModel`
 - `approvalPolicy`
+- `debugRuntime`
+- `eventLogLimit`
 - `glmEndpoint`
 - `maxOutputTokens`
 - `temperature`
