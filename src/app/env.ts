@@ -45,6 +45,11 @@ export type RuntimeConfig = {
   approvalPolicy: "ask" | "auto" | "never";
 };
 
+export type DiagnosticsRuntimeOptions = {
+  debugRuntime: boolean;
+  eventLogLimit: number;
+};
+
 export type LoopRuntimeOptions = {
   enabled: boolean;
   profile: LoopProfileName;
@@ -276,5 +281,14 @@ export function buildLoopEnvironment(
     GLM_LOOP_FAILURE_MODE: loop.failureMode,
     GLM_LOOP_AUTO_VERIFY: loop.autoVerify ? "1" : "0",
     ...(loop.verifyCommand ? { GLM_LOOP_VERIFY_COMMAND: loop.verifyCommand } : { GLM_LOOP_VERIFY_COMMAND: undefined }),
+  };
+}
+
+export function resolveDiagnosticsRuntimeOptions(
+  fileConfig: GlmConfigFile,
+): DiagnosticsRuntimeOptions {
+  return {
+    debugRuntime: fileConfig.debugRuntime ?? false,
+    eventLogLimit: fileConfig.eventLogLimit ?? 200,
   };
 }

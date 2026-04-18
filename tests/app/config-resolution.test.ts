@@ -219,6 +219,22 @@ describe("config store normalization", () => {
     await expect(readConfigFile()).rejects.toThrow(/maxRounds/i);
   });
 
+  test("readConfigFile rejects invalid diagnostics config values", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      debugRuntime: "yes",
+      eventLogLimit: 0,
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/debugRuntime|eventLogLimit/i);
+  });
+
   test("buildCapabilityEnvironment prefers explicit env and falls back to config", () => {
     const config = normalizeConfigFile({
       generation: {

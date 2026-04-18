@@ -25,6 +25,10 @@ export type ToolStreamMode = "auto" | "on" | "off";
 export type ResponseFormatType = "json_object";
 export type LoopProfileName = "code";
 export type LoopFailureMode = "handoff" | "fail";
+export type DiagnosticsConfig = {
+  debugRuntime?: boolean;
+  eventLogLimit?: number;
+};
 export type GenerationConfig = {
   maxOutputTokens?: number;
   temperature?: number;
@@ -87,6 +91,8 @@ function buildDefaultConfigFile(): GlmConfigFile {
     defaultProvider: "glm",
     defaultModel: "glm-5.1",
     approvalPolicy: "ask",
+    debugRuntime: false,
+    eventLogLimit: 200,
     generation: createDefaultGenerationConfig(),
     glmCapabilities: createDefaultGlmCapabilitiesConfig(),
     loop: createDefaultLoopConfig(),
@@ -101,6 +107,8 @@ export type GlmConfigFile = {
   defaultProvider?: PersistedProviderName;
   defaultModel?: string;
   approvalPolicy?: ApprovalPolicy;
+  debugRuntime?: boolean;
+  eventLogLimit?: number;
   generation: GenerationConfig;
   glmCapabilities: GlmCapabilitiesConfig;
   loop: LoopConfig;
@@ -207,6 +215,8 @@ function cloneLoopConfig(config?: LoopConfig): LoopConfig {
 
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
   const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
+  const rawDebugRuntime = (config as unknown as { debugRuntime?: unknown })?.debugRuntime;
+  const rawEventLogLimit = (config as unknown as { eventLogLimit?: unknown })?.eventLogLimit;
   const defaultProvider =
     rawDefaultProvider === undefined
       ? BASE_DEFAULT_CONFIG_FILE.defaultProvider
@@ -216,6 +226,14 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
     defaultProvider,
     defaultModel: config?.defaultModel ?? BASE_DEFAULT_CONFIG_FILE.defaultModel,
     approvalPolicy: config?.approvalPolicy ?? BASE_DEFAULT_CONFIG_FILE.approvalPolicy,
+    debugRuntime:
+      rawDebugRuntime === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.debugRuntime
+        : (rawDebugRuntime as boolean),
+    eventLogLimit:
+      rawEventLogLimit === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.eventLogLimit
+        : (rawEventLogLimit as number),
     generation: cloneGenerationConfig(
       (config as unknown as { generation?: GenerationConfig })?.generation ??
         BASE_DEFAULT_CONFIG_FILE.generation,
@@ -282,6 +300,12 @@ function validateConfigFile(config: GlmConfigFile): void {
 
   if (!isApprovalPolicy(config.approvalPolicy)) {
     throw new Error(`Invalid approval policy in config file: ${config.approvalPolicy}`);
+  }
+  if (typeof config.debugRuntime !== "boolean") {
+    throw new Error(`Invalid debugRuntime in config file: ${typeof config.debugRuntime}`);
+  }
+  if (!Number.isInteger(config.eventLogLimit) || (config.eventLogLimit ?? 0) <= 0) {
+    throw new Error(`Invalid eventLogLimit in config file: ${config.eventLogLimit}`);
   }
 
   validateGenerationConfig(config.generation);

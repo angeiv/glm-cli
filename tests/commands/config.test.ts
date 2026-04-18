@@ -52,6 +52,20 @@ describe("configGet", () => {
     expect(value).toBe("5");
     expect(log).toHaveBeenCalledWith("5");
   });
+
+  test("reads diagnostics keys", async () => {
+    const log = vi.fn();
+    const value = await configGet("eventLogLimit", {
+      readConfigFile: async () => ({
+        ...getDefaultConfigFile(),
+        eventLogLimit: 32,
+      }),
+      log,
+    });
+
+    expect(value).toBe("32");
+    expect(log).toHaveBeenCalledWith("32");
+  });
 });
 
 describe("configSet", () => {
@@ -122,6 +136,23 @@ describe("configSet", () => {
         loop: expect.objectContaining({
           failureMode: "fail",
         }),
+      }),
+    );
+  });
+
+  test("updates diagnostics keys and persists them", async () => {
+    const writeConfigFile = vi.fn(async () => undefined);
+
+    const updated = await configSet("debugRuntime", "true", {
+      readConfigFile: async () => getDefaultConfigFile(),
+      writeConfigFile,
+      log: vi.fn(),
+    });
+
+    expect(updated.debugRuntime).toBe(true);
+    expect(writeConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        debugRuntime: true,
       }),
     );
   });
