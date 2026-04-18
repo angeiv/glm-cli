@@ -1,4 +1,4 @@
-export const PROVIDER_NAMES = ["glm", "openai-compatible", "anthropic"] as const;
+export const PROVIDER_NAMES = ["glm", "openai-compatible", "openai-responses", "anthropic"] as const;
 
 export type ProviderName = (typeof PROVIDER_NAMES)[number];
 

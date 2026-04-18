@@ -150,7 +150,7 @@ export function buildModelSelectionEnvironment(
     return overrides;
   }
 
-  if (input.provider === "openai-compatible") {
+  if (input.provider === "openai-compatible" || input.provider === "openai-responses") {
     overrides.OPENAI_MODEL = input.model;
   }
 

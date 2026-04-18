@@ -29,7 +29,7 @@ export function resolveGenerationOverrides(env: NodeJS.ProcessEnv): GenerationOv
 export function applyGenerationOverrides(
   payload: unknown,
   overrides: GenerationOverrides,
-  model?: { maxTokens?: number },
+  model?: { api?: string; maxTokens?: number },
 ): unknown {
   if (!payload || typeof payload !== "object") return payload;
   const next = { ...(payload as Record<string, unknown>) };
@@ -38,7 +38,12 @@ export function applyGenerationOverrides(
     const max = model?.maxTokens && Number.isFinite(model.maxTokens) ? model.maxTokens : undefined;
     const clamped =
       max === undefined ? overrides.maxOutputTokens : Math.min(overrides.maxOutputTokens, max);
-    next.max_tokens = clamped;
+    if (model?.api === "openai-responses") {
+      next.max_output_tokens = clamped;
+      delete next.max_tokens;
+    } else {
+      next.max_tokens = clamped;
+    }
   }
 
   if (overrides.temperature !== undefined) {

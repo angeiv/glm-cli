@@ -4,6 +4,7 @@ import type {
   LoopProfileName,
 } from "./config-store.js";
 import type { ProviderName } from "../providers/types.js";
+import { isProviderName } from "../providers/types.js";
 import { resolveProviderSelection } from "../providers/index.js";
 
 export type RuntimeCliFlags = {
@@ -59,7 +60,7 @@ export function resolveRuntimeConfig(
   env: RuntimeEnvVars,
   fileConfig: GlmConfigFile,
 ): RuntimeConfig {
-  const fallbackProvider = fileConfig.defaultProvider ?? "glm";
+  const fallbackProvider = isProviderName(fileConfig.defaultProvider) ? fileConfig.defaultProvider : "glm";
   const fallbackModel = fileConfig.defaultModel ?? "glm-5.1";
 
   const { provider, model } = resolveProviderSelection(

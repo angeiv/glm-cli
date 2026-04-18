@@ -21,7 +21,7 @@ Usage:
   glm config set <key> <value>         Set config value
 
 Options:
-  --provider <name>     Provider: glm, openai-compatible, anthropic
+  --provider <name>     Provider: glm, openai-compatible, openai-responses, anthropic
   --model <id>          Model ID (e.g., glm-5.1, glm-4-flash)
   --cwd <path>          Working directory
   --yolo                Skip approval prompts (dangerous commands still blocked)

@@ -45,8 +45,8 @@ export type LoopConfig = {
   verifyCommand?: string;
 };
 
-type PersistedProviderName = StorageProviderKey;
-const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = ["glm", "openai-compatible"];
+type PersistedProviderName = StorageProviderKey | "openai-responses";
+const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = ["glm", "openai-compatible", "openai-responses"];
 
 const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
 const VALID_THINKING_MODES: ThinkingMode[] = ["auto", "enabled", "disabled"];

@@ -109,6 +109,7 @@ export async function createGlmServices(
   }
   if (openAiCompatApiKey) {
     managers.authStorage.setRuntimeApiKey("openai-compatible", openAiCompatApiKey);
+    managers.authStorage.setRuntimeApiKey("openai-responses", openAiCompatApiKey);
   }
   if (anthropicApiKey) {
     managers.authStorage.setRuntimeApiKey("anthropic", anthropicApiKey);

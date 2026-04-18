@@ -36,3 +36,19 @@ describe("glm-generation extension", () => {
   });
 });
 
+  test("applyGenerationOverrides uses responses field names for openai-responses models", () => {
+    const payload = { model: "glm-5.1", max_output_tokens: 123, temperature: 1 };
+    const next = applyGenerationOverrides(
+      payload,
+      { maxOutputTokens: 10_000, temperature: 0 },
+      { api: "openai-responses", maxTokens: 4096 },
+    ) as any;
+
+    expect(next).toMatchObject({
+      model: "glm-5.1",
+      max_output_tokens: 4096,
+      temperature: 0,
+    });
+    expect(next).not.toHaveProperty("max_tokens");
+  });
+
