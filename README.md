@@ -19,6 +19,11 @@ pnpm install
 ```
 这会安装依赖并准备 CLI 入口，随后可通过 `pnpm run build` 生成 `dist/loader.js`。
 
+## 项目文档
+- [AGENTS.md](./AGENTS.md)
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [docs/references/config-surface.md](./docs/references/config-surface.md)
+
 ## 使用方式
 ### `glm`
 启动默认的交互式会话。CLI 会在 `~/.glm` 下初始化产品目录、同步内置 prompts 和 tools，并进入默认交互模式。你也可以追加 `--provider`、`--model`、`--cwd`、`--yolo` 等运行参数。

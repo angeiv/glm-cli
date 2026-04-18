@@ -19,6 +19,11 @@ pnpm install
 ```
 This sets up the dependencies and prepares the CLI entrypoint so `pnpm run build` can create `dist/loader.js`.
 
+## Project docs
+- [AGENTS.md](./AGENTS.md)
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [docs/references/config-surface.md](./docs/references/config-surface.md)
+
 ## Usage
 ### `glm`
 Runs the default interactive chat session. The CLI bootstraps product directories under `~/.glm`, syncs the packaged prompts/tools, and enters the default interactive mode. You can add runtime flags like `--provider`, `--model`, `--cwd`, or `--yolo` to adjust the session.
