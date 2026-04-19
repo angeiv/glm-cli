@@ -281,9 +281,13 @@ function createNonStreamingModelscopeAnthropicApi() {
         }
         const inputTokens = parsed?.usage?.input_tokens ?? 0;
         const outputTokens = parsed?.usage?.output_tokens ?? 0;
+        const cacheRead = parsed?.usage?.cache_read_input_tokens ?? 0;
+        const cacheWrite = parsed?.usage?.cache_creation_input_tokens ?? 0;
         output.usage.input = inputTokens;
         output.usage.output = outputTokens;
-        output.usage.totalTokens = inputTokens + outputTokens;
+        output.usage.cacheRead = cacheRead;
+        output.usage.cacheWrite = cacheWrite;
+        output.usage.totalTokens = inputTokens + outputTokens + cacheRead + cacheWrite;
         const stopReason = mapAnthropicStopReason(parsed?.stop_reason);
         output.stopReason = stopReason;
         output.responseId = parsed?.id;

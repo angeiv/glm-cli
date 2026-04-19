@@ -105,7 +105,13 @@ type AnthropicMessagesResponse = {
   role?: string;
   content?: Array<Record<string, unknown>>;
   stop_reason?: string | null;
-  usage?: { input_tokens?: number; output_tokens?: number };
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    // Prompt caching fields (Anthropic messages API)
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+  };
   error?: { message?: string };
   detail?: string;
 };
@@ -398,9 +404,13 @@ function createNonStreamingModelscopeAnthropicApi() {
 
         const inputTokens = parsed?.usage?.input_tokens ?? 0;
         const outputTokens = parsed?.usage?.output_tokens ?? 0;
+        const cacheRead = parsed?.usage?.cache_read_input_tokens ?? 0;
+        const cacheWrite = parsed?.usage?.cache_creation_input_tokens ?? 0;
         output.usage.input = inputTokens;
         output.usage.output = outputTokens;
-        output.usage.totalTokens = inputTokens + outputTokens;
+        output.usage.cacheRead = cacheRead;
+        output.usage.cacheWrite = cacheWrite;
+        output.usage.totalTokens = inputTokens + outputTokens + cacheRead + cacheWrite;
 
         const stopReason = mapAnthropicStopReason(parsed?.stop_reason);
         output.stopReason = stopReason;
