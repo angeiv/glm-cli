@@ -5,6 +5,56 @@ const COMMAND_SEPARATORS = new Set([";", "&&", "||", "|"]);
 type ApprovalPolicy = "ask" | "auto" | "never";
 const GLM_APPROVAL_POLICY_STATE = Symbol.for("glm.approvalPolicy");
 type GlmApprovalPolicyState = { policy: ApprovalPolicy };
+
+const HOOK_CONTEXT_MESSAGE_TYPE = "glm.hooks.inject";
+
+function getHookRunner(): { run: (pi: any, event: any, args?: any) => Promise<any> } | null {
+  const store = globalThis as Record<PropertyKey, unknown>;
+  const runner = store[Symbol.for("glm.hookRunner")] as any;
+  if (!runner || typeof runner.run !== "function") return null;
+  return runner;
+}
+
+async function runPermissionRequestHooks(
+  pi: ExtensionAPI,
+  ctx: { model?: { provider?: string; id?: string }; signal?: AbortSignal },
+  args: { command: string; reason: string },
+): Promise<{ type: string; reason?: string; content?: string } | null> {
+  const runner = getHookRunner();
+  if (!runner) return null;
+
+  const result = await runner.run(
+    pi,
+    {
+      name: "permissionRequest",
+      reason: args.reason,
+      provider: ctx.model?.provider,
+      model: ctx.model?.id,
+      tool: { name: "bash", input: { command: args.command } },
+    },
+    { signal: ctx.signal },
+  );
+
+  return result?.decision ?? null;
+}
+
+function maybeInjectHookContext(pi: ExtensionAPI, decision: { type: string; content?: string; reason?: string } | null) {
+  if (!decision || decision.type !== "injectContext") return;
+  const content = String(decision.content ?? "").trim();
+  if (!content) return;
+
+  pi.sendMessage(
+    {
+      customType: HOOK_CONTEXT_MESSAGE_TYPE,
+      content,
+      display: true,
+      details: {
+        ...(decision.reason ? { reason: decision.reason } : {}),
+      },
+    },
+    { triggerTurn: false, deliverAs: "steer" },
+  );
+}
 const APPROVAL_POLICIES = [
   {
     value: "ask",
@@ -478,6 +528,21 @@ export default function (pi: ExtensionAPI) {
     if (!command) return;
 
     if (isDangerousCommand(command)) {
+      const hookDecision = await runPermissionRequestHooks(pi, ctx, {
+        command,
+        reason: "dangerous_command",
+      });
+      maybeInjectHookContext(pi, hookDecision);
+
+      if (hookDecision?.type === "deny") {
+        appendRuntimeEvent({
+          type: "hooks.permission_request_denied",
+          level: "warn",
+          summary: hookDecision.reason ?? command,
+        });
+        return { block: true, reason: hookDecision.reason ?? "Denied by hook" };
+      }
+
       let ok = false;
       try {
         ok = await ctx.ui.confirm(
@@ -509,6 +574,21 @@ export default function (pi: ExtensionAPI) {
     if (policy === "never") return;
     const sensitive = /\bgit push\b|\bnpm publish\b|\bsudo\b/.test(command);
     if (policy === "auto" && !sensitive) return;
+
+    const hookDecision = await runPermissionRequestHooks(pi, ctx, {
+      command,
+      reason: sensitive ? "sensitive_command" : "approval_policy",
+    });
+    maybeInjectHookContext(pi, hookDecision);
+
+    if (hookDecision?.type === "deny") {
+      appendRuntimeEvent({
+        type: "hooks.permission_request_denied",
+        level: "warn",
+        summary: hookDecision.reason ?? command,
+      });
+      return { block: true, reason: hookDecision.reason ?? "Denied by hook" };
+    }
 
     const ok = await ctx.ui.confirm("Allow command?", command);
     if (!ok) {
