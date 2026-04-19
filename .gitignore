@@ -108,6 +108,7 @@ dist
 # Generated extension bundles
 resources/extensions/*/index.js
 !resources/extensions/glm-runtime/index.js
+!resources/extensions/glm-hooks/index.js
 !resources/extensions/shared/**/*.js
 
 # Docusaurus cache and generated files
