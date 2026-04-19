@@ -1,4 +1,6 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { appendRuntimeEvent } from "../diagnostics/event-log.js";
+import { appendHookRun } from "./state.js";
 import type {
   HookDecision,
   HookExecutionRecord,
@@ -140,9 +142,16 @@ function isRuleMatch(rule: HookRule, event: HookEventContext): boolean {
 }
 
 function createHookEnv(payload: Record<string, unknown>): Record<string, string> {
+  const json = JSON.stringify(payload);
+  const b64 = Buffer.from(json, "utf8").toString("base64");
   return {
-    GLM_HOOK_PAYLOAD: JSON.stringify(payload),
+    GLM_HOOK_PAYLOAD_B64: b64,
   };
+}
+
+function shellEscapeSingleQuoted(value: string): string {
+  // POSIX-safe single-quote escaping: close, escape, reopen.
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
 }
 
 async function execCommandWithEnv(
@@ -153,7 +162,7 @@ async function execCommandWithEnv(
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   const shell = process.env.SHELL || "/bin/sh";
   const envExports = Object.entries(env)
-    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+    .map(([key, value]) => `${key}=${shellEscapeSingleQuoted(value)}`)
     .join(" ");
   const fullCommand = envExports ? `${envExports} ${command}` : command;
 
@@ -230,7 +239,9 @@ export class HookRunner {
   readonly options: HookRunnerOptions;
 
   constructor(options: HookRunnerOptions) {
-    this.options = options;
+    // Options are mutable so we can update them on session (re)load without
+    // re-instantiating the runner shared with extensions.
+    this.options = { ...options };
     this.state = {
       config: null,
       runs: [],
@@ -246,10 +257,22 @@ export class HookRunner {
     if (this.state.runs.length > limit) {
       this.state.runs = this.state.runs.slice(this.state.runs.length - limit);
     }
+
+    appendHookRun(record, limit);
+
+    appendRuntimeEvent({
+      type: "hooks.run",
+      summary: `${record.event} | ${record.ruleId ?? "<anonymous>"} | ${record.outcome}`,
+      ...(record.decision ? { details: { decision: record.decision } } : {}),
+    });
   }
 
   listRules(): HookRule[] {
     return this.state.config?.hooks ?? [];
+  }
+
+  setRules(rules: HookRule[]): void {
+    this.state.config = { hooks: rules };
   }
 
   async run(
@@ -330,4 +353,3 @@ export class HookRunner {
     return { decision: finalDecision, matchedRuleIds };
   }
 }
-

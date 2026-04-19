@@ -135,14 +135,29 @@ export function parseHookFile(value: unknown): HookFile {
   }
 
   const hooksRaw = (record as { hooks?: unknown }).hooks;
-  if (!Array.isArray(hooksRaw)) {
-    throw new Error("hooks.json must contain a hooks array");
+  if (Array.isArray(hooksRaw)) {
+    return {
+      ...(typeof record.version === "number" ? { version: record.version } : {}),
+      hooks: hooksRaw.map(parseHookRule),
+    };
   }
 
-  return {
-    ...(typeof record.version === "number" ? { version: record.version } : {}),
-    hooks: hooksRaw.map(parseHookRule),
-  };
+  const hooks: HookRule[] = [];
+  for (const [key, value] of Object.entries(record)) {
+    if (key === "version") continue;
+    if (!isHookEventName(key)) {
+      throw new Error(`Unknown hook event group: ${key}`);
+    }
+    if (!Array.isArray(value)) {
+      throw new Error(`Hook event group "${key}" must be an array`);
+    }
+    for (const ruleRaw of value) {
+      const rule = parseHookRule({ ...(normalizeRecord(ruleRaw) ?? {}), event: key });
+      hooks.push(rule);
+    }
+  }
+
+  return { ...(typeof record.version === "number" ? { version: record.version } : {}), hooks };
 }
 
 export async function readHookFile(path = DEFAULT_HOOKS_PATH): Promise<HookFile | null> {
