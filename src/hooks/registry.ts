@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { HookFile, HookRule } from "./types.js";
+import type { HookEventName, HookFile, HookRule } from "./types.js";
 
 export const DEFAULT_HOOKS_PATH = join(homedir(), ".glm", "hooks.json");
 
@@ -15,7 +15,7 @@ function normalizeRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
-function isHookEventName(value: string | undefined): boolean {
+function isHookEventName(value: string | undefined): value is HookEventName {
   return (
     value === "sessionStart" ||
     value === "beforeTool" ||
@@ -158,4 +158,3 @@ export async function readHookFile(path = DEFAULT_HOOKS_PATH): Promise<HookFile 
     throw err;
   }
 }
-

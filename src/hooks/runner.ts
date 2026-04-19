@@ -1,4 +1,4 @@
-import type { ExecOptions, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type {
   HookDecision,
   HookExecutionRecord,
@@ -16,8 +16,8 @@ function createExecutionId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+function normalizeString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function matchString(expected: string | undefined, actual: string | undefined): boolean {
@@ -44,7 +44,6 @@ export type HookEventContext = {
 
 export type HookRunnerOptions = {
   enabled: boolean;
-  hooksPath: string;
   hookTimeoutMs: number;
 };
 
@@ -59,7 +58,7 @@ export type HookRunResult = {
 };
 
 function parseDecisionFromText(text: string): HookDecision | null {
-  // Simple line-based protocol:
+  // Line-based protocol:
   // - allow
   // - deny: reason...
   // - defer: reason...
@@ -73,86 +72,28 @@ function parseDecisionFromText(text: string): HookDecision | null {
   if (lower === "allow") return { type: "allow" };
   if (lower === "deny") return { type: "deny" };
   if (lower.startsWith("deny:")) {
-    return { type: "deny", reason: firstLine.slice(firstLine.indexOf(":") + 1).trim() };
+    return {
+      type: "deny",
+      reason: normalizeString(firstLine.slice(firstLine.indexOf(":") + 1)),
+    };
   }
   if (lower === "defer") return { type: "defer" };
   if (lower.startsWith("defer:")) {
-    return { type: "defer", reason: firstLine.slice(firstLine.indexOf(":") + 1).trim() };
+    return {
+      type: "defer",
+      reason: normalizeString(firstLine.slice(firstLine.indexOf(":") + 1)),
+    };
   }
 
   if (lower === "injectcontext") {
     return { type: "injectContext", content: rest.join("\n").trim() };
   }
   if (lower.startsWith("injectcontext:")) {
-    const reason = firstLine.slice(firstLine.indexOf(":") + 1).trim();
-    return { type: "injectContext", reason, content: rest.join("\n").trim() };
-  }
-
-  return null;
-}
-
-async function runRuleHandler(
-  pi: Pick<ExtensionAPI, "exec">,
-  rule: HookRule,
-  payload: Record<string, unknown>,
-  options: { timeoutMs: number; signal?: AbortSignal },
-): Promise<HookDecision | null> {
-  if (rule.handler.backend === "command") {
-    const shell = process.env.SHELL || "/bin/sh";
-    const handlerPayload = JSON.stringify(payload);
-    const cmd = rule.handler.command;
-
-    const execOptions: ExecOptions = {
-      cwd: process.cwd(),
-      timeout: options.timeoutMs,
-      signal: options.signal,
+    return {
+      type: "injectContext",
+      reason: normalizeString(firstLine.slice(firstLine.indexOf(":") + 1)),
+      content: rest.join("\n").trim(),
     };
-
-    const result = await pi.exec(shell, ["-lc", cmd], {
-      ...execOptions,
-      // Pass hook payload to the command via env var, to avoid quoting problems.
-      // Note: pi.exec does not expose env overrides today, so we fall back to stdin-like pattern:
-      // users can reference $GLM_HOOK_PAYLOAD via the parent process env if needed.
-    });
-
-    // Best-effort: many commands will print to stdout; interpret stdout as decision.
-    const combined = `${result.stdout}\n${result.stderr}`.trim();
-    const decision = parseDecisionFromText(combined);
-    return decision;
-  }
-
-  const url = rule.handler.url;
-  const method = rule.handler.method ?? "POST";
-  const res = await fetch(url, {
-    method,
-    headers: {
-      "content-type": "application/json",
-      ...(rule.handler.headers ?? {}),
-    },
-    ...(method === "GET" ? {} : { body: JSON.stringify(payload) }),
-    signal: options.signal,
-  });
-
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status} ${text}`.trim());
-  }
-
-  const decision = parseDecisionFromText(text);
-  if (decision) return decision;
-
-  // Also support JSON { decision: "...", ... }.
-  try {
-    const parsed = JSON.parse(text) as any;
-    const type = String(parsed?.decision ?? parsed?.type ?? "").trim();
-    if (type === "allow") return { type: "allow" };
-    if (type === "deny") return { type: "deny", reason: isNonEmptyString(parsed?.reason) ? parsed.reason : undefined };
-    if (type === "defer") return { type: "defer", reason: isNonEmptyString(parsed?.reason) ? parsed.reason : undefined };
-    if (type === "injectContext" && isNonEmptyString(parsed?.content)) {
-      return { type: "injectContext", content: parsed.content, reason: isNonEmptyString(parsed?.reason) ? parsed.reason : undefined };
-    }
-  } catch {
-    // ignore
   }
 
   return null;
@@ -185,11 +126,103 @@ function isRuleMatch(rule: HookRule, event: HookEventContext): boolean {
   if (!matchString(match.reason, event.reason)) return false;
 
   if (match.tool && match.tool !== event.tool?.name) return false;
-  if (match.commandPrefix && !matchCommandPrefix(match.commandPrefix, String(event.tool?.input?.command ?? ""))) {
+  if (
+    match.commandPrefix &&
+    !matchCommandPrefix(
+      match.commandPrefix,
+      normalizeString(event.tool?.input?.command),
+    )
+  ) {
     return false;
   }
 
   return true;
+}
+
+function createHookEnv(payload: Record<string, unknown>): Record<string, string> {
+  return {
+    GLM_HOOK_PAYLOAD: JSON.stringify(payload),
+  };
+}
+
+async function execCommandWithEnv(
+  pi: Pick<ExtensionAPI, "exec">,
+  command: string,
+  options: { timeoutMs: number; signal?: AbortSignal },
+  env: Record<string, string>,
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  const shell = process.env.SHELL || "/bin/sh";
+  const envExports = Object.entries(env)
+    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+    .join(" ");
+  const fullCommand = envExports ? `${envExports} ${command}` : command;
+
+  const result = await pi.exec(shell, ["-lc", fullCommand], {
+    cwd: process.cwd(),
+    timeout: options.timeoutMs,
+    signal: options.signal,
+  });
+
+  return result;
+}
+
+async function runRuleHandler(
+  pi: Pick<ExtensionAPI, "exec">,
+  rule: HookRule,
+  payload: Record<string, unknown>,
+  options: { timeoutMs: number; signal?: AbortSignal },
+): Promise<HookDecision | null> {
+  if (rule.handler.backend === "command") {
+    const env = createHookEnv(payload);
+    const result = await execCommandWithEnv(
+      pi,
+      rule.handler.command,
+      options,
+      env,
+    );
+
+    const combined = `${result.stdout}\n${result.stderr}`.trim();
+    return parseDecisionFromText(combined);
+  }
+
+  const url = rule.handler.url;
+  const method = rule.handler.method ?? "POST";
+  const res = await fetch(url, {
+    method,
+    headers: {
+      "content-type": "application/json",
+      ...(rule.handler.headers ?? {}),
+    },
+    ...(method === "GET" ? {} : { body: JSON.stringify(payload) }),
+    signal: options.signal,
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${text}`.trim());
+  }
+
+  const decision = parseDecisionFromText(text);
+  if (decision) return decision;
+
+  try {
+    const parsed = JSON.parse(text) as any;
+    const type = normalizeString(parsed?.decision ?? parsed?.type);
+    if (type === "allow") return { type: "allow" };
+    if (type === "deny") return { type: "deny", reason: normalizeString(parsed?.reason) };
+    if (type === "defer") return { type: "defer", reason: normalizeString(parsed?.reason) };
+    if (type === "injectContext" && normalizeString(parsed?.content)) {
+      return {
+        type: "injectContext",
+        content: String(parsed.content),
+        reason: normalizeString(parsed?.reason),
+      };
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 export class HookRunner {
@@ -249,7 +282,10 @@ export class HookRunner {
 
       try {
         const timeoutMs = rule.timeoutMs ?? this.options.hookTimeoutMs;
-        const decision = await runRuleHandler(pi, rule, payload, { timeoutMs, signal: args?.signal });
+        const decision = await runRuleHandler(pi, rule, payload, {
+          timeoutMs,
+          signal: args?.signal,
+        });
         const durationMs = Date.now() - startedAt;
 
         if (!decision) {
@@ -275,7 +311,6 @@ export class HookRunner {
           decision,
         });
 
-        // Deterministic last-match-wins.
         finalDecision = decision;
       } catch (error) {
         const durationMs = Date.now() - startedAt;
