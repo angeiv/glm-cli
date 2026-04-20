@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { resolveGlmProfile } from "../shared/glm-profile.js";
 
 export type ZhipuPayloadOverrides = {
   thinkingMode?: "auto" | "enabled" | "disabled";
@@ -77,6 +78,23 @@ export function resolveZhipuPayloadOverrides(env: NodeJS.ProcessEnv): ZhipuPaylo
 export function isZhipuBaseUrl(baseUrl: string): boolean {
   const normalized = baseUrl.trim().toLowerCase();
   return normalized.includes("open.bigmodel.cn") || normalized.includes("api.z.ai");
+}
+
+export function shouldApplyGlmNativePayloadPatches(model: {
+  id?: string;
+  baseUrl?: string;
+  api?: string;
+}): boolean {
+  if (model.api !== "openai-completions") {
+    return false;
+  }
+
+  const profile = resolveGlmProfile({
+    modelId: model.id ?? "",
+    baseUrl: model.baseUrl,
+  });
+
+  return profile.payloadPatchPolicy === "glm-native";
 }
 
 function stripStrictFromTools(tools: unknown): unknown {
@@ -196,8 +214,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("before_provider_request", (event, ctx) => {
     const model = ctx.model;
     if (!model) return;
-    if (model.api !== "openai-completions") return;
-    if (!isZhipuBaseUrl(model.baseUrl)) return;
+    if (!shouldApplyGlmNativePayloadPatches(model)) return;
     return applyZhipuPayloadPatches(event.payload, overrides);
   });
 }

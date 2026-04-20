@@ -79,6 +79,7 @@ export function buildRuntimeStatusLines(status) {
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
     `Model: ${status.model}`,
+    `Resolved: canonical=${status.resolvedModel?.canonicalModelId ?? "none"} | platform=${status.resolvedModel?.platform ?? "unknown"} | upstream=${status.resolvedModel?.upstreamVendor ?? "unknown"} | patch=${status.resolvedModel?.payloadPatchPolicy ?? "safe-openai-compatible"} | confidence=${status.resolvedModel?.confidence ?? "low"}`,
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
     `Verifier: ${verifier}`,

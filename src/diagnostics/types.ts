@@ -32,10 +32,19 @@ export type RuntimePaths = {
   modelsPath: string;
 };
 
+export type RuntimeResolvedModelStatus = {
+  canonicalModelId?: string;
+  platform: string;
+  upstreamVendor: string;
+  payloadPatchPolicy: "glm-native" | "safe-openai-compatible";
+  confidence: "high" | "medium" | "low";
+};
+
 export type RuntimeStatus = {
   cwd: string;
   provider: string;
   model: string;
+  resolvedModel: RuntimeResolvedModelStatus;
   approvalPolicy: ApprovalPolicy;
   loop: RuntimeLoopStatus;
   diagnostics: RuntimeDiagnosticsConfig & {

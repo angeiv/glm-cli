@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { applyZhipuPayloadPatches } from "../../resources/extensions/glm-zhipu/index.js";
+import {
+  applyZhipuPayloadPatches,
+  shouldApplyGlmNativePayloadPatches,
+} from "../../resources/extensions/glm-zhipu/index.js";
 
 describe("glm-zhipu extension", () => {
   test("applyZhipuPayloadPatches converts thinking + max tokens + strips strict/tool_stream", () => {
@@ -93,5 +96,31 @@ describe("glm-zhipu extension", () => {
       type: "enabled",
       clear_thinking: true,
     });
+  });
+
+  test("only enables native payload patches for known native GLM routes", () => {
+    expect(
+      shouldApplyGlmNativePayloadPatches({
+        id: "glm-5.1",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
+        api: "openai-completions",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldApplyGlmNativePayloadPatches({
+        id: "z-ai/glm-5.1",
+        baseUrl: "https://openrouter.ai/api/v1",
+        api: "openai-completions",
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldApplyGlmNativePayloadPatches({
+        id: "ZhipuAI/GLM-5",
+        baseUrl: "https://gateway.example.com/v1",
+        api: "openai-completions",
+      }),
+    ).toBe(false);
   });
 });

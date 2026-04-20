@@ -60,6 +60,13 @@ describe("buildRuntimeStatus", () => {
 
     expect(status.provider).toBe("glm");
     expect(status.model).toBe("glm-5.1");
+    expect(status.resolvedModel).toMatchObject({
+      canonicalModelId: "glm-5.1",
+      platform: "native-bigmodel",
+      upstreamVendor: "unknown",
+      payloadPatchPolicy: "glm-native",
+      confidence: "high",
+    });
     expect(status.approvalPolicy).toBe("auto");
     expect(status.loop).toMatchObject({
       enabled: true,
