@@ -35,6 +35,12 @@ async function copyResources() {
     mkdirSync(AGENT_DIR, { recursive: true });
   }
 
+  console.log("Generating shared GLM profile runtime helper...");
+  execSync("node scripts/generate-glm-profile-resource.mjs", {
+    stdio: "pipe",
+    cwd: process.cwd(),
+  });
+
   // Compile TypeScript extensions
   console.log("Compiling extensions...");
   const extensionsDir = join(RESOURCES_DIR, "extensions");

@@ -35,8 +35,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: true,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: true,
-    modalities: ["text"]
+    supportsMcp: true
   },
   {
     id: "glm-5",
@@ -54,8 +53,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: true,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: true,
-    modalities: ["text"]
+    supportsMcp: true
   },
   {
     id: "glm-5-turbo",
@@ -73,8 +71,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: true,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: true,
-    modalities: ["text"]
+    supportsMcp: true
   },
   {
     id: "glm-4.7",
@@ -92,8 +89,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: true,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: true,
-    modalities: ["text"]
+    supportsMcp: true
   },
   {
     id: "glm-4.7-flash",
@@ -111,8 +107,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: true,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: true,
-    modalities: ["text"]
+    supportsMcp: true
   },
   {
     id: "glm-4.7-flashx",
@@ -130,8 +125,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: true,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: true,
-    modalities: ["text"]
+    supportsMcp: true
   },
   {
     id: "glm-4.6",
@@ -149,8 +143,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: false,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: false,
-    modalities: ["text"]
+    supportsMcp: false
   },
   {
     id: "glm-4.5-air",
@@ -168,8 +161,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: false,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: false,
-    modalities: ["text"]
+    supportsMcp: false
   },
   {
     id: "glm-4.5-airx",
@@ -187,8 +179,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: false,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: false,
-    modalities: ["text"]
+    supportsMcp: false
   },
   {
     id: "glm-4.5-flash",
@@ -206,8 +197,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: false,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: false,
-    modalities: ["text"]
+    supportsMcp: false
   },
   {
     id: "glm-4-flash-250414",
@@ -225,8 +215,7 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: false,
     supportsCache: false,
     supportsStructuredOutput: true,
-    supportsMcp: false,
-    modalities: ["text"]
+    supportsMcp: false
   },
   {
     id: "glm-4-flashx-250414",
@@ -244,11 +233,18 @@ var STANDARD_GLM_MODELS = [
     supportsToolStream: false,
     supportsCache: false,
     supportsStructuredOutput: true,
-    supportsMcp: false,
-    modalities: ["text"]
+    supportsMcp: false
   }
 ];
-var STANDARD_GLM_MODEL_MAP = new Map(STANDARD_GLM_MODELS.map((model) => [model.id, model]));
+var STANDARD_GLM_MODEL_MAP = new Map(
+  STANDARD_GLM_MODELS.map((model) => [
+    model.id,
+    {
+      ...model,
+      modalities: ["text"]
+    }
+  ])
+);
 var EXPLICIT_ALIAS_MAP = /* @__PURE__ */ new Map([
   ["glm5", "glm-5"],
   ["glm51", "glm-5.1"],
@@ -290,6 +286,28 @@ function normalizeGlmNumericForms(candidate) {
   next = next.replace(/^glm(\d)\.(\d)(?=$|-)/, "glm-$1.$2");
   next = next.replace(/^glm(\d)(\d)(?=$|-)/, "glm-$1.$2");
   return next;
+}
+function mergeCaps(base, overlay) {
+  if (!overlay) return { ...base };
+  return { ...base, ...overlay };
+}
+function resolveConfidence(canonicalModelId, platform) {
+  if (canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")) {
+    return "high";
+  }
+  if (canonicalModelId) {
+    return "medium";
+  }
+  return "low";
+}
+function getStandardGlmModels() {
+  return [...STANDARD_GLM_MODEL_MAP.values()];
+}
+function getStandardGlmModel(id) {
+  return STANDARD_GLM_MODEL_MAP.get(id);
+}
+function getGenericOpenAiCompatibleCaps() {
+  return { ...GENERIC_OPENAI_COMPATIBLE_CAPS };
 }
 function resolveCanonicalGlmModelId(modelId) {
   for (const rawCandidate of extractCandidateSegments(modelId)) {
@@ -366,26 +384,16 @@ function resolveVariantOverlay(platform, modelId, canonicalModelId) {
     caps: {}
   };
 }
-function mergeCaps(base, overlay = {}) {
-  return { ...base, ...overlay };
-}
-function resolveConfidence(canonicalModelId, platform) {
-  if (canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")) {
-    return "high";
-  }
-  if (canonicalModelId) {
-    return "medium";
-  }
-  return "low";
-}
-function resolveGlmProfile({ modelId, baseUrl }) {
-  const platform = resolveGlmPlatformRoute(baseUrl);
-  const canonicalModelId = resolveCanonicalGlmModelId(modelId);
-  const canonicalModel = canonicalModelId ? STANDARD_GLM_MODEL_MAP.get(canonicalModelId) : void 0;
-  const baseCaps = canonicalModel ?? GENERIC_OPENAI_COMPATIBLE_CAPS;
-  const variant = resolveVariantOverlay(platform, modelId, canonicalModelId);
+function resolveGlmProfile(input) {
+  const platform = resolveGlmPlatformRoute(input.baseUrl);
+  const canonicalModelId = resolveCanonicalGlmModelId(input.modelId);
+  const canonicalModel = canonicalModelId ? getStandardGlmModel(canonicalModelId) : void 0;
+  const baseCaps = canonicalModel ?? getGenericOpenAiCompatibleCaps();
+  const variant = resolveVariantOverlay(platform, input.modelId, canonicalModelId);
+  const effectiveCaps = mergeCaps(baseCaps, variant.caps);
+  const payloadPatchPolicy = canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai") ? "glm-native" : "safe-openai-compatible";
   return {
-    selectedModelId: modelId,
+    selectedModelId: input.modelId,
     canonicalModelId,
     evidence: {
       modelAlias: canonicalModelId ? "matched" : "none",
@@ -393,15 +401,9 @@ function resolveGlmProfile({ modelId, baseUrl }) {
       upstreamVendor: variant.upstreamVendor,
       confidence: resolveConfidence(canonicalModelId, platform)
     },
-    payloadPatchPolicy: canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai") ? "glm-native" : "safe-openai-compatible",
-    effectiveCaps: mergeCaps(baseCaps, variant.caps)
+    payloadPatchPolicy,
+    effectiveCaps
   };
-}
-function getStandardGlmModel(id) {
-  return STANDARD_GLM_MODEL_MAP.get(id);
-}
-function getStandardGlmModels() {
-  return [...STANDARD_GLM_MODEL_MAP.values()];
 }
 
 // resources/extensions/glm-providers/index.ts
