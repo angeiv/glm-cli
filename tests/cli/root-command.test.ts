@@ -146,6 +146,22 @@ describe("parseCliArgs", () => {
       json: true,
     });
   });
+
+  test("parses verify command with --json", () => {
+    expect(parseCliArgs(["verify", "--json", "--cwd", "/tmp/project"])).toMatchObject({
+      command: "verify",
+      cwd: "/tmp/project",
+      json: true,
+    });
+  });
+
+  test("parses verify positional path as cwd", () => {
+    expect(parseCliArgs(["verify", "/tmp/project"])).toMatchObject({
+      command: "verify",
+      cwd: "/tmp/project",
+      json: false,
+    });
+  });
 });
 
 describe("runCli", () => {
@@ -155,6 +171,7 @@ describe("runCli", () => {
     handlers = {
       chat: vi.fn(async () => 0) as CliHandlers["chat"],
       run: vi.fn(async () => 0) as CliHandlers["run"],
+      verify: vi.fn(async () => 0) as CliHandlers["verify"],
       doctor: vi.fn(async () => 0) as CliHandlers["doctor"],
       inspect: vi.fn(async () => 0) as CliHandlers["inspect"],
       configGet: vi.fn(async () => 0),
@@ -209,6 +226,16 @@ describe("runCli", () => {
         cli: expect.objectContaining({
           provider: "glm",
         }),
+      }),
+    );
+  });
+
+  test("dispatches to verify with parsed flags", async () => {
+    await runCli(["verify", "--json", "--verify", "pnpm test"], handlers);
+    expect(handlers.verify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: true,
+        verify: "pnpm test",
       }),
     );
   });

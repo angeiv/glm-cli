@@ -3,6 +3,7 @@ import { runRunCommand } from "./commands/run.js";
 import { runDoctorCommand, DoctorCommandArgs } from "./commands/doctor.js";
 import { configGet, configSet } from "./commands/config.js";
 import { runInspectCommand, type InspectCommandArgs } from "./commands/inspect.js";
+import { runVerifyCommand, type VerifyCommandArgs } from "./commands/verify.js";
 import type { LoopFailureMode } from "./app/config-store.js";
 import type { ProviderName } from "./providers/types.js";
 import { normalizeProviderName } from "./providers/types.js";
@@ -17,6 +18,7 @@ Usage:
   glm [options]                        Start interactive chat (default)
   glm chat [path] [options]            Start interactive chat in path
   glm run "<task>" [path] [options]    Execute a single task and exit
+  glm verify [path] [options]          Run verification (auto-detect by default)
   glm inspect [options]                Show effective runtime state
   glm doctor                           Run diagnostics
   glm config get <key>                 Get config value
@@ -31,7 +33,7 @@ Options:
   --verify <command>    Verification command to run after each loop round
   --max-rounds <n>      Maximum loop rounds before stopping
   --fail-mode <mode>    Loop failure mode: handoff or fail
-  --json                Print inspect output as JSON
+  --json                Print inspect/verify output as JSON
   --help, -h            Show help
   --version, -v         Show version
 
@@ -39,6 +41,7 @@ Examples:
   glm
   glm --provider glm
   glm run "fix the tests"
+  glm verify
   glm run "fix the tests" --loop --verify "pnpm test" --max-rounds 4
   glm --yolo run "refactor X"
 
@@ -70,6 +73,7 @@ type BaseCliArgs = {
 export type ParsedCliArgs =
   | (BaseCliArgs & { command: "chat" })
   | (BaseCliArgs & { command: "run"; task: string })
+  | (BaseCliArgs & { command: "verify"; json: boolean })
   | (BaseCliArgs & { command: "inspect"; json: boolean })
   | (BaseCliArgs & { command: "doctor" })
   | { command: "config"; subcommand: "get"; key: string; cwd: string }
@@ -78,6 +82,7 @@ export type ParsedCliArgs =
 export type CliHandlers = {
   chat: (input: ChatCommandInput & { yolo: boolean }) => Promise<number>;
   run: (input: RunCommandInput & { yolo: boolean }) => Promise<number>;
+  verify: (input: VerifyCommandArgs) => Promise<number>;
   doctor: (input: DoctorCommandArgs) => Promise<number>;
   inspect: (input: InspectCommandArgs) => Promise<number>;
   configGet: (key: string) => Promise<number>;
@@ -208,6 +213,19 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     return { command: "doctor", cwd, ...flags };
   }
 
+  if (command === "verify") {
+    const pathArg = args.shift();
+    if (args.length > 0) {
+      throw new Error("The verify command accepts at most one positional path");
+    }
+    return {
+      command: "verify",
+      cwd: pathArg ?? cwd,
+      json: jsonFlag,
+      ...flags,
+    };
+  }
+
   if (command === "inspect") {
     if (args.length > 0) {
       throw new Error("The inspect command does not accept positional arguments");
@@ -247,6 +265,7 @@ const defaultHandlers: CliHandlers = {
     return 0;
   },
   run: async (input) => runRunCommand(input),
+  verify: async (input) => runVerifyCommand(input),
   doctor: async (input) => runDoctorCommand(input),
   inspect: async (input) => runInspectCommand(input),
   configGet: async (key) => {
@@ -286,6 +305,12 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         verify: parsed.verify,
         maxRounds: parsed.maxRounds,
         failMode: parsed.failMode,
+      });
+    case "verify":
+      return mergedHandlers.verify({
+        cwd: parsed.cwd,
+        verify: parsed.verify,
+        json: parsed.json,
       });
     case "doctor":
       return mergedHandlers.doctor({
