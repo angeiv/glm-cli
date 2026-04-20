@@ -24,6 +24,8 @@ import {
   setRuntimeStatus,
 } from "../diagnostics/runtime-status.js";
 import { configureRuntimeEventLog } from "../diagnostics/event-log.js";
+import { loadHooks } from "../hooks/loader.js";
+import { DEFAULT_HOOKS_PATH } from "../hooks/registry.js";
 
 export type GlmSessionInput = {
   cwd: string;
@@ -340,6 +342,11 @@ async function prepareGlmSession(
   const config = await readConfigFile();
   const diagnostics = resolveDiagnosticsRuntimeOptions(config);
   configureRuntimeEventLog({ limit: diagnostics.eventLogLimit });
+  await loadHooks({
+    enabled: config.hooksEnabled ?? true,
+    hooksPath: process.env.GLM_HOOKS_PATH?.trim() || DEFAULT_HOOKS_PATH,
+    hookTimeoutMs: config.hookTimeoutMs ?? 5000,
+  });
   setRuntimeStatus(
     await buildRuntimeStatus({
       cwd: options.cwd,

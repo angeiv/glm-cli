@@ -66,6 +66,21 @@ describe("configGet", () => {
     expect(value).toBe("32");
     expect(log).toHaveBeenCalledWith("32");
   });
+
+  test("reads hook keys", async () => {
+    const log = vi.fn();
+    const value = await configGet("hookTimeoutMs", {
+      readConfigFile: async () => ({
+        ...getDefaultConfigFile(),
+        hooksEnabled: true,
+        hookTimeoutMs: 8000,
+      }),
+      log,
+    });
+
+    expect(value).toBe("8000");
+    expect(log).toHaveBeenCalledWith("8000");
+  });
 });
 
 describe("configSet", () => {
