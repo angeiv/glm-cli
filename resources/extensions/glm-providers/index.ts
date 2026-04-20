@@ -3,6 +3,12 @@ import { AssistantMessageEventStream, streamSimple, type Context, type Model, ty
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
+import {
+  getGenericOpenAiCompatibleCaps,
+  getStandardGlmModel,
+  getStandardGlmModels,
+  resolveGlmProfile,
+} from "../shared/glm-profile.js";
 
 const OPENAI_COMPAT = {
   // Many OpenAI-compatible servers reject the newer "developer" role.
@@ -721,27 +727,60 @@ function buildCustomModelDefinition(modelId: string, compat: typeof OPENAI_COMPA
 }
 
 function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string) {
-  const compat = isZhipuOpenAiCompatBaseUrl(baseUrl) ? ZHIPU_OPENAI_COMPAT : OPENAI_COMPAT;
-  const base = glmBaseModels.find((model) => model.id === modelId);
-  return base ? { ...base, compat } : buildCustomModelDefinition(modelId, compat);
+  const profile = resolveGlmProfile({ modelId, baseUrl });
+  const canonical = profile.canonicalModelId
+    ? getStandardGlmModel(profile.canonicalModelId)
+    : undefined;
+  const compat = profile.payloadPatchPolicy === "glm-native"
+    ? ZHIPU_OPENAI_COMPAT
+    : OPENAI_COMPAT;
+
+  return {
+    id: modelId,
+    name: canonical?.displayName ?? modelId,
+    reasoning: profile.effectiveCaps.supportsThinking,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: profile.effectiveCaps.contextWindow,
+    maxTokens: profile.effectiveCaps.maxOutputTokens,
+    compat,
+  };
 }
 
-function resolveOpenAiResponsesModelDefinition(modelId: string) {
-  const base = glmBaseModels.find((model) => model.id === modelId);
-  if (base) {
-    const { compat: _compat, ...withoutCompat } = base as typeof base & { compat?: unknown };
-    return withoutCompat;
-  }
-  return buildCustomModelDefinition(modelId);
+function resolveOpenAiResponsesModelDefinition(modelId: string, baseUrl: string) {
+  const profile = resolveGlmProfile({ modelId, baseUrl });
+  const canonical = profile.canonicalModelId
+    ? getStandardGlmModel(profile.canonicalModelId)
+    : undefined;
+
+  return {
+    id: modelId,
+    name: canonical?.displayName ?? modelId,
+    reasoning: profile.effectiveCaps.supportsThinking,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: profile.effectiveCaps.contextWindow,
+    maxTokens: profile.effectiveCaps.maxOutputTokens,
+  };
 }
 
 export function resolveAnthropicModels(requestedModelId: string) {
-  if (glmModels.some((model) => model.id === requestedModelId)) {
-    return glmModels;
+  const standardModels = getStandardGlmModels().map((model) => ({
+    id: model.id,
+    name: model.displayName,
+    reasoning: model.supportsThinking,
+    input: model.modalities,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: model.contextWindow,
+    maxTokens: model.maxOutputTokens,
+  }));
+
+  if (standardModels.some((model) => model.id === requestedModelId)) {
+    return standardModels;
   }
 
   return [
-    ...glmModels,
+    ...standardModels,
     buildCustomModelDefinition(requestedModelId),
   ];
 }
@@ -832,7 +871,26 @@ export default function (pi: ExtensionAPI) {
       baseUrl: glmSettings.baseUrl,
       apiKey: glmSettings.apiKey,
       api: "openai-completions",
-      models: glmModels,
+      models: getStandardGlmModels().map((model) => {
+        const profile = resolveGlmProfile({
+          modelId: model.id,
+          baseUrl: glmSettings.baseUrl,
+        });
+        const compat = profile.payloadPatchPolicy === "glm-native"
+          ? ZHIPU_OPENAI_COMPAT
+          : OPENAI_COMPAT;
+
+        return {
+          id: model.id,
+          name: model.displayName,
+          reasoning: profile.effectiveCaps.supportsThinking,
+          input: model.modalities,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: profile.effectiveCaps.contextWindow,
+          maxTokens: profile.effectiveCaps.maxOutputTokens,
+          compat,
+        };
+      }),
     });
   }
 
@@ -863,7 +921,7 @@ export default function (pi: ExtensionAPI) {
       apiKey: openaiSettings.apiKey,
       api: "openai-responses",
       models: [
-        resolveOpenAiResponsesModelDefinition(openaiModelId),
+        resolveOpenAiResponsesModelDefinition(openaiModelId, openaiSettings.baseUrl),
       ],
     });
   }
