@@ -69,13 +69,19 @@ export function getRuntimeStatus() {
 }
 
 export function buildRuntimeStatusLines(status) {
+  const verifier = status.loop.verifyCommand
+    ? status.loop.verifyCommand
+    : status.loop.verifyFallbackCommand
+      ? `auto-detect (fallback: ${status.loop.verifyFallbackCommand})`
+      : "auto-detect";
+
   return [
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
     `Model: ${status.model}`,
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
-    `Verifier: ${status.loop.verifyCommand ?? "auto-detect"}`,
+    `Verifier: ${verifier}`,
     `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount}`,
     `Diagnostics: debugRuntime=${status.diagnostics.debugRuntime} | eventLogLimit=${status.diagnostics.eventLogLimit} | events=${status.diagnostics.eventCount}`,
     `Session dir: ${status.paths.sessionDir}`,
