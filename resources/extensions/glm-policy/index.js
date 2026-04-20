@@ -38,6 +38,45 @@ function appendRuntimeEvent({
 // resources/extensions/glm-policy/index.ts
 var COMMAND_SEPARATORS = /* @__PURE__ */ new Set([";", "&&", "||", "|"]);
 var GLM_APPROVAL_POLICY_STATE = /* @__PURE__ */ Symbol.for("glm.approvalPolicy");
+var HOOK_CONTEXT_MESSAGE_TYPE = "glm.hooks.inject";
+function getHookRunner() {
+  const store = globalThis;
+  const runner = store[/* @__PURE__ */ Symbol.for("glm.hookRunner")];
+  if (!runner || typeof runner.run !== "function") return null;
+  return runner;
+}
+async function runPermissionRequestHooks(pi, ctx, args) {
+  const runner = getHookRunner();
+  if (!runner) return null;
+  const result = await runner.run(
+    pi,
+    {
+      name: "permissionRequest",
+      reason: args.reason,
+      provider: ctx.model?.provider,
+      model: ctx.model?.id,
+      tool: { name: "bash", input: { command: args.command } }
+    },
+    { signal: ctx.signal }
+  );
+  return result?.decision ?? null;
+}
+function maybeInjectHookContext(pi, decision) {
+  if (!decision || decision.type !== "injectContext") return;
+  const content = String(decision.content ?? "").trim();
+  if (!content) return;
+  pi.sendMessage(
+    {
+      customType: HOOK_CONTEXT_MESSAGE_TYPE,
+      content,
+      display: true,
+      details: {
+        ...decision.reason ? { reason: decision.reason } : {}
+      }
+    },
+    { triggerTurn: false, deliverAs: "steer" }
+  );
+}
 var APPROVAL_POLICIES = [
   {
     value: "ask",
@@ -416,6 +455,19 @@ function index_default(pi) {
     const command = String(event.input.command ?? "").trim();
     if (!command) return;
     if (isDangerousCommand(command)) {
+      const hookDecision2 = await runPermissionRequestHooks(pi, ctx, {
+        command,
+        reason: "dangerous_command"
+      });
+      maybeInjectHookContext(pi, hookDecision2);
+      if (hookDecision2?.type === "deny") {
+        appendRuntimeEvent({
+          type: "hooks.permission_request_denied",
+          level: "warn",
+          summary: hookDecision2.reason ?? command
+        });
+        return { block: true, reason: hookDecision2.reason ?? "Denied by hook" };
+      }
       let ok2 = false;
       try {
         ok2 = await ctx.ui.confirm(
@@ -443,6 +495,19 @@ function index_default(pi) {
     if (policy === "never") return;
     const sensitive = /\bgit push\b|\bnpm publish\b|\bsudo\b/.test(command);
     if (policy === "auto" && !sensitive) return;
+    const hookDecision = await runPermissionRequestHooks(pi, ctx, {
+      command,
+      reason: sensitive ? "sensitive_command" : "approval_policy"
+    });
+    maybeInjectHookContext(pi, hookDecision);
+    if (hookDecision?.type === "deny") {
+      appendRuntimeEvent({
+        type: "hooks.permission_request_denied",
+        level: "warn",
+        summary: hookDecision.reason ?? command
+      });
+      return { block: true, reason: hookDecision.reason ?? "Denied by hook" };
+    }
     const ok = await ctx.ui.confirm("Allow command?", command);
     if (!ok) {
       appendRuntimeEvent({

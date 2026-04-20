@@ -16,6 +16,7 @@ export type RuntimeLoopStatus = {
   failureMode: LoopFailureMode;
   autoVerify: boolean;
   verifyCommand?: string;
+  verifyFallbackCommand?: string;
 };
 
 export type RuntimeMcpStatus = {

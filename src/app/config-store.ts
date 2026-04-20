@@ -29,6 +29,10 @@ export type DiagnosticsConfig = {
   debugRuntime?: boolean;
   eventLogLimit?: number;
 };
+export type HooksConfig = {
+  hooksEnabled?: boolean;
+  hookTimeoutMs?: number;
+};
 export type GenerationConfig = {
   maxOutputTokens?: number;
   temperature?: number;
@@ -93,6 +97,8 @@ function buildDefaultConfigFile(): GlmConfigFile {
     approvalPolicy: "ask",
     debugRuntime: false,
     eventLogLimit: 200,
+    hooksEnabled: true,
+    hookTimeoutMs: 5000,
     generation: createDefaultGenerationConfig(),
     glmCapabilities: createDefaultGlmCapabilitiesConfig(),
     loop: createDefaultLoopConfig(),
@@ -109,6 +115,8 @@ export type GlmConfigFile = {
   approvalPolicy?: ApprovalPolicy;
   debugRuntime?: boolean;
   eventLogLimit?: number;
+  hooksEnabled?: boolean;
+  hookTimeoutMs?: number;
   generation: GenerationConfig;
   glmCapabilities: GlmCapabilitiesConfig;
   loop: LoopConfig;
@@ -217,6 +225,8 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
   const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
   const rawDebugRuntime = (config as unknown as { debugRuntime?: unknown })?.debugRuntime;
   const rawEventLogLimit = (config as unknown as { eventLogLimit?: unknown })?.eventLogLimit;
+  const rawHooksEnabled = (config as unknown as { hooksEnabled?: unknown })?.hooksEnabled;
+  const rawHookTimeoutMs = (config as unknown as { hookTimeoutMs?: unknown })?.hookTimeoutMs;
   const defaultProvider =
     rawDefaultProvider === undefined
       ? BASE_DEFAULT_CONFIG_FILE.defaultProvider
@@ -234,6 +244,14 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       rawEventLogLimit === undefined
         ? BASE_DEFAULT_CONFIG_FILE.eventLogLimit
         : (rawEventLogLimit as number),
+    hooksEnabled:
+      rawHooksEnabled === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.hooksEnabled
+        : (rawHooksEnabled as boolean),
+    hookTimeoutMs:
+      rawHookTimeoutMs === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.hookTimeoutMs
+        : (rawHookTimeoutMs as number),
     generation: cloneGenerationConfig(
       (config as unknown as { generation?: GenerationConfig })?.generation ??
         BASE_DEFAULT_CONFIG_FILE.generation,
@@ -306,6 +324,12 @@ function validateConfigFile(config: GlmConfigFile): void {
   }
   if (!Number.isInteger(config.eventLogLimit) || (config.eventLogLimit ?? 0) <= 0) {
     throw new Error(`Invalid eventLogLimit in config file: ${config.eventLogLimit}`);
+  }
+  if (typeof config.hooksEnabled !== "boolean") {
+    throw new Error(`Invalid hooksEnabled in config file: ${typeof config.hooksEnabled}`);
+  }
+  if (!Number.isInteger(config.hookTimeoutMs) || (config.hookTimeoutMs ?? 0) <= 0) {
+    throw new Error(`Invalid hookTimeoutMs in config file: ${config.hookTimeoutMs}`);
   }
 
   validateGenerationConfig(config.generation);

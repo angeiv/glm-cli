@@ -17,6 +17,8 @@ const CONFIG_KEYS = [
   "approvalPolicy",
   "debugRuntime",
   "eventLogLimit",
+  "hooksEnabled",
+  "hookTimeoutMs",
   "glmEndpoint",
   "maxOutputTokens",
   "temperature",
@@ -64,6 +66,12 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   }
   if (key === "eventLogLimit") {
     return String(config.eventLogLimit ?? 200);
+  }
+  if (key === "hooksEnabled") {
+    return String(config.hooksEnabled ?? true);
+  }
+  if (key === "hookTimeoutMs") {
+    return String(config.hookTimeoutMs ?? 5000);
   }
   if (key === "glmEndpoint") {
     return config.providers.glm.endpoint ?? CLEARABLE_VALUE;
@@ -139,6 +147,21 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
     const parsed = Number(trimmed);
     if (!Number.isInteger(parsed) || parsed <= 0) {
       throw new Error("eventLogLimit must be a positive integer");
+    }
+    return parsed;
+  }
+
+  if (key === "hooksEnabled") {
+    if (trimmed !== "true" && trimmed !== "false") {
+      throw new Error("hooksEnabled must be true or false");
+    }
+    return trimmed === "true";
+  }
+
+  if (key === "hookTimeoutMs") {
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error("hookTimeoutMs must be a positive integer");
     }
     return parsed;
   }
@@ -293,6 +316,10 @@ export async function configSet(
     config.debugRuntime = parsedValue as boolean;
   } else if (key === "eventLogLimit") {
     config.eventLogLimit = parsedValue as number;
+  } else if (key === "hooksEnabled") {
+    config.hooksEnabled = parsedValue as boolean;
+  } else if (key === "hookTimeoutMs") {
+    config.hookTimeoutMs = parsedValue as number;
   } else if (key === "glmEndpoint") {
     if (parsedValue === undefined) {
       delete config.providers.glm.endpoint;

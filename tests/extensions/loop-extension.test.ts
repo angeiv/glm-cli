@@ -306,6 +306,7 @@ describe("glm-loop extension", () => {
         getSessionId: () => "session-1",
       },
       isIdle: () => true,
+      hasUI: true,
       ui: {
         notify: vi.fn(),
       },
@@ -380,6 +381,7 @@ describe("glm-loop extension", () => {
         getSessionId: () => "session-auto-status",
       },
       isIdle: () => true,
+      hasUI: true,
       ui: {
         notify: vi.fn(),
         setStatus,
@@ -451,6 +453,7 @@ describe("glm-loop extension", () => {
         getSessionId: () => "session-quiet-success",
       },
       isIdle: () => true,
+      hasUI: true,
       ui: {
         notify: vi.fn(),
       },
@@ -462,6 +465,63 @@ describe("glm-loop extension", () => {
     expect(exec).toHaveBeenCalledTimes(1);
     expect(userMessages).toHaveLength(0);
     expect(customMessages).toHaveLength(0);
+  });
+
+  test("auto loop does not run while UI is unavailable (print/RPC mode)", async () => {
+    const { default: registerLoopExtension } = await import(
+      "../../resources/extensions/glm-loop/index.js"
+    );
+
+    const events = new Map<string, (event: any, ctx: any) => Promise<void>>();
+    const entries: SessionEntry[] = [
+      {
+        type: "custom",
+        customType: "glm.loop.state",
+        data: {
+          enabled: true,
+          profile: "code",
+          maxRounds: 2,
+          failureMode: "handoff",
+          autoVerify: true,
+          verifyCommand: "pnpm test",
+        },
+      },
+    ];
+    const exec = vi.fn().mockResolvedValue({
+      stdout: "all tests passed\n",
+      stderr: "",
+      code: 0,
+      killed: false,
+    });
+
+    registerLoopExtension({
+      registerCommand: vi.fn(),
+      on: (event: string, handler: (event: any, ctx: any) => Promise<void>) => {
+        events.set(event, handler);
+      },
+      sendMessage: vi.fn(),
+      sendUserMessage: vi.fn(),
+      appendEntry: vi.fn(),
+      exec,
+    } as unknown as ExtensionAPI);
+
+    const ctx = {
+      cwd: process.cwd(),
+      sessionManager: {
+        getEntries: () => entries,
+        getSessionId: () => "session-no-ui",
+      },
+      isIdle: () => true,
+      hasUI: false,
+      ui: {
+        notify: vi.fn(),
+      },
+    };
+
+    await events.get("before_agent_start")?.({ prompt: "fix tests" }, ctx);
+    await events.get("agent_end")?.({ messages: [] }, ctx);
+
+    expect(exec).not.toHaveBeenCalled();
   });
 
   test("auto loop persists the last successful verification result for /loop status", async () => {
@@ -517,6 +577,7 @@ describe("glm-loop extension", () => {
         getSessionId: () => "session-last-success",
       },
       isIdle: () => true,
+      hasUI: true,
       waitForIdle: vi.fn(async () => undefined),
       ui: {
         notify: vi.fn(),
@@ -592,6 +653,7 @@ describe("glm-loop extension", () => {
         getSessionId: () => "session-status",
       },
       isIdle: () => true,
+      hasUI: true,
       waitForIdle: vi.fn(async () => undefined),
       ui: {
         notify: vi.fn(),

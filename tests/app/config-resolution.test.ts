@@ -241,6 +241,8 @@ describe("config store normalization", () => {
       approvalPolicy: "ask",
       debugRuntime: "yes",
       eventLogLimit: 0,
+      hooksEnabled: "true",
+      hookTimeoutMs: 0,
       providers: {
         glm: { apiKey: "", baseURL: "" },
         "openai-compatible": { apiKey: "", baseURL: "" },
@@ -248,7 +250,7 @@ describe("config store normalization", () => {
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
-    await expect(readConfigFile()).rejects.toThrow(/debugRuntime|eventLogLimit/i);
+    await expect(readConfigFile()).rejects.toThrow(/debugRuntime|eventLogLimit|hooksEnabled|hookTimeoutMs/i);
   });
 
   test("buildCapabilityEnvironment prefers explicit env and falls back to config", () => {

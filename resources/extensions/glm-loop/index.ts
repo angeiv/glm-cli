@@ -103,6 +103,11 @@ const LOOP_STATUS_KEY = "glm.loop";
 const activeLoops = new Map<string, ActiveLoopSession>();
 const terminalLoopStatuses = new Map<string, string>();
 
+function readFallbackVerifyCommand(env: NodeJS.ProcessEnv): string | undefined {
+  const raw = env.GLM_LOOP_VERIFY_FALLBACK_COMMAND?.trim();
+  return raw ? raw : undefined;
+}
+
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   if (!value) return fallback;
   const normalized = value.trim().toLowerCase();
@@ -466,13 +471,22 @@ function buildStatusLines(
   active?: ActiveLoopSession,
   lastResult?: LoopResultRecord,
 ): string[] {
+  const fallback = readFallbackVerifyCommand(process.env);
+  const verifier = state.verifyCommand?.trim()
+    ? state.verifyCommand.trim()
+    : state.autoVerify
+      ? `auto-detect${fallback ? ` (fallback: ${fallback})` : ""}`
+      : fallback
+        ? `${fallback} (fallback)`
+        : "unavailable";
+
   const lines = [
     `Loop ${state.enabled ? "armed" : "disabled"} for this session.`,
     `Profile: ${state.profile}`,
     `Max rounds: ${state.maxRounds}`,
     `Failure mode: ${state.failureMode}`,
     `Auto verify: ${state.autoVerify ? "on" : "off"}`,
-    `Verifier: ${state.verifyCommand?.trim() || "auto-detect"}`,
+    `Verifier: ${verifier}`,
   ];
 
   if (!active) {
@@ -796,7 +810,16 @@ async function resolveVerifier(
     };
   }
 
+  const fallback = readFallbackVerifyCommand(process.env);
+
   if (!state.autoVerify) {
+    if (fallback) {
+      return {
+        kind: "command",
+        command: fallback,
+        source: "fallback",
+      };
+    }
     return {
       kind: "unavailable",
       summary:
@@ -804,7 +827,20 @@ async function resolveVerifier(
     };
   }
 
-  return detectCodeVerifier(cwd);
+  const detected = await detectCodeVerifier(cwd);
+  if (detected.kind === "command") {
+    return detected;
+  }
+
+  if (fallback) {
+    return {
+      kind: "command",
+      command: fallback,
+      source: "fallback",
+    };
+  }
+
+  return detected;
 }
 
 async function executeLoopRun(
@@ -1044,11 +1080,13 @@ function usage(): string {
 
 export default function (pi: ExtensionAPI) {
   pi.on("before_agent_start", async (event, ctx) => {
-    await startAutoLoopIfNeeded(ctx, event.prompt);
-    const active = getActiveLoop(ctx.sessionManager);
-    if (active?.mode === "auto") {
-      clearLoopTerminalStatus(ctx.sessionManager);
-      setActiveLoopPhase(ctx.sessionManager, "run");
+    if (ctx.hasUI) {
+      await startAutoLoopIfNeeded(ctx, event.prompt);
+      const active = getActiveLoop(ctx.sessionManager);
+      if (active?.mode === "auto") {
+        clearLoopTerminalStatus(ctx.sessionManager);
+        setActiveLoopPhase(ctx.sessionManager, "run");
+      }
     }
     refreshLoopStatus(ctx);
   });
