@@ -34,6 +34,7 @@ export type RuntimeEnvVars = Partial<{
   GLM_LOOP_FAILURE_MODE: string;
   GLM_LOOP_AUTO_VERIFY: string;
   GLM_LOOP_VERIFY_COMMAND: string;
+  GLM_LOOP_VERIFY_FALLBACK_COMMAND: string;
   OPENAI_API_KEY: string;
   OPENAI_MODEL: string;
   ANTHROPIC_AUTH_TOKEN: string;
@@ -57,7 +58,10 @@ export type LoopRuntimeOptions = {
   maxRounds: number;
   failureMode: LoopFailureMode;
   autoVerify: boolean;
+  /** Explicit verifier command (CLI flag or GLM_LOOP_VERIFY_COMMAND). */
   verifyCommand?: string;
+  /** Fallback verifier command (config or GLM_LOOP_VERIFY_FALLBACK_COMMAND). */
+  verifyFallbackCommand?: string;
 };
 
 export function resolveRuntimeConfig(
@@ -240,6 +244,10 @@ export function resolveLoopRuntimeOptions(
     env.GLM_LOOP_VERIFY_COMMAND,
     undefined,
   );
+  const envVerifyFallbackCommand = readConfiguredEnvValue(
+    env.GLM_LOOP_VERIFY_FALLBACK_COMMAND,
+    undefined,
+  );
 
   return {
     enabled:
@@ -265,10 +273,8 @@ export function resolveLoopRuntimeOptions(
       envAutoVerify ??
       fileLoop?.autoVerify ??
       true,
-    verifyCommand:
-      cli.verify ??
-      envVerifyCommand ??
-      fileLoop?.verifyCommand,
+    verifyCommand: cli.verify ?? envVerifyCommand,
+    verifyFallbackCommand: envVerifyFallbackCommand ?? fileLoop?.verifyCommand,
   };
 }
 
@@ -282,6 +288,7 @@ export function buildLoopEnvironment(
     GLM_LOOP_FAILURE_MODE: loop.failureMode,
     GLM_LOOP_AUTO_VERIFY: loop.autoVerify ? "1" : "0",
     ...(loop.verifyCommand ? { GLM_LOOP_VERIFY_COMMAND: loop.verifyCommand } : { GLM_LOOP_VERIFY_COMMAND: undefined }),
+    ...(loop.verifyFallbackCommand ? { GLM_LOOP_VERIFY_FALLBACK_COMMAND: loop.verifyFallbackCommand } : { GLM_LOOP_VERIFY_FALLBACK_COMMAND: undefined }),
   };
 }
 

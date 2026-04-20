@@ -133,11 +133,20 @@ async function resolveVerifier(
     return {
       kind: "command",
       command: options.verifyCommand.trim(),
-      source: "config",
+      source: "explicit",
     };
   }
 
+  const fallback = options.verifyFallbackCommand?.trim();
+
   if (!options.autoVerify) {
+    if (fallback) {
+      return {
+        kind: "command",
+        command: fallback,
+        source: "fallback",
+      };
+    }
     return {
       kind: "unavailable",
       summary:
@@ -145,14 +154,27 @@ async function resolveVerifier(
     };
   }
 
-  if (options.profile === "code") {
-    return detectCodeVerifier(cwd);
+  const detected =
+    options.profile === "code"
+      ? await detectCodeVerifier(cwd)
+      : {
+          kind: "unavailable" as const,
+          summary: `No verifier resolver is registered for profile ${options.profile}.`,
+        };
+
+  if (detected.kind === "command") {
+    return detected;
   }
 
-  return {
-    kind: "unavailable",
-    summary: `No verifier resolver is registered for profile ${options.profile}.`,
-  };
+  if (fallback) {
+    return {
+      kind: "command",
+      command: fallback,
+      source: "fallback",
+    };
+  }
+
+  return detected;
 }
 
 function toVerificationResult(
