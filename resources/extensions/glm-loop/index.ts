@@ -1044,11 +1044,13 @@ function usage(): string {
 
 export default function (pi: ExtensionAPI) {
   pi.on("before_agent_start", async (event, ctx) => {
-    await startAutoLoopIfNeeded(ctx, event.prompt);
-    const active = getActiveLoop(ctx.sessionManager);
-    if (active?.mode === "auto") {
-      clearLoopTerminalStatus(ctx.sessionManager);
-      setActiveLoopPhase(ctx.sessionManager, "run");
+    if (ctx.hasUI) {
+      await startAutoLoopIfNeeded(ctx, event.prompt);
+      const active = getActiveLoop(ctx.sessionManager);
+      if (active?.mode === "auto") {
+        clearLoopTerminalStatus(ctx.sessionManager);
+        setActiveLoopPhase(ctx.sessionManager, "run");
+      }
     }
     refreshLoopStatus(ctx);
   });
