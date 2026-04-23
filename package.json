@@ -26,10 +26,12 @@
     "configDir": ".glm"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/copy-resources.mjs",
-    "dev": "tsx src/loader.ts",
+    "build": "tsc -p tsconfig.json && pnpm run build:resources",
+    "build:resources": "node scripts/build-resource-extensions.mjs",
+    "dev": "pnpm run build:resources && tsx src/loader.ts",
     "prepack": "pnpm run build",
-    "test": "vitest --run"
+    "sync:agent-resources": "pnpm run build:resources && node scripts/copy-resources.mjs",
+    "test": "pnpm run build:resources && vitest --run"
   },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.67.6",

@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { LoopRuntimeOptions, RuntimeConfig } from "../app/env.js";
 import { getRuntimeEvents } from "./event-log.js";
+import { resolveGlmProfile } from "../models/resolve-glm-profile.js";
 import type {
   RuntimeDiagnosticsConfig,
   RuntimePaths,
@@ -81,6 +82,53 @@ function withEventCount(status: RuntimeStatus): RuntimeStatus {
   };
 }
 
+function resolveRuntimeBaseUrl(
+  provider: string,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  if (provider === "glm") {
+    const explicitBaseUrl = env.GLM_BASE_URL?.trim();
+    if (explicitBaseUrl) {
+      return explicitBaseUrl;
+    }
+
+    const endpoint = env.GLM_ENDPOINT?.trim().toLowerCase();
+    if (
+      endpoint === "zai" ||
+      endpoint === "z.ai" ||
+      endpoint === "api.z.ai" ||
+      endpoint === "zai-api" ||
+      endpoint === "zai-coding" ||
+      endpoint === "zai-coding-plan"
+    ) {
+      return endpoint.includes("coding")
+        ? "https://api.z.ai/api/coding/paas/v4/"
+        : "https://api.z.ai/api/paas/v4/";
+    }
+
+    if (
+      endpoint === "bigmodel" ||
+      endpoint === "open.bigmodel.cn" ||
+      endpoint === "open.bigmodel" ||
+      endpoint === "bigmodel-api"
+    ) {
+      return "https://open.bigmodel.cn/api/paas/v4/";
+    }
+
+    return "https://open.bigmodel.cn/api/coding/paas/v4/";
+  }
+
+  if (provider === "openai-compatible" || provider === "openai-responses") {
+    return env.OPENAI_BASE_URL?.trim() || undefined;
+  }
+
+  if (provider === "anthropic") {
+    return env.ANTHROPIC_BASE_URL?.trim() || undefined;
+  }
+
+  return undefined;
+}
+
 export async function buildRuntimeStatus(args: {
   cwd: string;
   runtime: RuntimeConfig;
@@ -95,6 +143,20 @@ export async function buildRuntimeStatus(args: {
     cwd: args.cwd,
     provider: args.runtime.provider,
     model: args.runtime.model,
+    resolvedModel: (() => {
+      const profile = resolveGlmProfile({
+        modelId: args.runtime.model,
+        baseUrl: resolveRuntimeBaseUrl(args.runtime.provider, args.env),
+      });
+
+      return {
+        canonicalModelId: profile.canonicalModelId,
+        platform: profile.evidence.platform,
+        upstreamVendor: profile.evidence.upstreamVendor,
+        payloadPatchPolicy: profile.payloadPatchPolicy,
+        confidence: profile.evidence.confidence,
+      };
+    })(),
     approvalPolicy: args.runtime.approvalPolicy,
     loop: {
       enabled: args.loop.enabled,
@@ -139,6 +201,7 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
     `Model: ${status.model}`,
+    `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
     `Verifier: ${verifier}`,

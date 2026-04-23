@@ -46,6 +46,11 @@ describe("inspectRuntime", () => {
 
     expect(status.provider).toBe("openai-compatible");
     expect(status.model).toBe("glm-openai");
+    expect(status.resolvedModel).toMatchObject({
+      platform: "unknown",
+      payloadPatchPolicy: "safe-openai-compatible",
+      confidence: "low",
+    });
     expect(status.approvalPolicy).toBe("never");
     expect(status.loop).toMatchObject({
       enabled: true,
@@ -88,6 +93,10 @@ describe("runInspectCommand", () => {
     expect(payload).toMatchObject({
       provider: "glm",
       model: "glm-5.1",
+      resolvedModel: expect.objectContaining({
+        canonicalModelId: "glm-5.1",
+        payloadPatchPolicy: "glm-native",
+      }),
       loop: expect.objectContaining({
         profile: "code",
       }),
