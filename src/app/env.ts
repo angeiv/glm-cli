@@ -2,6 +2,7 @@ import type {
   GlmConfigFile,
   LoopFailureMode,
   LoopProfileName,
+  NotificationsConfig,
 } from "./config-store.js";
 import type { ProviderName } from "../providers/types.js";
 import { isProviderName } from "../providers/types.js";
@@ -35,6 +36,9 @@ export type RuntimeEnvVars = Partial<{
   GLM_LOOP_AUTO_VERIFY: string;
   GLM_LOOP_VERIFY_COMMAND: string;
   GLM_LOOP_VERIFY_FALLBACK_COMMAND: string;
+  GLM_NOTIFY_ENABLED: string;
+  GLM_NOTIFY_ON_TURN_END: string;
+  GLM_NOTIFY_ON_LOOP_RESULT: string;
   OPENAI_API_KEY: string;
   OPENAI_MODEL: string;
   ANTHROPIC_AUTH_TOKEN: string;
@@ -50,6 +54,12 @@ export type RuntimeConfig = {
 export type DiagnosticsRuntimeOptions = {
   debugRuntime: boolean;
   eventLogLimit: number;
+};
+
+export type NotificationRuntimeOptions = {
+  enabled: boolean;
+  onTurnEnd: boolean;
+  onLoopResult: boolean;
 };
 
 export type LoopRuntimeOptions = {
@@ -196,6 +206,35 @@ export function buildCapabilityEnvironment(
             fileConfig.glmCapabilities?.responseFormat,
           )!,
         }),
+  };
+}
+
+export function resolveNotificationRuntimeOptions(
+  env: RuntimeEnvVars,
+  fileConfig: GlmConfigFile,
+): NotificationRuntimeOptions {
+  const notifications: NotificationsConfig | undefined = fileConfig.notifications;
+  const envEnabled = parseBoolean(env.GLM_NOTIFY_ENABLED);
+  const envOnTurnEnd = parseBoolean(env.GLM_NOTIFY_ON_TURN_END);
+  const envOnLoopResult = parseBoolean(env.GLM_NOTIFY_ON_LOOP_RESULT);
+
+  return {
+    enabled: envEnabled ?? notifications?.enabled ?? false,
+    onTurnEnd: envOnTurnEnd ?? notifications?.onTurnEnd ?? true,
+    onLoopResult: envOnLoopResult ?? notifications?.onLoopResult ?? true,
+  };
+}
+
+export function buildNotificationEnvironment(
+  env: RuntimeEnvVars,
+  fileConfig: GlmConfigFile,
+): Partial<NodeJS.ProcessEnv> {
+  const resolved = resolveNotificationRuntimeOptions(env, fileConfig);
+
+  return {
+    GLM_NOTIFY_ENABLED: resolved.enabled ? "1" : "0",
+    GLM_NOTIFY_ON_TURN_END: resolved.onTurnEnd ? "1" : "0",
+    GLM_NOTIFY_ON_LOOP_RESULT: resolved.onLoopResult ? "1" : "0",
   };
 }
 

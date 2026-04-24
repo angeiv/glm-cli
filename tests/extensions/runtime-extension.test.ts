@@ -55,10 +55,21 @@ describe("glm-runtime extension", () => {
         eventLogLimit: 200,
         eventCount: 0,
       },
+      notifications: {
+        enabled: true,
+        onTurnEnd: true,
+        onLoopResult: true,
+      },
       mcp: {
         enabled: true,
         configPath: "/tmp/.glm/mcp.json",
+        cachePath: "/tmp/.glm/agent/mcp-cache.json",
         configuredServerCount: 1,
+        modeCounts: {
+          direct: 0,
+          proxy: 1,
+          hybrid: 0,
+        },
       },
       paths: {
         agentDir: "/tmp/.glm/agent",
@@ -78,6 +89,8 @@ describe("glm-runtime extension", () => {
       expect.arrayContaining([
         "Provider: glm",
         "Model: glm-5.1",
+        "Notifications: on | turnEnd on | loopResult on",
+        "MCP: enabled | servers 1 | direct 0 | proxy 1 | hybrid 0",
       ]),
       expect.any(Object),
     );

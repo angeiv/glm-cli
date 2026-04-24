@@ -17,8 +17,17 @@ describe("buildRuntimeStatus", () => {
       JSON.stringify(
         {
           mcpServers: {
-            search: { type: "streamable-http", url: "https://example.com/mcp" },
-            local: { command: "npx", args: ["-y", "server"] },
+            search: {
+              type: "streamable-http",
+              url: "https://example.com/mcp",
+              toolMode: "proxy",
+            },
+            local: {
+              command: "npx",
+              args: ["-y", "server"],
+              toolMode: "hybrid",
+            },
+            direct: { command: "node" },
             disabled: { command: "node", disabled: true },
           },
         },
@@ -47,6 +56,11 @@ describe("buildRuntimeStatus", () => {
         debugRuntime: true,
         eventLogLimit: 25,
       },
+      notifications: {
+        enabled: true,
+        onTurnEnd: true,
+        onLoopResult: false,
+      },
       paths: {
         agentDir: "/tmp/.glm/agent",
         sessionDir: "/tmp/.glm/sessions/demo",
@@ -55,6 +69,7 @@ describe("buildRuntimeStatus", () => {
       },
       env: {
         GLM_MCP_CONFIG: mcpPath,
+        GLM_MCP_CACHE_PATH: join(dir, "mcp-cache.json"),
       },
     });
 
@@ -76,12 +91,23 @@ describe("buildRuntimeStatus", () => {
     });
     expect(status.mcp).toMatchObject({
       configPath: mcpPath,
+      cachePath: join(dir, "mcp-cache.json"),
       enabled: true,
-      configuredServerCount: 2,
+      configuredServerCount: 3,
+      modeCounts: {
+        direct: 1,
+        proxy: 1,
+        hybrid: 1,
+      },
     });
     expect(status.diagnostics).toMatchObject({
       debugRuntime: true,
       eventLogLimit: 25,
+    });
+    expect(status.notifications).toMatchObject({
+      enabled: true,
+      onTurnEnd: true,
+      onLoopResult: false,
     });
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");
   });

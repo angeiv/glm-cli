@@ -81,6 +81,24 @@ describe("configGet", () => {
     expect(value).toBe("8000");
     expect(log).toHaveBeenCalledWith("8000");
   });
+
+  test("reads notification keys", async () => {
+    const log = vi.fn();
+    const value = await configGet("notificationsEnabled", {
+      readConfigFile: async () => ({
+        ...getDefaultConfigFile(),
+        notifications: {
+          enabled: true,
+          onTurnEnd: false,
+          onLoopResult: true,
+        },
+      }),
+      log,
+    });
+
+    expect(value).toBe("true");
+    expect(log).toHaveBeenCalledWith("true");
+  });
 });
 
 describe("configSet", () => {
@@ -168,6 +186,25 @@ describe("configSet", () => {
     expect(writeConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
         debugRuntime: true,
+      }),
+    );
+  });
+
+  test("updates notification keys and persists them", async () => {
+    const writeConfigFile = vi.fn(async () => undefined);
+
+    const updated = await configSet("notificationsOnTurnEnd", "false", {
+      readConfigFile: async () => getDefaultConfigFile(),
+      writeConfigFile,
+      log: vi.fn(),
+    });
+
+    expect(updated.notifications.onTurnEnd).toBe(false);
+    expect(writeConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notifications: expect.objectContaining({
+          onTurnEnd: false,
+        }),
       }),
     );
   });

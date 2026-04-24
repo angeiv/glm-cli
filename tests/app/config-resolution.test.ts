@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { buildCapabilityEnvironment, resolveRuntimeConfig } from "../../src/app/env.js";
+import {
+  buildCapabilityEnvironment,
+  buildNotificationEnvironment,
+  resolveRuntimeConfig,
+} from "../../src/app/env.js";
 import {
   fileSystem,
   normalizeConfigFile,
@@ -49,14 +53,17 @@ describe("config store normalization", () => {
     expect(first.generation).not.toBe(second.generation);
     expect(first.glmCapabilities).not.toBe(second.glmCapabilities);
     expect(first.loop).not.toBe(second.loop);
+    expect(first.notifications).not.toBe(second.notifications);
 
     first.generation.maxOutputTokens = 4096;
     first.glmCapabilities.thinkingMode = "enabled";
     first.loop.maxRounds = 5;
+    first.notifications.enabled = true;
 
     expect(second.generation.maxOutputTokens).toBeUndefined();
     expect(second.glmCapabilities.thinkingMode).toBe("auto");
     expect(second.loop.maxRounds).toBe(3);
+    expect(second.notifications.enabled).toBe(false);
   });
 
   test("readConfigFile surfaces parse errors instead of silently defaulting", async () => {
@@ -253,6 +260,24 @@ describe("config store normalization", () => {
     await expect(readConfigFile()).rejects.toThrow(/debugRuntime|eventLogLimit|hooksEnabled|hookTimeoutMs/i);
   });
 
+  test("readConfigFile rejects invalid notification config values", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      notifications: {
+        enabled: "yes",
+        onTurnEnd: 1,
+      },
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/notifications.enabled|notifications.onTurnEnd/i);
+  });
+
   test("buildCapabilityEnvironment prefers explicit env and falls back to config", () => {
     const config = normalizeConfigFile({
       generation: {
@@ -288,6 +313,29 @@ describe("config store normalization", () => {
       GLM_TOOL_STREAM: "on",
       GLM_RESPONSE_FORMAT: "json_object",
       GLM_ENDPOINT: "bigmodel-coding",
+    });
+  });
+
+  test("buildNotificationEnvironment prefers explicit env and falls back to config", () => {
+    const config = normalizeConfigFile({
+      notifications: {
+        enabled: true,
+        onTurnEnd: false,
+        onLoopResult: true,
+      },
+    });
+
+    const env = buildNotificationEnvironment(
+      {
+        GLM_NOTIFY_ON_TURN_END: "1",
+      },
+      config,
+    );
+
+    expect(env).toMatchObject({
+      GLM_NOTIFY_ENABLED: "1",
+      GLM_NOTIFY_ON_TURN_END: "1",
+      GLM_NOTIFY_ON_LOOP_RESULT: "1",
     });
   });
 });

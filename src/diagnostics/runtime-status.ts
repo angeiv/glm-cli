@@ -1,10 +1,14 @@
-import { homedir } from "node:os";
-import { join } from "node:path";
 import type { LoopRuntimeOptions, RuntimeConfig } from "../app/env.js";
 import { getRuntimeEvents } from "./event-log.js";
 import { resolveGlmProfile } from "../models/resolve-glm-profile.js";
+import {
+  getMcpMetadataCachePath,
+  resolveMcpConfigPath,
+  resolveMcpToolMode,
+} from "../mcp/config.js";
 import type {
   RuntimeDiagnosticsConfig,
+  RuntimeNotificationStatus,
   RuntimePaths,
   RuntimeStatus,
 } from "./types.js";
@@ -12,8 +16,8 @@ import type {
 const GLM_RUNTIME_STATUS = Symbol.for("glm.runtimeStatus");
 
 type PersistedMcpConfig = {
-  mcpServers?: Record<string, { disabled?: boolean }>;
-  servers?: Record<string, { disabled?: boolean }>;
+  mcpServers?: Record<string, { disabled?: boolean; toolMode?: unknown }>;
+  servers?: Record<string, { disabled?: boolean; toolMode?: unknown }>;
 };
 
 function getRuntimeStatusStore(): { status?: RuntimeStatus } {
@@ -29,26 +33,30 @@ function getRuntimeStatusStore(): { status?: RuntimeStatus } {
   return state;
 }
 
-function resolveMcpConfigPath(env: NodeJS.ProcessEnv): string {
-  const raw = env.GLM_MCP_CONFIG?.trim();
-  if (raw) {
-    return raw.startsWith("~/") ? join(homedir(), raw.slice(2)) : raw;
-  }
-
-  return join(homedir(), ".glm", "mcp.json");
-}
-
 async function readConfiguredMcpServerCount(env: NodeJS.ProcessEnv): Promise<{
   enabled: boolean;
   configPath: string;
+  cachePath: string;
   configuredServerCount: number;
+  modeCounts: {
+    direct: number;
+    proxy: number;
+    hybrid: number;
+  };
 }> {
   const configPath = resolveMcpConfigPath(env);
+  const cachePath = getMcpMetadataCachePath(env);
   if (env.GLM_MCP_DISABLED?.trim() === "1") {
     return {
       enabled: false,
       configPath,
+      cachePath,
       configuredServerCount: 0,
+      modeCounts: {
+        direct: 0,
+        proxy: 0,
+        hybrid: 0,
+      },
     };
   }
 
@@ -57,17 +65,37 @@ async function readConfiguredMcpServerCount(env: NodeJS.ProcessEnv): Promise<{
     const raw = await file.readFile(configPath, "utf8");
     const parsed = JSON.parse(raw) as PersistedMcpConfig;
     const servers = parsed.mcpServers ?? parsed.servers ?? {};
-    const configuredServerCount = Object.values(servers).filter((server) => !server?.disabled).length;
+    const enabledServers = Object.values(servers).filter((server) => !server?.disabled);
+    const modeCounts = enabledServers.reduce(
+      (counts, server) => {
+        counts[resolveMcpToolMode(server?.toolMode)] += 1;
+        return counts;
+      },
+      {
+        direct: 0,
+        proxy: 0,
+        hybrid: 0,
+      },
+    );
+
     return {
       enabled: true,
       configPath,
-      configuredServerCount,
+      cachePath,
+      configuredServerCount: enabledServers.length,
+      modeCounts,
     };
   } catch {
     return {
       enabled: true,
       configPath,
+      cachePath,
       configuredServerCount: 0,
+      modeCounts: {
+        direct: 0,
+        proxy: 0,
+        hybrid: 0,
+      },
     };
   }
 }
@@ -134,6 +162,7 @@ export async function buildRuntimeStatus(args: {
   runtime: RuntimeConfig;
   loop: LoopRuntimeOptions;
   diagnostics: RuntimeDiagnosticsConfig;
+  notifications: RuntimeNotificationStatus;
   paths: RuntimePaths;
   env: NodeJS.ProcessEnv;
 }): Promise<RuntimeStatus> {
@@ -172,6 +201,7 @@ export async function buildRuntimeStatus(args: {
       eventLogLimit: args.diagnostics.eventLogLimit,
       eventCount: 0,
     },
+    notifications: args.notifications,
     mcp,
     paths: args.paths,
   });
@@ -205,7 +235,8 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
     `Verifier: ${verifier}`,
-    `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount}`,
+    `Notifications: ${status.notifications.enabled ? "on" : "off"} | turnEnd ${status.notifications.onTurnEnd ? "on" : "off"} | loopResult ${status.notifications.onLoopResult ? "on" : "off"}`,
+    `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount} | direct ${status.mcp.modeCounts.direct} | proxy ${status.mcp.modeCounts.proxy} | hybrid ${status.mcp.modeCounts.hybrid}`,
     `Diagnostics: debugRuntime=${status.diagnostics.debugRuntime} | eventLogLimit=${status.diagnostics.eventLogLimit} | events=${status.diagnostics.eventCount}`,
     `Session dir: ${status.paths.sessionDir}`,
   ];

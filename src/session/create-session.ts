@@ -16,8 +16,10 @@ import { resolveGlmSessionPaths } from "./session-paths.js";
 import { createBuiltinTools, createPlanTools } from "../tools/index.js";
 import type { PromptMode } from "../prompt/mode-overlays.js";
 import {
+  buildNotificationEnvironment,
   resolveDiagnosticsRuntimeOptions,
   resolveLoopRuntimeOptions,
+  resolveNotificationRuntimeOptions,
 } from "../app/env.js";
 import {
   buildRuntimeStatus,
@@ -341,6 +343,7 @@ async function prepareGlmSession(
   await syncPackagedResources(options.agentDir);
   const config = await readConfigFile();
   const diagnostics = resolveDiagnosticsRuntimeOptions(config);
+  const notifications = resolveNotificationRuntimeOptions(process.env, config);
   configureRuntimeEventLog({ limit: diagnostics.eventLogLimit });
   await loadHooks({
     enabled: config.hooksEnabled ?? true,
@@ -357,6 +360,7 @@ async function prepareGlmSession(
       },
       loop: resolveLoopRuntimeOptions({}, process.env, config),
       diagnostics,
+      notifications,
       paths: {
         agentDir: options.agentDir,
         sessionDir: options.sessionDir,
@@ -371,6 +375,7 @@ async function prepareGlmSession(
     {
       ...buildModelSelectionEnvironment(strategy.selection),
       ...buildApprovalPolicyEnvironment(getGlmApprovalPolicy(options.approvalPolicy)),
+      ...buildNotificationEnvironment(process.env, config),
     },
     async () => {
       const { services, sessionManager } = await createGlmServices(options);
@@ -484,6 +489,7 @@ export async function createGlmRuntime(
             },
             loop: resolveLoopRuntimeOptions({}, process.env, config),
             diagnostics: resolveDiagnosticsRuntimeOptions(config),
+            notifications: resolveNotificationRuntimeOptions(process.env, config),
             paths: {
               agentDir: options.agentDir,
               sessionDir: options.sessionDir,

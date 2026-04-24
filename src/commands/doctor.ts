@@ -4,6 +4,7 @@ import { join } from "node:path";
 import {
   RuntimeCliFlags,
   RuntimeConfig,
+  resolveNotificationRuntimeOptions,
   resolveDiagnosticsRuntimeOptions,
   resolveLoopRuntimeOptions,
   resolveRuntimeConfig,
@@ -126,6 +127,7 @@ export async function runDoctor(options: DoctorDependencies): Promise<DoctorResu
   const runtime = resolveRuntimeConfig(options.cli, options.env, config);
   const loop = resolveLoopRuntimeOptions(options.cli, options.env, config);
   const diagnostics = resolveDiagnosticsRuntimeOptions(config);
+  const notifications = resolveNotificationRuntimeOptions(options.env, config);
 
   const checks = await Promise.all([
     checkCwd(options.cwd, options.pathExists),
@@ -142,6 +144,7 @@ export async function runDoctor(options: DoctorDependencies): Promise<DoctorResu
       runtime,
       loop,
       diagnostics,
+      notifications,
       paths: resolveGlmSessionPaths(options.cwd),
       env: options.env,
     }),

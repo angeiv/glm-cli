@@ -33,6 +33,11 @@ export type HooksConfig = {
   hooksEnabled?: boolean;
   hookTimeoutMs?: number;
 };
+export type NotificationsConfig = {
+  enabled?: boolean;
+  onTurnEnd?: boolean;
+  onLoopResult?: boolean;
+};
 export type GenerationConfig = {
   maxOutputTokens?: number;
   temperature?: number;
@@ -80,6 +85,14 @@ function createDefaultGlmCapabilitiesConfig(): GlmCapabilitiesConfig {
   };
 }
 
+function createDefaultNotificationsConfig(): NotificationsConfig {
+  return {
+    enabled: false,
+    onTurnEnd: true,
+    onLoopResult: true,
+  };
+}
+
 function createDefaultLoopConfig(): LoopConfig {
   return {
     enabledByDefault: false,
@@ -99,6 +112,7 @@ function buildDefaultConfigFile(): GlmConfigFile {
     eventLogLimit: 200,
     hooksEnabled: true,
     hookTimeoutMs: 5000,
+    notifications: createDefaultNotificationsConfig(),
     generation: createDefaultGenerationConfig(),
     glmCapabilities: createDefaultGlmCapabilitiesConfig(),
     loop: createDefaultLoopConfig(),
@@ -117,6 +131,7 @@ export type GlmConfigFile = {
   eventLogLimit?: number;
   hooksEnabled?: boolean;
   hookTimeoutMs?: number;
+  notifications: NotificationsConfig;
   generation: GenerationConfig;
   glmCapabilities: GlmCapabilitiesConfig;
   loop: LoopConfig;
@@ -158,6 +173,27 @@ function cloneGenerationConfig(config?: GenerationConfig): GenerationConfig {
     ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
     ...(temperature === undefined ? {} : { temperature }),
     ...(topP === undefined ? {} : { topP }),
+  };
+}
+
+function cloneNotificationsConfig(config?: NotificationsConfig): NotificationsConfig {
+  const rawEnabled = (config as unknown as { enabled?: unknown })?.enabled;
+  const rawOnTurnEnd = (config as unknown as { onTurnEnd?: unknown })?.onTurnEnd;
+  const rawOnLoopResult = (config as unknown as { onLoopResult?: unknown })?.onLoopResult;
+
+  return {
+    enabled:
+      rawEnabled === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.notifications.enabled
+        : (rawEnabled as boolean),
+    onTurnEnd:
+      rawOnTurnEnd === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.notifications.onTurnEnd
+        : (rawOnTurnEnd as boolean),
+    onLoopResult:
+      rawOnLoopResult === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.notifications.onLoopResult
+        : (rawOnLoopResult as boolean),
   };
 }
 
@@ -252,6 +288,10 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       rawHookTimeoutMs === undefined
         ? BASE_DEFAULT_CONFIG_FILE.hookTimeoutMs
         : (rawHookTimeoutMs as number),
+    notifications: cloneNotificationsConfig(
+      (config as unknown as { notifications?: NotificationsConfig })?.notifications ??
+        BASE_DEFAULT_CONFIG_FILE.notifications,
+    ),
     generation: cloneGenerationConfig(
       (config as unknown as { generation?: GenerationConfig })?.generation ??
         BASE_DEFAULT_CONFIG_FILE.generation,
@@ -331,6 +371,7 @@ function validateConfigFile(config: GlmConfigFile): void {
   if (!Number.isInteger(config.hookTimeoutMs) || (config.hookTimeoutMs ?? 0) <= 0) {
     throw new Error(`Invalid hookTimeoutMs in config file: ${config.hookTimeoutMs}`);
   }
+  validateNotificationsConfig(config.notifications);
 
   validateGenerationConfig(config.generation);
   validateGlmCapabilitiesConfig(config.glmCapabilities);
@@ -339,6 +380,20 @@ function validateConfigFile(config: GlmConfigFile): void {
   Object.entries(config.providers).forEach(([key, value]) => {
     validateProviderConfig(value, key as StorageProviderKey);
   });
+}
+
+function validateNotificationsConfig(config: NotificationsConfig): void {
+  if (typeof config.enabled !== "boolean") {
+    throw new Error(`Invalid notifications.enabled in config file: ${typeof config.enabled}`);
+  }
+
+  if (typeof config.onTurnEnd !== "boolean") {
+    throw new Error(`Invalid notifications.onTurnEnd in config file: ${typeof config.onTurnEnd}`);
+  }
+
+  if (typeof config.onLoopResult !== "boolean") {
+    throw new Error(`Invalid notifications.onLoopResult in config file: ${typeof config.onLoopResult}`);
+  }
 }
 
 function validateGenerationConfig(config: GenerationConfig): void {
