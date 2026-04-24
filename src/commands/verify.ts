@@ -5,6 +5,10 @@ import type {
   VerificationCommandResolution,
   VerificationResult,
 } from "../loop/types.js";
+import {
+  writeVerificationArtifact,
+  type VerificationArtifact,
+} from "../harness/artifacts.js";
 
 export type VerifyCommandArgs = {
   cwd: string;
@@ -16,6 +20,8 @@ export type VerifyCommandArgs = {
 type VerifyResolution = {
   resolution: VerificationCommandResolution;
   verification: VerificationResult;
+  artifact: VerificationArtifact;
+  artifactPath: string;
 };
 
 type VerifyDependencies = {
@@ -27,6 +33,7 @@ type VerifyDependencies = {
     env?: NodeJS.ProcessEnv;
   }) => Promise<VerificationResult>;
   log: (message: string) => void;
+  writeArtifact: typeof writeVerificationArtifact;
 };
 
 function summarizeOutputText(
@@ -92,12 +99,20 @@ export async function verifyProject(
   });
 
   if (resolution.kind !== "command") {
+    const verification: VerificationResult = {
+      kind: resolution.kind,
+      summary: resolution.summary,
+    };
+    const artifactResult = await (deps?.writeArtifact ?? writeVerificationArtifact)({
+      cwd: input.cwd,
+      resolution,
+      verification,
+    });
+
     return {
       resolution,
-      verification: {
-        kind: resolution.kind,
-        summary: resolution.summary,
-      },
+      verification,
+      ...artifactResult,
     };
   }
 
@@ -106,8 +121,13 @@ export async function verifyProject(
     command: resolution.command,
     env,
   });
+  const artifactResult = await (deps?.writeArtifact ?? writeVerificationArtifact)({
+    cwd: input.cwd,
+    resolution,
+    verification,
+  });
 
-  return { resolution, verification };
+  return { resolution, verification, ...artifactResult };
 }
 
 export async function runVerifyCommand(
@@ -115,10 +135,10 @@ export async function runVerifyCommand(
   deps?: Partial<VerifyDependencies>,
 ): Promise<number> {
   const log = deps?.log ?? console.log;
-  const { resolution, verification } = await verifyProject(input, deps);
+  const { resolution, verification, artifact, artifactPath } = await verifyProject(input, deps);
 
   if (input.json) {
-    log(JSON.stringify({ resolution, verification }, null, 2));
+    log(JSON.stringify({ resolution, verification, artifact, artifactPath }, null, 2));
     return verification.kind === "pass" ? 0 : 1;
   }
 
@@ -132,6 +152,7 @@ export async function runVerifyCommand(
     `Result: ${verification.kind}`,
     `Summary: ${verification.summary}`,
     ...(verification.exitCode === undefined ? [] : [`Exit code: ${verification.exitCode}`]),
+    `Artifact: ${artifactPath}`,
     ...(stdoutSummary ? [`Stdout summary: ${stdoutSummary}`] : []),
     ...(stderrSummary ? [`Stderr summary: ${stderrSummary}`] : []),
   ];
