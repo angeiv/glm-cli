@@ -46,6 +46,16 @@ The current loop implementation is `code`-first:
 - sends a repair prompt when verification fails
 - exits with either `handoff` or `fail` when verification keeps failing or is unavailable
 
+### `glm verify [path]`
+Runs the verifier for the current project. By default, glm auto-detects the test command; you can override it with `--verify "<command>"`. Each run writes a structured artifact to `~/.glm/sessions/.../artifacts/verify-*.json` so later loop, resume, or human handoff steps can reuse the result.
+
+Common examples:
+```bash
+glm verify
+glm verify --verify "pnpm test"
+glm verify --json
+```
+
 ### `glm doctor`
 Performs local health checks before you start a session:
 

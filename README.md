@@ -46,6 +46,16 @@ loop 当前为 `code` 优先实现，行为为：
 - verifier 失败时发送 repair prompt 进入下一轮
 - verifier 持续失败或不可用时，根据 `handoff` / `fail` 结束
 
+### `glm verify [path]`
+运行当前项目的 verifier。默认会自动探测测试命令，也可以通过 `--verify "<command>"` 显式指定。每次执行都会把结构化结果写入 `~/.glm/sessions/.../artifacts/verify-*.json`，便于后续 loop、resume 或人工排查复用。
+
+常用示例：
+```bash
+glm verify
+glm verify --verify "pnpm test"
+glm verify --json
+```
+
 ### `glm doctor`
 在启动会话前执行本地健康检查：
 
