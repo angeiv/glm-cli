@@ -41,6 +41,7 @@ export type RuntimeVerificationStatus = {
   latest?: {
     artifactPath: string;
     createdAt: string;
+    scenario?: string;
     kind: string;
     command?: string;
     exitCode?: number;

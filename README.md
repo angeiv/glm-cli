@@ -52,6 +52,8 @@ loop 当前为 `code` 优先实现，行为为：
 常用示例：
 ```bash
 glm verify
+glm verify smoke
+glm verify build
 glm verify --verify "pnpm test"
 glm verify --json
 ```

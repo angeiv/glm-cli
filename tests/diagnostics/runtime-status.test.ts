@@ -53,6 +53,7 @@ describe("buildRuntimeStatus", () => {
           id: "verify-latest",
           createdAt: "2026-04-24T00:00:00.000Z",
           cwd: "/tmp/repo",
+          scenario: "smoke",
           resolution: {
             kind: "command",
             command: "pnpm test",
@@ -145,6 +146,7 @@ describe("buildRuntimeStatus", () => {
     });
     expect(status.verification.latest).toMatchObject({
       artifactPath,
+      scenario: "smoke",
       kind: "fail",
       command: "pnpm test",
       exitCode: 1,
@@ -152,7 +154,7 @@ describe("buildRuntimeStatus", () => {
     });
     expect(formatRuntimeStatusLines(status)).toEqual(
       expect.arrayContaining([
-        expect.stringContaining(`Verification: fail | pnpm test | tests failed | ${artifactPath}`),
+        expect.stringContaining(`Verification: smoke | fail | pnpm test | tests failed | ${artifactPath}`),
       ]),
     );
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");

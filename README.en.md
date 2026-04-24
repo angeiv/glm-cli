@@ -52,6 +52,8 @@ Runs the verifier for the current project. By default, glm auto-detects the test
 Common examples:
 ```bash
 glm verify
+glm verify smoke
+glm verify build
 glm verify --verify "pnpm test"
 glm verify --json
 ```
