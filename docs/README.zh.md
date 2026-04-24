@@ -14,8 +14,8 @@
 ## 参考文档
 
 - 配置与环境变量（完整清单）：[references/config-surface.zh.md](./references/config-surface.zh.md)
-- OpenAI agent loop 笔记（英文）：[references/openai/agent-loop.md](./references/openai/agent-loop.md)
-- OpenAI harness engineering 笔记（英文）：[references/openai/harness-engineering.md](./references/openai/harness-engineering.md)
+- OpenAI agent loop 笔记：[references/openai/agent-loop.zh.md](./references/openai/agent-loop.zh.md)
+- OpenAI harness engineering 笔记：[references/openai/harness-engineering.zh.md](./references/openai/harness-engineering.zh.md)
 
 ## 仓库文档
 

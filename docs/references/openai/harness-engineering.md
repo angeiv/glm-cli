@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="./harness-engineering.zh.md" aria-label="Switch to Chinese version of this document">中文</a>
+</p>
+
 # Harness Engineering Notes
 
 Distilled operating notes from the OpenAI harness-engineering article and how they apply to `glm`.

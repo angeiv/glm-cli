@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="./agent-loop.zh.md" aria-label="Switch to Chinese version of this document">中文</a>
+</p>
+
 # Agent Loop Notes
 
 Distilled operating notes from the OpenAI agent-loop article and their mapping to `glm`.
