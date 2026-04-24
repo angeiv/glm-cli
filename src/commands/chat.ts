@@ -7,6 +7,7 @@ import {
 } from "../app/env.js";
 import type { LoopFailureMode } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
+import type { PromptMode } from "../prompt/mode-overlays.js";
 import { runChatSession } from "../runtime/chat-runtime.js";
 import {
   createGlmRuntime,
@@ -18,6 +19,7 @@ export type ChatCommandInput = {
   cwd: string;
   model?: string;
   provider?: ProviderName;
+  promptMode?: PromptMode;
   yolo?: boolean;
   loop?: boolean;
   verify?: string;
@@ -64,7 +66,7 @@ export async function runChatCommand(input: ChatCommandInput): Promise<void> {
         const runtime = await createGlmRuntime({
           cwd: input.cwd,
           ...runtimeConfig,
-          promptMode: "standard",
+          promptMode: input.promptMode ?? "standard",
         });
 
         await runChatSession(runtime);
