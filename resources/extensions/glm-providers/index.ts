@@ -580,122 +580,6 @@ function createStreamFirstModelscopeAnthropicApi() {
   };
 }
 
-const glmBaseModels = [
-  {
-    id: "glm-5.1",
-    name: "GLM 5.1",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
-  },
-  {
-    id: "glm-5-turbo",
-    name: "GLM 5 Turbo",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
-  },
-  {
-    id: "glm-5",
-    name: "GLM 5",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
-  },
-  {
-    id: "glm-4.7",
-    name: "GLM 4.7",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
-  },
-  {
-    id: "glm-4.7-flash",
-    name: "GLM 4.7 Flash",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
-  },
-  {
-    id: "glm-4.7-flashx",
-    name: "GLM 4.7 FlashX",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
-  },
-  {
-    id: "glm-4.6",
-    name: "GLM 4.6",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 204_800,
-    maxTokens: 131_072,
-  },
-  {
-    id: "glm-4.5-air",
-    name: "GLM 4.5 Air",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 98_304,
-  },
-  {
-    id: "glm-4.5-airx",
-    name: "GLM 4.5 AirX",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 98_304,
-  },
-  {
-    id: "glm-4.5-flash",
-    name: "GLM 4.5 Flash",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 98_304,
-  },
-  {
-    id: "glm-4-flash-250414",
-    name: "GLM 4 Flash 250414",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 16_384,
-  },
-  {
-    id: "glm-4-flashx-250414",
-    name: "GLM 4 FlashX 250414",
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 131_072,
-    maxTokens: 16_384,
-  },
-];
-
-const glmModels = glmBaseModels.map((model) => ({
-  ...model,
-  compat: ZHIPU_OPENAI_COMPAT,
-}));
-
 function normalizeBigModelModelId(value: string): string {
   const trimmed = value.trim();
   if (trimmed.toLowerCase().startsWith("glm-")) {
@@ -714,14 +598,15 @@ function resolveModelId(...candidates: Array<string | undefined>): string | unde
 }
 
 function buildCustomModelDefinition(modelId: string, compat: typeof OPENAI_COMPAT = OPENAI_COMPAT) {
+  const genericCaps = getGenericOpenAiCompatibleCaps();
   return {
     id: modelId,
     name: modelId,
     reasoning: true,
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128_000,
-    maxTokens: 8_192,
+    contextWindow: genericCaps.contextWindow,
+    maxTokens: genericCaps.maxOutputTokens,
     compat,
   };
 }
