@@ -66,6 +66,7 @@ glm verify --json
 
 ### `glm inspect`
 输出当前命令上下文下的有效 runtime snapshot，可用于排查 provider/model/approval/loop/MCP 配置是否按预期生效。
+如果当前 session 已产生 verification artifact，也会显示最近一次验证的状态、摘要和 artifact 路径。
 
 常用示例：
 ```bash

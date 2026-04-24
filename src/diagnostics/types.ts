@@ -37,6 +37,17 @@ export type RuntimeNotificationStatus = {
   onLoopResult: boolean;
 };
 
+export type RuntimeVerificationStatus = {
+  latest?: {
+    artifactPath: string;
+    createdAt: string;
+    kind: string;
+    command?: string;
+    exitCode?: number;
+    summary: string;
+  };
+};
+
 export type RuntimePaths = {
   agentDir: string;
   sessionDir: string;
@@ -64,6 +75,7 @@ export type RuntimeStatus = {
   };
   notifications: RuntimeNotificationStatus;
   mcp: RuntimeMcpStatus;
+  verification: RuntimeVerificationStatus;
   paths: RuntimePaths;
 };
 

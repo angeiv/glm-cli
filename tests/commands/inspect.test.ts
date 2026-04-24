@@ -125,6 +125,7 @@ describe("runInspectCommand", () => {
           hybrid: 0,
         }),
       }),
+      verification: {},
     });
   });
 });

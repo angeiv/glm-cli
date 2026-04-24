@@ -71,6 +71,16 @@ describe("glm-runtime extension", () => {
           hybrid: 0,
         },
       },
+      verification: {
+        latest: {
+          artifactPath: "/tmp/.glm/sessions/repo/artifacts/verify-1.json",
+          createdAt: "2026-04-24T00:00:00.000Z",
+          kind: "pass",
+          command: "pnpm test",
+          exitCode: 0,
+          summary: "Verification passed.",
+        },
+      },
       paths: {
         agentDir: "/tmp/.glm/agent",
         sessionDir: "/tmp/.glm/sessions/repo",
@@ -91,6 +101,7 @@ describe("glm-runtime extension", () => {
         "Model: glm-5.1",
         "Notifications: on | turnEnd on | loopResult on",
         "MCP: enabled | servers 1 | direct 0 | proxy 1 | hybrid 0",
+        "Verification: pass | pnpm test | Verification passed. | /tmp/.glm/sessions/repo/artifacts/verify-1.json",
       ]),
       expect.any(Object),
     );

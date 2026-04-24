@@ -1,8 +1,13 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
-import { clearRuntimeStatus, buildRuntimeStatus } from "../../src/diagnostics/runtime-status.js";
+import {
+  clearRuntimeStatus,
+  buildRuntimeStatus,
+  formatRuntimeStatusLines,
+} from "../../src/diagnostics/runtime-status.js";
+import { resolveGlmSessionPaths } from "../../src/session/session-paths.js";
 
 afterEach(() => {
   clearRuntimeStatus();
@@ -34,6 +39,35 @@ describe("buildRuntimeStatus", () => {
         null,
         2,
       ),
+      "utf8",
+    );
+    const artifactDir = join(resolveGlmSessionPaths("/tmp/repo").sessionDir, "artifacts");
+    mkdirSync(artifactDir, { recursive: true });
+    const artifactPath = join(artifactDir, "verify-latest.json");
+    writeFileSync(
+      artifactPath,
+      `${JSON.stringify(
+        {
+          kind: "verification",
+          version: 1,
+          id: "verify-latest",
+          createdAt: "2026-04-24T00:00:00.000Z",
+          cwd: "/tmp/repo",
+          resolution: {
+            kind: "command",
+            command: "pnpm test",
+            source: "explicit",
+          },
+          verification: {
+            kind: "fail",
+            command: "pnpm test",
+            exitCode: 1,
+            summary: "tests failed",
+          },
+        },
+        null,
+        2,
+      )}\n`,
       "utf8",
     );
 
@@ -109,6 +143,18 @@ describe("buildRuntimeStatus", () => {
       onTurnEnd: true,
       onLoopResult: false,
     });
+    expect(status.verification.latest).toMatchObject({
+      artifactPath,
+      kind: "fail",
+      command: "pnpm test",
+      exitCode: 1,
+      summary: "tests failed",
+    });
+    expect(formatRuntimeStatusLines(status)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(`Verification: fail | pnpm test | tests failed | ${artifactPath}`),
+      ]),
+    );
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");
   });
 });
