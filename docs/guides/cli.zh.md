@@ -111,9 +111,9 @@ glm inspect --json
 
 通知由 `~/.glm/config.json` 的 `notifications.*` 与 `GLM_NOTIFY_*` 环境变量共同控制。
 
-## 运行时设置（Pi settings）
+## 运行时设置（`settings.json`）
 
-glm 使用 Pi settings 文件管理很多运行时行为（如 compact、retry、steering 模式等）：
+glm 使用 `settings.json` 文件管理很多运行时行为（如 compact、retry、steering 模式等）：
 
 - 全局：`~/.glm/agent/settings.json`
 - 项目级：`<project>/.glm/settings.json`
@@ -181,4 +181,3 @@ BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions 
 
 - `GLM_THINKING_MODE=auto|enabled|disabled`
 - `GLM_CLEAR_THINKING=0|1`：当请求中包含 `thinking` 时，设置 `thinking.clear_thinking`（按 BigModel 文档，`0` 表示 preserved thinking）
-

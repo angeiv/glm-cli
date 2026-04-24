@@ -111,9 +111,9 @@ In interactive mode, you can also switch policy on the fly:
 
 Notifications are controlled by `notifications.*` in `~/.glm/config.json` and the `GLM_NOTIFY_*` env overrides.
 
-## Runtime settings (Pi settings)
+## Runtime settings (`settings.json`)
 
-glm uses Pi settings files for many runtime behaviors (compaction, retry, steering modes, etc):
+glm uses `settings.json` files for many runtime behaviors (compaction, retry, steering modes, etc):
 
 - Global: `~/.glm/agent/settings.json`
 - Per-project: `<project>/.glm/settings.json`
@@ -181,4 +181,3 @@ Optional env knobs:
 
 - `GLM_THINKING_MODE=auto|enabled|disabled`
 - `GLM_CLEAR_THINKING=0|1`: sets `thinking.clear_thinking` when the request includes `thinking`. (`0` is preserved thinking, per BigModel docs.)
-
