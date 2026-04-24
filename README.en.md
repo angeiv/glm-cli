@@ -4,7 +4,7 @@
 
 # glm
 
-Local-first agent CLI for GLM (focused on code repositories).
+Local-first agent CLI for GLM (general-purpose for local projects and workflows).
 
 npm package: `@angeiv/glm`  
 command: `glm`
@@ -37,7 +37,7 @@ npx -y @angeiv/glm --help
 
 ```bash
 glm
-glm chat /path/to/repo
+glm chat /path/to/project
 glm run "fix the failing tests"
 glm run "fix the failing tests" --loop --verify "pnpm test" --max-rounds 4 --fail-mode handoff
 glm verify smoke

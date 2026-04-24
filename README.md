@@ -4,7 +4,7 @@
 
 # glm
 
-GLM 的本地 Agent CLI（面向代码仓库）。
+GLM 的本地 Agent CLI（通用任务，适配本地项目与工作流）。
 
 npm 包名：`@angeiv/glm`  
 命令：`glm`
@@ -37,7 +37,7 @@ npx -y @angeiv/glm --help
 
 ```bash
 glm
-glm chat /path/to/repo
+glm chat /path/to/project
 glm run "修复测试失败"
 glm run "修复测试失败" --loop --verify "pnpm test" --max-rounds 4 --fail-mode handoff
 glm verify smoke
