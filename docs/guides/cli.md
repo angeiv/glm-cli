@@ -146,7 +146,7 @@ glm bundles two web-related tools that models can call:
 - `web_search`: web search (requires configuration)
 - `web_fetch`: fetch a URL and extract plain text (HTML is stripped)
 
-`web_search` configuration (pick one):
+`web_search` configuration (select one):
 
 - Brave Search API: set `BRAVE_API_KEY`
 - SearxNG JSON endpoint: set `GLM_WEB_SEARCH_URL` (example: `https://your-searx-instance/search`)
@@ -169,7 +169,7 @@ Equivalent config file keys:
 
 ## BigModel/z.ai OpenAI-compatible payload patches
 
-BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so the runtime works out of the box:
+BigModel + z.ai OpenAI-compatible endpoints differ slightly from OpenAI's Chat Completions API. `glm` patches outgoing payloads so the runtime behaves consistently:
 
 - Uses `max_tokens` (BigModel docs) instead of `max_completion_tokens`.
 - Maps runtime thinking toggles to BigModel's `thinking: { type: "enabled" | "disabled" }` request format.

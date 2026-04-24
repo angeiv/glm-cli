@@ -60,11 +60,11 @@ Cache-related settings:
 - `GLM_MCP_CACHE_PATH`: overrides the global cache file location
 - the metadata cache stores tool names, descriptions, and input schemas only, never tool results
 
-In `hybrid` mode, a cold start without valid cache begins in `proxy` mode. After the first successful live connection refreshes the cache, run `/mcp reload` or restart the session to switch to cached direct tools.
+In `hybrid` mode, if no valid cache is available at startup, glm falls back to `proxy`. After the first successful live connection refreshes the cache, run `/mcp reload` or restart the session to switch to cached direct tools.
 
 ## BigModel Coding Plan MCP examples
 
-You can drop the following into `~/.glm/mcp.json`:
+Add the following to `~/.glm/mcp.json`:
 
 ```json
 {
@@ -124,4 +124,3 @@ Example: server `"brave-search"` tool `"web_search"` becomes `mcp__brave-search_
 
 - `/mcp` shows which MCP servers were loaded.
 - `/mcp reload` reloads extensions (use after editing `mcp.json`).
-
