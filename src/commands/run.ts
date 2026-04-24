@@ -7,6 +7,7 @@ import {
 } from "../app/env.js";
 import type { LoopFailureMode } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
+import type { PromptMode } from "../prompt/mode-overlays.js";
 import { runSingleTask, runTaskLoop } from "../runtime/run-runtime.js";
 import {
   createGlmRuntime,
@@ -19,6 +20,7 @@ export type RunCommandInput = {
   task: string;
   model?: string;
   provider?: ProviderName;
+  promptMode?: PromptMode;
   yolo?: boolean;
   loop?: boolean;
   verify?: string;
@@ -62,10 +64,11 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
         PI_SKIP_VERSION_CHECK: process.env.PI_SKIP_VERSION_CHECK ?? "1",
       },
       async () => {
+        const promptMode = input.promptMode ?? (loopOptions.enabled ? "intensive" : "standard");
         const runtime = await createGlmRuntime({
           cwd: input.cwd,
           ...runtimeConfig,
-          promptMode: loopOptions.enabled ? "intensive" : "standard",
+          promptMode,
         });
 
         if (loopOptions.enabled) {

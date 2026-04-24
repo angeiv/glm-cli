@@ -90,6 +90,20 @@ describe("parseCliArgs", () => {
     });
   });
 
+  test("parses prompt mode flag", () => {
+    expect(parseCliArgs(["run", "fix tests", "--mode", "direct"])).toMatchObject({
+      command: "run",
+      task: "fix tests",
+      promptMode: "direct",
+    });
+  });
+
+  test("rejects unknown prompt mode", () => {
+    expect(() => parseCliArgs(["run", "fix tests", "--mode", "weird"])).toThrow(
+      "Unknown prompt mode: weird",
+    );
+  });
+
   test("parses loop arming flag for chat", () => {
     expect(parseCliArgs(["chat", "--loop"])).toMatchObject({
       command: "chat",

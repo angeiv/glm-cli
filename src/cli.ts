@@ -11,6 +11,7 @@ import type { ChatCommandInput } from "./commands/chat.js";
 import type { RunCommandInput } from "./commands/run.js";
 import { VERSION } from "./version.js";
 import type { VerifyScenarioName } from "./harness/scenarios.js";
+import type { PromptMode } from "./prompt/mode-overlays.js";
 
 const HELP_TEXT = `
 glm - local-repository coding assistant
@@ -28,6 +29,7 @@ Usage:
 Options:
   --provider <name>     Provider: glm, openai-compatible, openai-responses, anthropic
   --model <id>          Model ID (e.g., glm-5.1, glm-4-flash)
+  --mode <mode>         Prompt mode: direct, standard, intensive
   --cwd <path>          Working directory
   --yolo                Skip approval prompts (dangerous commands still blocked)
   --loop                Enable the delivery-quality loop
@@ -52,6 +54,7 @@ Version: ${VERSION}
 type GlobalFlags = {
   provider?: ProviderName;
   model?: string;
+  promptMode?: PromptMode;
   cwd?: string;
   yolo: boolean;
   loop: boolean;
@@ -64,6 +67,7 @@ type BaseCliArgs = {
   cwd: string;
   provider?: ProviderName;
   model?: string;
+  promptMode?: PromptMode;
   yolo: boolean;
   loop: boolean;
   verify?: string;
@@ -115,6 +119,14 @@ function normalizeFailMode(value?: string): LoopFailureMode | undefined {
   return undefined;
 }
 
+function normalizePromptMode(value?: string): PromptMode | undefined {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "direct" || normalized === "standard" || normalized === "intensive") {
+    return normalized;
+  }
+  return undefined;
+}
+
 export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const args = [...argv];
   const flags: GlobalFlags = { yolo: false, loop: false };
@@ -141,6 +153,15 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const modelFlag = extractFlagValue(args, "--model");
   if (modelFlag) {
     flags.model = modelFlag;
+  }
+
+  const modeFlag = extractFlagValue(args, "--mode");
+  if (modeFlag) {
+    const normalized = normalizePromptMode(modeFlag);
+    if (!normalized) {
+      throw new Error(`Unknown prompt mode: ${modeFlag}`);
+    }
+    flags.promptMode = normalized;
   }
 
   const cwdFlag = extractFlagValue(args, "--cwd");
@@ -296,6 +317,7 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         cwd: parsed.cwd,
         provider: parsed.provider,
         model: parsed.model,
+        promptMode: parsed.promptMode,
         yolo: parsed.yolo,
         loop: parsed.loop,
         verify: parsed.verify,
@@ -308,6 +330,7 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         task: parsed.task,
         provider: parsed.provider,
         model: parsed.model,
+        promptMode: parsed.promptMode,
         yolo: parsed.yolo,
         loop: parsed.loop,
         verify: parsed.verify,
