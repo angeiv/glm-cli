@@ -46,6 +46,35 @@ loop 当前为 `code` 优先实现，行为为：
 - verifier 失败时发送 repair prompt 进入下一轮
 - verifier 持续失败或不可用时，根据 `handoff` / `fail` 结束
 
+### Prompt lane（`--mode`）
+`--mode` 用来选择 prompt lane（执行风格）。它会影响模型收到的执行指导（prompt overlay），但不会改变 runtime 的开关逻辑（例如是否启用 loop）。
+
+- `--loop` 控制是否启用交付质量 loop（多轮 + verifier）。
+- `--mode` 控制每一轮里模型如何组织输出、是否先计划、是否强调验证。
+
+可用值：
+- `direct`：适合非常小且明确的改动（例如改文案、修一个小 bug、快速定位问题），倾向于直接动手、少计划。
+- `standard`：默认推荐；对一般开发任务会先做简短计划，再实现并在可行时验证。
+- `intensive`：适合复杂或高风险任务（例如大范围重构、测试不稳定、需要更多自检），更强调明确计划和严格验证。
+
+默认行为：
+- `glm chat` 默认使用 `standard`
+- `glm run` 默认使用 `standard`
+- `glm run --loop` 默认使用 `intensive`（因为 loop 更适合高强度交付）
+
+示例：
+```bash
+glm --mode direct
+glm run "修复 xxx" --mode standard
+glm run "重构 Y" --loop --mode intensive
+# 即使启用了 loop，也可以降低 prompt lane（loop 仍然会执行）
+glm run "修复测试" --loop --mode standard
+```
+
+文档位置：
+- 本 README 的 “Prompt lane（`--mode`）” 小节
+- [docs/references/config-surface.md](./docs/references/config-surface.md)（`--mode` 解析与生效规则）
+
 ### `glm verify [path]`
 运行当前项目的 verifier。默认会自动探测测试命令，也可以通过 `--verify "<command>"` 显式指定。每次执行都会把结构化结果写入 `~/.glm/sessions/.../artifacts/verify-*.json`，便于后续 loop、resume 或人工排查复用。
 

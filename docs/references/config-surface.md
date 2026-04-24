@@ -114,6 +114,19 @@ MCP env inputs:
 - `GLM_MCP_CONFIG`
 - `GLM_MCP_DISABLED`
 
+## CLI flags
+
+The CLI influences runtime behavior via flags. `glm inspect --json` is the easiest way to confirm what resolved.
+
+- `--mode <direct|standard|intensive>`
+  - Selects the prompt lane overlay (execution style) used by `glm chat` and `glm run`.
+  - This affects how the model is instructed to work (plan-first vs. direct, verification emphasis).
+  - It does **not** enable/disable the loop. Use `--loop` and `loop.*` config keys for loop behavior.
+  - Defaults:
+    - `glm chat`: `standard`
+    - `glm run`: `standard`
+    - `glm run --loop`: `intensive`
+
 ## Resolution notes
 
 - Provider/model selection is resolved from CLI flags, env, and persisted config in `src/providers/index.ts` and `src/app/env.ts`.

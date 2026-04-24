@@ -46,6 +46,35 @@ The current loop implementation is `code`-first:
 - sends a repair prompt when verification fails
 - exits with either `handoff` or `fail` when verification keeps failing or is unavailable
 
+### Prompt lanes (`--mode`)
+`--mode` selects a prompt lane (execution style). It changes the instruction overlay the model receives, but it does not toggle runtime behavior (for example, whether the loop runs).
+
+- `--loop` controls whether the delivery-quality loop runs (multi-round + verifier).
+- `--mode` controls how the model should execute within a round (planning vs. direct action, verification emphasis).
+
+Available lanes:
+- `direct`: best for small, well-scoped changes (rename, small bugfix, quick diagnosis). Prefer doing over planning.
+- `standard`: recommended default for most tasks; uses a short plan for non-trivial work and verifies when practical.
+- `intensive`: best for complex or high-risk tasks (large refactors, flaky tests, heavy verification). More explicit planning and stricter verification.
+
+Defaults:
+- `glm chat` defaults to `standard`
+- `glm run` defaults to `standard`
+- `glm run --loop` defaults to `intensive` (the loop assumes a higher-intensity delivery path)
+
+Examples:
+```bash
+glm --mode direct
+glm run "fix xxx" --mode standard
+glm run "refactor Y" --loop --mode intensive
+# Even with --loop, you can lower the prompt lane (the loop still runs)
+glm run "fix tests" --loop --mode standard
+```
+
+Docs:
+- This README: “Prompt lanes (`--mode`)”
+- [docs/references/config-surface.md](./docs/references/config-surface.md) (flag resolution notes)
+
 ### `glm verify [path]`
 Runs the verifier for the current project. By default, glm auto-detects the test command; you can override it with `--verify "<command>"`. Each run writes a structured artifact to `~/.glm/sessions/.../artifacts/verify-*.json` so later loop, resume, or human handoff steps can reuse the result.
 
