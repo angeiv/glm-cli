@@ -970,6 +970,7 @@ describe("glm-loop extension", () => {
             summary: "build script crashed",
             stdoutSummary: "test runner started",
             stderrSummary: "build script crashed",
+            artifactPath: "/tmp/.glm/artifacts/verify-1.json",
           },
           outcome: "Loop stopped with failure.",
           completedAt: "2026-04-16T00:00:03.000Z",
@@ -1008,6 +1009,7 @@ describe("glm-loop extension", () => {
 
     expect(messages[messages.length - 1]).toContain("Verification kind: fail");
     expect(messages[messages.length - 1]).toContain("Exit code: 1");
+    expect(messages[messages.length - 1]).toContain("Artifact: /tmp/.glm/artifacts/verify-1.json");
     expect(messages[messages.length - 1]).toContain("Stdout summary: test runner started");
     expect(messages[messages.length - 1]).toContain("Stderr summary: build script crashed");
   });

@@ -9,6 +9,7 @@ import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { appendRuntimeEvent } from "../shared/runtime-state.js";
 import { notifyLoopResult } from "../shared/notify.js";
+import { writeVerificationArtifact } from "../../../src/harness/artifacts.js";
 
 type LoopProfileName = "code";
 type LoopFailureMode = "handoff" | "fail";
@@ -20,6 +21,7 @@ type VerificationResult =
       command: string;
       exitCode: 0;
       summary: string;
+      artifactPath?: string;
       stdout?: string;
       stderr?: string;
     }
@@ -28,6 +30,7 @@ type VerificationResult =
       command: string;
       exitCode: number;
       summary: string;
+      artifactPath?: string;
       stdout?: string;
       stderr?: string;
     }
@@ -35,6 +38,7 @@ type VerificationResult =
       kind: "incomplete" | "unavailable";
       command?: string;
       summary: string;
+      artifactPath?: string;
       stdout?: string;
       stderr?: string;
     };
@@ -65,6 +69,7 @@ type LoopVerificationRecord = {
   command?: string;
   exitCode?: number;
   summary: string;
+  artifactPath?: string;
   stdoutSummary?: string;
   stderrSummary?: string;
 };
@@ -210,6 +215,7 @@ function isLoopResultRecord(value: unknown): value is LoopResultRecord {
     (verification.command === undefined || typeof verification.command === "string") &&
     (verification.exitCode === undefined || typeof verification.exitCode === "number") &&
     typeof verification.summary === "string" &&
+    (verification.artifactPath === undefined || typeof verification.artifactPath === "string") &&
     (verification.stdoutSummary === undefined || typeof verification.stdoutSummary === "string") &&
     (verification.stderrSummary === undefined || typeof verification.stderrSummary === "string") &&
     typeof maybe.outcome === "string" &&
@@ -336,6 +342,7 @@ function createLoopVerificationRecord(
     ...(result.command ? { command: result.command } : {}),
     ...(result.exitCode === undefined ? {} : { exitCode: result.exitCode }),
     summary: result.summary,
+    ...(result.artifactPath ? { artifactPath: result.artifactPath } : {}),
     ...(summarizeOutputText(result.stdout)
       ? { stdoutSummary: summarizeOutputText(result.stdout) }
       : {}),
@@ -472,6 +479,9 @@ function buildShowLines(
       : []),
     ...(result.verification.stderrSummary
       ? [`Stderr summary: ${result.verification.stderrSummary}`]
+      : []),
+    ...(result.verification.artifactPath
+      ? [`Artifact: ${result.verification.artifactPath}`]
       : []),
     `Outcome: ${result.outcome}`,
     `Completed at: ${result.completedAt}`,
@@ -798,7 +808,7 @@ async function runVerification(
       : `Verification failed with exit code ${result.code}.`);
 
   if (result.code === 0) {
-    return {
+    const verification: VerificationResult = {
       kind: "pass",
       command,
       exitCode: 0,
@@ -806,9 +816,15 @@ async function runVerification(
       stdout: result.stdout,
       stderr: result.stderr,
     };
+    const artifact = await writeVerificationArtifact({
+      cwd: ctx.cwd,
+      resolution: { kind: "command", command, source: "loop" },
+      verification,
+    });
+    return { ...verification, artifactPath: artifact.artifactPath };
   }
 
-  return {
+  const verification: VerificationResult = {
     kind: "fail",
     command,
     exitCode: result.code,
@@ -816,6 +832,12 @@ async function runVerification(
     stdout: result.stdout,
     stderr: result.stderr,
   };
+  const artifact = await writeVerificationArtifact({
+    cwd: ctx.cwd,
+    resolution: { kind: "command", command, source: "loop" },
+    verification,
+  });
+  return { ...verification, artifactPath: artifact.artifactPath };
 }
 
 async function resolveVerifier(
