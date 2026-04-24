@@ -22,7 +22,7 @@ pnpm install
 ## 项目文档
 - [AGENTS.md](./AGENTS.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [docs/references/config-surface.md](./docs/references/config-surface.md#中文说明)
+- [docs/references/config-surface.zh.md](./docs/references/config-surface.zh.md)
 
 ## 使用方式
 ### `glm`
@@ -73,7 +73,7 @@ glm run "修复测试" --loop --mode standard
 
 文档位置：
 - 本 README 的 “Prompt lane（`--mode`）” 小节
-- [docs/references/config-surface.md](./docs/references/config-surface.md#中文说明)（`--mode` 解析与生效规则）
+- [docs/references/config-surface.zh.md](./docs/references/config-surface.zh.md)（`--mode` 解析与生效规则）
 
 ### `glm verify [path]`
 运行当前项目的 verifier。默认会自动探测测试命令，也可以通过 `--verify "<command>"` 显式指定。每次执行都会把结构化结果写入 `~/.glm/sessions/.../artifacts/verify-*.json`，便于后续 loop、resume 或人工排查复用。
