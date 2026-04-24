@@ -6,11 +6,13 @@ import {
   resolveMcpConfigPath,
   resolveMcpToolMode,
 } from "../mcp/config.js";
+import { readLatestVerificationArtifact } from "../harness/artifact-index.js";
 import type {
   RuntimeDiagnosticsConfig,
   RuntimeNotificationStatus,
   RuntimePaths,
   RuntimeStatus,
+  RuntimeVerificationStatus,
 } from "./types.js";
 
 const GLM_RUNTIME_STATUS = Symbol.for("glm.runtimeStatus");
@@ -110,6 +112,25 @@ function withEventCount(status: RuntimeStatus): RuntimeStatus {
   };
 }
 
+async function readVerificationStatus(cwd: string): Promise<RuntimeVerificationStatus> {
+  const latest = await readLatestVerificationArtifact(cwd);
+  if (!latest) {
+    return {};
+  }
+
+  const verification = latest.artifact.verification;
+  return {
+    latest: {
+      artifactPath: latest.artifactPath,
+      createdAt: latest.artifact.createdAt,
+      kind: verification.kind,
+      ...(verification.command ? { command: verification.command } : {}),
+      ...(verification.exitCode === undefined ? {} : { exitCode: verification.exitCode }),
+      summary: verification.summary,
+    },
+  };
+}
+
 function resolveRuntimeBaseUrl(
   provider: string,
   env: NodeJS.ProcessEnv,
@@ -167,6 +188,7 @@ export async function buildRuntimeStatus(args: {
   env: NodeJS.ProcessEnv;
 }): Promise<RuntimeStatus> {
   const mcp = await readConfiguredMcpServerCount(args.env);
+  const verification = await readVerificationStatus(args.cwd);
 
   return withEventCount({
     cwd: args.cwd,
@@ -203,6 +225,7 @@ export async function buildRuntimeStatus(args: {
     },
     notifications: args.notifications,
     mcp,
+    verification,
     paths: args.paths,
   });
 }
@@ -237,6 +260,9 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Verifier: ${verifier}`,
     `Notifications: ${status.notifications.enabled ? "on" : "off"} | turnEnd ${status.notifications.onTurnEnd ? "on" : "off"} | loopResult ${status.notifications.onLoopResult ? "on" : "off"}`,
     `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount} | direct ${status.mcp.modeCounts.direct} | proxy ${status.mcp.modeCounts.proxy} | hybrid ${status.mcp.modeCounts.hybrid}`,
+    status.verification.latest
+      ? `Verification: ${status.verification.latest.kind} | ${status.verification.latest.command ?? "no command"} | ${status.verification.latest.summary} | ${status.verification.latest.artifactPath}`
+      : "Verification: none",
     `Diagnostics: debugRuntime=${status.diagnostics.debugRuntime} | eventLogLimit=${status.diagnostics.eventLogLimit} | events=${status.diagnostics.eventCount}`,
     `Session dir: ${status.paths.sessionDir}`,
   ];

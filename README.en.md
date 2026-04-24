@@ -66,6 +66,7 @@ Performs local health checks before you start a session:
 
 ### `glm inspect`
 Prints the effective runtime snapshot for the current command context. This is useful when you need to explain why provider/model/approval/loop/MCP settings resolved the way they did.
+If the current session has verification artifacts, it also shows the latest verification status, summary, and artifact path.
 
 Common examples:
 ```bash
