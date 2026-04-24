@@ -140,3 +140,30 @@ export async function detectCodeVerifier(
       "No supported high-confidence verifier could be detected for this project.",
   };
 }
+
+export async function detectBuildVerifier(
+  cwd: string,
+): Promise<VerificationCommandResolution> {
+  const pkg = await readPackageJson(cwd);
+  if (pkg && isNonEmptyScript(pkg.scripts?.build)) {
+    const packageManager = detectNodePackageManager(pkg);
+    return {
+      kind: "command",
+      command: `${packageManager} build`,
+      source: "package.json",
+    };
+  }
+
+  if (await fileExists(join(cwd, "Cargo.toml"))) {
+    return { kind: "command", command: "cargo build", source: "Cargo.toml" };
+  }
+
+  if (await fileExists(join(cwd, "go.mod"))) {
+    return { kind: "command", command: "go build ./...", source: "go.mod" };
+  }
+
+  return {
+    kind: "unavailable",
+    summary: "No supported high-confidence build command could be detected for this project.",
+  };
+}

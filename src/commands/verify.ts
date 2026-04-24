@@ -9,9 +9,14 @@ import {
   writeVerificationArtifact,
   type VerificationArtifact,
 } from "../harness/artifacts.js";
+import {
+  resolveVerifyScenario,
+  type VerifyScenarioName,
+} from "../harness/scenarios.js";
 
 export type VerifyCommandArgs = {
   cwd: string;
+  scenario?: VerifyScenarioName;
   verify?: string;
   json?: boolean;
   env?: NodeJS.ProcessEnv;
@@ -32,6 +37,7 @@ type VerifyDependencies = {
     command?: string;
     env?: NodeJS.ProcessEnv;
   }) => Promise<VerificationResult>;
+  resolveScenario: typeof resolveVerifyScenario;
   log: (message: string) => void;
   writeArtifact: typeof writeVerificationArtifact;
 };
@@ -91,12 +97,18 @@ export async function verifyProject(
   const envVerifyCommand = env.GLM_LOOP_VERIFY_COMMAND;
   const envVerifyFallbackCommand = env.GLM_LOOP_VERIFY_FALLBACK_COMMAND;
 
-  const resolution = await resolveVerifier({
-    cwd: input.cwd,
-    explicit: input.verify ?? envVerifyCommand,
-    fallback: envVerifyFallbackCommand ?? config.loop.verifyCommand,
-    detectVerifier: deps?.detectVerifier ?? detectCodeVerifier,
-  });
+  const resolution =
+    (await (deps?.resolveScenario ?? resolveVerifyScenario)({
+      cwd: input.cwd,
+      scenario: input.scenario,
+      detectVerifier: deps?.detectVerifier ?? detectCodeVerifier,
+    })) ??
+    (await resolveVerifier({
+      cwd: input.cwd,
+      explicit: input.verify ?? envVerifyCommand,
+      fallback: envVerifyFallbackCommand ?? config.loop.verifyCommand,
+      detectVerifier: deps?.detectVerifier ?? detectCodeVerifier,
+    }));
 
   if (resolution.kind !== "command") {
     const verification: VerificationResult = {
@@ -105,6 +117,7 @@ export async function verifyProject(
     };
     const artifactResult = await (deps?.writeArtifact ?? writeVerificationArtifact)({
       cwd: input.cwd,
+      scenario: input.scenario,
       resolution,
       verification,
     });
@@ -123,6 +136,7 @@ export async function verifyProject(
   });
   const artifactResult = await (deps?.writeArtifact ?? writeVerificationArtifact)({
     cwd: input.cwd,
+    scenario: input.scenario,
     resolution,
     verification,
   });

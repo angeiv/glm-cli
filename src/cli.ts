@@ -10,6 +10,7 @@ import { normalizeProviderName } from "./providers/types.js";
 import type { ChatCommandInput } from "./commands/chat.js";
 import type { RunCommandInput } from "./commands/run.js";
 import { VERSION } from "./version.js";
+import type { VerifyScenarioName } from "./harness/scenarios.js";
 
 const HELP_TEXT = `
 glm - local-repository coding assistant
@@ -73,7 +74,7 @@ type BaseCliArgs = {
 export type ParsedCliArgs =
   | (BaseCliArgs & { command: "chat" })
   | (BaseCliArgs & { command: "run"; task: string })
-  | (BaseCliArgs & { command: "verify"; json: boolean })
+  | (BaseCliArgs & { command: "verify"; json: boolean; scenario?: VerifyScenarioName })
   | (BaseCliArgs & { command: "inspect"; json: boolean })
   | (BaseCliArgs & { command: "doctor" })
   | { command: "config"; subcommand: "get"; key: string; cwd: string }
@@ -214,12 +215,19 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
   }
 
   if (command === "verify") {
+    let scenario: VerifyScenarioName | undefined;
+    const first = args[0];
+    if (first === "smoke" || first === "test" || first === "build") {
+      scenario = first;
+      args.shift();
+    }
     const pathArg = args.shift();
     if (args.length > 0) {
       throw new Error("The verify command accepts at most one positional path");
     }
     return {
       command: "verify",
+      ...(scenario ? { scenario } : {}),
       cwd: pathArg ?? cwd,
       json: jsonFlag,
       ...flags,
@@ -309,6 +317,7 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
     case "verify":
       return mergedHandlers.verify({
         cwd: parsed.cwd,
+        scenario: parsed.scenario,
         verify: parsed.verify,
         json: parsed.json,
       });

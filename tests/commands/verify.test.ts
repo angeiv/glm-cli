@@ -6,6 +6,57 @@ import { getDefaultConfigFile } from "../../src/app/config-store.js";
 import { runVerifyCommand, verifyProject } from "../../src/commands/verify.js";
 
 describe("verifyProject", () => {
+  test("uses the build scenario command when requested", async () => {
+    const cwd = process.cwd();
+    const result = await verifyProject(
+      {
+        cwd,
+        scenario: "build",
+        env: {},
+      },
+      {
+        readConfigFile: async () => getDefaultConfigFile(),
+        runVerificationCommand: async ({ command }) => ({
+          kind: "pass",
+          command: command ?? "",
+          exitCode: 0,
+          summary: "build ok",
+          stdout: "",
+          stderr: "",
+        }),
+      },
+    );
+
+    expect(result.resolution).toMatchObject({
+      kind: "command",
+      command: "pnpm build",
+      source: "scenario:build",
+    });
+    expect(result.artifact.scenario).toBe("build");
+  });
+
+  test("returns unavailable for the test scenario when no test verifier exists", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "glm-verify-"));
+    const result = await verifyProject(
+      {
+        cwd,
+        scenario: "test",
+        env: {},
+      },
+      {
+        readConfigFile: async () => getDefaultConfigFile(),
+        detectVerifier: async () => ({
+          kind: "incomplete",
+          source: "package.json",
+          summary: "no test command",
+        }),
+      },
+    );
+
+    expect(result.resolution.kind).toBe("unavailable");
+    expect(result.verification.kind).toBe("unavailable");
+  });
+
   test("writes a verification artifact with resolution and command output", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "glm-verify-"));
 

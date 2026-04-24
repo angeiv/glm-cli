@@ -123,6 +123,7 @@ async function readVerificationStatus(cwd: string): Promise<RuntimeVerificationS
     latest: {
       artifactPath: latest.artifactPath,
       createdAt: latest.artifact.createdAt,
+      ...(latest.artifact.scenario ? { scenario: latest.artifact.scenario } : {}),
       kind: verification.kind,
       ...(verification.command ? { command: verification.command } : {}),
       ...(verification.exitCode === undefined ? {} : { exitCode: verification.exitCode }),
@@ -261,7 +262,7 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Notifications: ${status.notifications.enabled ? "on" : "off"} | turnEnd ${status.notifications.onTurnEnd ? "on" : "off"} | loopResult ${status.notifications.onLoopResult ? "on" : "off"}`,
     `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount} | direct ${status.mcp.modeCounts.direct} | proxy ${status.mcp.modeCounts.proxy} | hybrid ${status.mcp.modeCounts.hybrid}`,
     status.verification.latest
-      ? `Verification: ${status.verification.latest.kind} | ${status.verification.latest.command ?? "no command"} | ${status.verification.latest.summary} | ${status.verification.latest.artifactPath}`
+      ? `Verification: ${status.verification.latest.scenario ? `${status.verification.latest.scenario} | ` : ""}${status.verification.latest.kind} | ${status.verification.latest.command ?? "no command"} | ${status.verification.latest.summary} | ${status.verification.latest.artifactPath}`
       : "Verification: none",
     `Diagnostics: debugRuntime=${status.diagnostics.debugRuntime} | eventLogLimit=${status.diagnostics.eventLogLimit} | events=${status.diagnostics.eventCount}`,
     `Session dir: ${status.paths.sessionDir}`,

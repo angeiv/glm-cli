@@ -162,6 +162,15 @@ describe("parseCliArgs", () => {
       json: false,
     });
   });
+
+  test("parses verify scenario before positional path", () => {
+    expect(parseCliArgs(["verify", "build", "/tmp/project"])).toMatchObject({
+      command: "verify",
+      scenario: "build",
+      cwd: "/tmp/project",
+      json: false,
+    });
+  });
 });
 
 describe("runCli", () => {

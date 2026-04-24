@@ -12,6 +12,7 @@ export type VerificationArtifact = {
   id: string;
   createdAt: string;
   cwd: string;
+  scenario?: string;
   resolution: VerificationCommandResolution;
   verification: VerificationResult;
 };
@@ -24,6 +25,7 @@ function createArtifactId(now = new Date()): string {
 
 export async function writeVerificationArtifact(args: {
   cwd: string;
+  scenario?: string;
   resolution: VerificationCommandResolution;
   verification: VerificationResult;
 }): Promise<{ artifact: VerificationArtifact; artifactPath: string }> {
@@ -34,6 +36,7 @@ export async function writeVerificationArtifact(args: {
     id,
     createdAt: new Date().toISOString(),
     cwd: args.cwd,
+    ...(args.scenario ? { scenario: args.scenario } : {}),
     resolution: args.resolution,
     verification: args.verification,
   };
