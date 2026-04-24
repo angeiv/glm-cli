@@ -2,31 +2,38 @@
   <a href="./README.en.md" aria-label="Switch to English version of this README">English</a> | <strong>中文</strong>
 </p>
 
-# glm-cli
+# glm
 
-GLM 的 Agent CLI。
+GLM 的本地 Agent CLI（面向代码仓库）。
 
 npm 包名：`@angeiv/glm`  
 命令：`glm`
 
+## 特性
+- 默认走 GLM 原生 provider（BigModel / z.ai），并提供 OpenAI-compatible / Anthropic-compatible 的接入路径
+- 交付质量 loop：多轮执行 + verifier + repair，产出可复用的验证 artifacts
+- MCP（Model Context Protocol）工具接入（支持本地 stdio 与远程 transport）
+- 危险命令强制审批（即使 `--yolo` 或更宽松的 policy）
+- `glm inspect`/`glm verify`/`glm doctor` 等可观测与诊断命令
+
 ## 环境要求
-- Node.js 22 或更高版本（当前运行时 SDK 与原生 ESM 运行方式要求）
+- Node.js 22 或更高版本
 
 ## 安装
-```
-corepack enable
-pnpm install
-```
-这会安装依赖并准备 CLI 入口，随后可通过 `pnpm run build` 生成 `dist/loader.js`。
 
-## 项目文档
-- [AGENTS.md](./AGENTS.md)
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [docs/guides/cli.zh.md](./docs/guides/cli.zh.md)
-- [docs/guides/mcp.zh.md](./docs/guides/mcp.zh.md)
-- [docs/references/config-surface.zh.md](./docs/references/config-surface.zh.md)
+全局安装：
+```bash
+npm install -g @angeiv/glm
+# 或
+pnpm add -g @angeiv/glm
+```
 
-## 快速使用
+临时运行（不安装）：
+```bash
+npx -y @angeiv/glm --help
+```
+
+## 快速开始
 
 ```bash
 glm
@@ -37,8 +44,19 @@ glm verify smoke
 glm inspect --json
 ```
 
-更多使用细节请查看：
+## 文档
+- 使用指南（CLI）：[docs/guides/cli.zh.md](./docs/guides/cli.zh.md)
+- 使用指南（MCP）：[docs/guides/mcp.zh.md](./docs/guides/mcp.zh.md)
+- 配置与环境变量（完整清单）：[docs/references/config-surface.zh.md](./docs/references/config-surface.zh.md)
+- 架构与仓库约束：[ARCHITECTURE.md](./ARCHITECTURE.md) / [AGENTS.md](./AGENTS.md)
 
-- [docs/guides/cli.zh.md](./docs/guides/cli.zh.md)：命令、flags、loop、prompt lane、web tools 等
-- [docs/guides/mcp.zh.md](./docs/guides/mcp.zh.md)：MCP 配置与 adapter modes
-- [docs/references/config-surface.zh.md](./docs/references/config-surface.zh.md)：完整配置项与环境变量
+## 开发
+```bash
+corepack enable
+pnpm install
+pnpm test
+pnpm dev -- --help
+```
+
+## License
+MIT

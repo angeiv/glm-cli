@@ -2,29 +2,36 @@
   <strong>English</strong> | <a href="./README.md" aria-label="Switch to Chinese version of this README">中文</a>
 </p>
 
-# glm-cli
+# glm
 
-Agent CLI for GLM.
+Local-first agent CLI for GLM (focused on code repositories).
 
 npm package: `@angeiv/glm`  
 command: `glm`
 
+## Highlights
+- GLM-native provider by default (BigModel / z.ai), plus OpenAI-compatible and Anthropic-compatible routes
+- Delivery-quality loop: multi-round execution + verifier + repair with reusable verification artifacts
+- MCP (Model Context Protocol) integration (local stdio and remote transports)
+- Dangerous commands always require explicit approval (even with `--yolo` / relaxed policies)
+- `glm inspect` / `glm verify` / `glm doctor` for runtime observability and diagnostics
+
 ## Requirements
-- Node.js 22 or newer (required by the current runtime SDK and native ECMAScript module usage)
+- Node.js 22 or newer
 
-## Installing
-```
-corepack enable
-pnpm install
-```
-This sets up the dependencies and prepares the CLI entrypoint so `pnpm run build` can create `dist/loader.js`.
+## Install
 
-## Project docs
-- [AGENTS.md](./AGENTS.md)
-- [ARCHITECTURE.md](./ARCHITECTURE.md)
-- [docs/guides/cli.md](./docs/guides/cli.md)
-- [docs/guides/mcp.md](./docs/guides/mcp.md)
-- [docs/references/config-surface.md](./docs/references/config-surface.md)
+Global install:
+```bash
+npm install -g @angeiv/glm
+# or
+pnpm add -g @angeiv/glm
+```
+
+Run without installing:
+```bash
+npx -y @angeiv/glm --help
+```
 
 ## Quick start
 
@@ -37,16 +44,19 @@ glm verify smoke
 glm inspect --json
 ```
 
-For detailed usage, see:
+## Documentation
+- CLI guide: [docs/guides/cli.md](./docs/guides/cli.md)
+- MCP guide: [docs/guides/mcp.md](./docs/guides/mcp.md)
+- Full config/env surface: [docs/references/config-surface.md](./docs/references/config-surface.md)
+- Repo docs: [ARCHITECTURE.md](./ARCHITECTURE.md) / [AGENTS.md](./AGENTS.md)
 
-- [docs/guides/cli.md](./docs/guides/cli.md): commands, flags, loop, prompt lanes, web tools, etc
-- [docs/guides/mcp.md](./docs/guides/mcp.md): MCP config and adapter modes
-- [docs/references/config-surface.md](./docs/references/config-surface.md): full config/env surface
-- `GLM_TOOL_STREAM=auto|on|off`
-- `GLM_RESPONSE_FORMAT=json_object`: adds `response_format: { type: "json_object" }` to requests (can interfere with tool calling; enable only when you need strict JSON output).
+## Development
+```bash
+corepack enable
+pnpm install
+pnpm test
+pnpm dev -- --help
+```
 
-Equivalent config file keys:
-- `glmCapabilities.thinkingMode`
-- `glmCapabilities.clearThinking`
-- `glmCapabilities.toolStream`
-- `glmCapabilities.responseFormat`
+## License
+MIT
