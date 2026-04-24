@@ -4,6 +4,7 @@ export type VerificationResult =
       command: string;
       exitCode: 0;
       summary: string;
+      artifactPath?: string;
       stdout?: string;
       stderr?: string;
     }
@@ -12,6 +13,7 @@ export type VerificationResult =
       command: string;
       exitCode: number;
       summary: string;
+      artifactPath?: string;
       stdout?: string;
       stderr?: string;
     }
@@ -20,6 +22,7 @@ export type VerificationResult =
       command?: string;
       exitCode?: number;
       summary: string;
+      artifactPath?: string;
       stdout?: string;
       stderr?: string;
     };
