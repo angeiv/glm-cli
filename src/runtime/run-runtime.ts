@@ -6,6 +6,7 @@ import { detectCodeVerifier } from "../loop/verify-detect.js";
 import { runVerificationCommand } from "../loop/verify-runner.js";
 import type { VerificationCommandResolution, VerificationResult } from "../loop/types.js";
 import { composeTaskPrompt } from "./prompt.js";
+import type { PromptMode } from "../prompt/mode-overlays.js";
 
 function writeStdout(text: string): void {
   process.stdout.write(text);
@@ -14,8 +15,9 @@ function writeStdout(text: string): void {
 export async function runSingleTask(
   runtime: AgentSessionRuntime,
   task: string,
+  promptMode: PromptMode = "standard",
 ): Promise<number> {
-  return runPromptSequence(runtime, [composeTaskPrompt(task, "standard")]);
+  return runPromptSequence(runtime, [composeTaskPrompt(task, promptMode)]);
 }
 
 type AgentAssistantMessage = {
@@ -198,8 +200,9 @@ export async function runTaskLoop(
   runtime: AgentSessionRuntime,
   task: string,
   options: LoopRuntimeOptions,
+  promptMode: PromptMode = "intensive",
 ): Promise<number> {
-  const profile = createLoopProfile(options.profile);
+  const profile = createLoopProfile(options.profile, promptMode);
   const verifier = await resolveVerifier(runtime.cwd, options);
 
   try {

@@ -72,10 +72,10 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
         });
 
         if (loopOptions.enabled) {
-          return runTaskLoop(runtime, input.task, loopOptions);
+          return runTaskLoop(runtime, input.task, loopOptions, promptMode);
         }
 
-        return runSingleTask(runtime, input.task);
+        return runSingleTask(runtime, input.task, promptMode);
       },
     ),
   );
