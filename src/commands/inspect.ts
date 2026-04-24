@@ -1,5 +1,6 @@
 import { readConfigFile, type GlmConfigFile } from "../app/config-store.js";
 import {
+  resolveNotificationRuntimeOptions,
   resolveDiagnosticsRuntimeOptions,
   resolveLoopRuntimeOptions,
   resolveRuntimeConfig,
@@ -33,12 +34,14 @@ export async function inspectRuntime(
   const runtime = resolveRuntimeConfig(input.cli, env, config);
   const loop = resolveLoopRuntimeOptions(input.cli, env, config);
   const diagnostics = resolveDiagnosticsRuntimeOptions(config);
+  const notifications = resolveNotificationRuntimeOptions(env, config);
 
   return buildRuntimeStatus({
     cwd: input.cwd,
     runtime,
     loop,
     diagnostics,
+    notifications,
     paths: resolveGlmSessionPaths(input.cwd),
     env,
   });

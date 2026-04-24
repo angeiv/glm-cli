@@ -19,6 +19,9 @@ const CONFIG_KEYS = [
   "eventLogLimit",
   "hooksEnabled",
   "hookTimeoutMs",
+  "notificationsEnabled",
+  "notificationsOnTurnEnd",
+  "notificationsOnLoopResult",
   "glmEndpoint",
   "maxOutputTokens",
   "temperature",
@@ -72,6 +75,15 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   }
   if (key === "hookTimeoutMs") {
     return String(config.hookTimeoutMs ?? 5000);
+  }
+  if (key === "notificationsEnabled") {
+    return String(config.notifications.enabled ?? false);
+  }
+  if (key === "notificationsOnTurnEnd") {
+    return String(config.notifications.onTurnEnd ?? true);
+  }
+  if (key === "notificationsOnLoopResult") {
+    return String(config.notifications.onLoopResult ?? true);
   }
   if (key === "glmEndpoint") {
     return config.providers.glm.endpoint ?? CLEARABLE_VALUE;
@@ -164,6 +176,17 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
       throw new Error("hookTimeoutMs must be a positive integer");
     }
     return parsed;
+  }
+
+  if (
+    key === "notificationsEnabled" ||
+    key === "notificationsOnTurnEnd" ||
+    key === "notificationsOnLoopResult"
+  ) {
+    if (trimmed !== "true" && trimmed !== "false") {
+      throw new Error(`${key} must be true or false`);
+    }
+    return trimmed === "true";
   }
 
   if (key === "glmEndpoint") {
@@ -320,6 +343,12 @@ export async function configSet(
     config.hooksEnabled = parsedValue as boolean;
   } else if (key === "hookTimeoutMs") {
     config.hookTimeoutMs = parsedValue as number;
+  } else if (key === "notificationsEnabled") {
+    config.notifications.enabled = parsedValue as boolean;
+  } else if (key === "notificationsOnTurnEnd") {
+    config.notifications.onTurnEnd = parsedValue as boolean;
+  } else if (key === "notificationsOnLoopResult") {
+    config.notifications.onLoopResult = parsedValue as boolean;
   } else if (key === "glmEndpoint") {
     if (parsedValue === undefined) {
       delete config.providers.glm.endpoint;

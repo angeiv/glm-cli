@@ -36,6 +36,7 @@ describe("resource extension artifact policy", () => {
     expect(trackedJs.sort()).toEqual([
       "resources/extensions/glm-runtime/index.js",
       "resources/extensions/shared/hooks-state.js",
+      "resources/extensions/shared/notify.js",
       "resources/extensions/shared/runtime-state.js",
     ]);
   });
@@ -62,6 +63,7 @@ describe("resource extension artifact policy", () => {
   test("keeps only hand-authored shared runtime helpers tracked", () => {
     expect(isIgnored("resources/extensions/shared/glm-profile.js")).toBe(true);
     expect(isIgnored("resources/extensions/shared/hooks-state.js")).toBe(false);
+    expect(isIgnored("resources/extensions/shared/notify.js")).toBe(false);
     expect(isIgnored("resources/extensions/shared/runtime-state.js")).toBe(false);
   });
 });

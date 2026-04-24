@@ -8,6 +8,7 @@ import type {
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { appendRuntimeEvent } from "../shared/runtime-state.js";
+import { notifyLoopResult } from "../shared/notify.js";
 
 type LoopProfileName = "code";
 type LoopFailureMode = "handoff" | "fail";
@@ -100,7 +101,18 @@ const LOOP_STATE_ENTRY = "glm.loop.state";
 const LOOP_RESULT_ENTRY = "glm.loop.result";
 const LOOP_MESSAGE_TYPE = "glm.loop";
 const LOOP_STATUS_KEY = "glm.loop";
-const activeLoops = new Map<string, ActiveLoopSession>();
+const GLM_ACTIVE_LOOPS = Symbol.for("glm.activeLoops");
+const activeLoops = (() => {
+  const store = globalThis as Record<PropertyKey, unknown>;
+  const existing = store[GLM_ACTIVE_LOOPS];
+  if (existing instanceof Map) {
+    return existing as Map<string, ActiveLoopSession>;
+  }
+
+  const next = new Map<string, ActiveLoopSession>();
+  store[GLM_ACTIVE_LOOPS] = next;
+  return next;
+})();
 const terminalLoopStatuses = new Map<string, string>();
 
 function readFallbackVerifyCommand(env: NodeJS.ProcessEnv): string | undefined {
@@ -501,13 +513,21 @@ function buildStatusLines(
   ];
 }
 
-function getActiveLoop(sessionManager: ReadonlySessionManager): ActiveLoopSession | undefined {
+export function getActiveLoop(sessionManager: ReadonlySessionManager): ActiveLoopSession | undefined {
   const sessionId = sessionManager.getSessionId();
   if (!sessionId) {
     return undefined;
   }
 
   return activeLoops.get(sessionId);
+}
+
+export function setActiveLoopForTests(sessionId: string, active: ActiveLoopSession): void {
+  activeLoops.set(sessionId, active);
+}
+
+export function clearActiveLoopForTests(sessionId: string): void {
+  activeLoops.delete(sessionId);
 }
 
 function clearLoopTerminalStatus(sessionManager: ReadonlySessionManager): void {
@@ -892,6 +912,11 @@ async function executeLoopRun(
       }));
       setLoopTerminalStatus(ctx.sessionManager, "loop done");
       refreshLoopStatus(ctx, state);
+      notifyLoopResult(ctx.sessionManager.getSessionId(), {
+        status: "succeeded",
+        task,
+        rounds: rounds.length,
+      });
       appendRuntimeEvent({
         type: "loop.result",
         summary: `succeeded | ${task} | rounds=${rounds.length}`,
@@ -927,6 +952,11 @@ async function executeLoopRun(
       status === "failed" ? "loop failed" : "loop handoff",
     );
     refreshLoopStatus(ctx, state);
+    notifyLoopResult(ctx.sessionManager.getSessionId(), {
+      status,
+      task,
+      rounds: rounds.length,
+    });
     appendRuntimeEvent({
       type: "loop.result",
       level: status === "failed" ? "error" : "warn",
@@ -1020,6 +1050,11 @@ async function continueAutoLoop(
       outcome,
     }));
     setLoopTerminalStatus(ctx.sessionManager, "loop done");
+    notifyLoopResult(ctx.sessionManager.getSessionId(), {
+      status: "succeeded",
+      task: active.task,
+      rounds: active.rounds.length,
+    });
     appendRuntimeEvent({
       type: "loop.result",
       summary: `succeeded | ${active.task} | rounds=${active.rounds.length}`,
@@ -1063,6 +1098,11 @@ async function continueAutoLoop(
     ctx.sessionManager,
     status === "failed" ? "loop failed" : "loop handoff",
   );
+  notifyLoopResult(ctx.sessionManager.getSessionId(), {
+    status,
+    task: active.task,
+    rounds: active.rounds.length,
+  });
   appendRuntimeEvent({
     type: "loop.result",
     level: status === "failed" ? "error" : "warn",
