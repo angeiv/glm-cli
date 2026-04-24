@@ -45,6 +45,7 @@ glm inspect --json
 ```
 
 ## Documentation
+- Documentation index: [docs/README.md](./docs/README.md)
 - CLI guide: [docs/guides/cli.md](./docs/guides/cli.md)
 - MCP guide: [docs/guides/mcp.md](./docs/guides/mcp.md)
 - Full config/env surface: [docs/references/config-surface.md](./docs/references/config-surface.md)

@@ -45,6 +45,7 @@ glm inspect --json
 ```
 
 ## 文档
+- 文档索引：[docs/README.zh.md](./docs/README.zh.md)
 - 使用指南（CLI）：[docs/guides/cli.zh.md](./docs/guides/cli.zh.md)
 - 使用指南（MCP）：[docs/guides/mcp.zh.md](./docs/guides/mcp.zh.md)
 - 配置与环境变量（完整清单）：[docs/references/config-surface.zh.md](./docs/references/config-surface.zh.md)
