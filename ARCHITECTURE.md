@@ -1,3 +1,7 @@
+<p align="right">
+  <strong>English</strong> | <a href="./ARCHITECTURE.zh.md" aria-label="Switch to Chinese version of this document">中文</a>
+</p>
+
 # ARCHITECTURE
 
 Compact architecture map for `glm-cli`.

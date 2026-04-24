@@ -39,6 +39,7 @@ Short repo guide for contributors and agents working inside `glm-cli`.
 ### Tests and docs
 
 - `tests/`: Vitest coverage for CLI, config, loop, extensions, runtime, and session logic.
+- `docs/README.md` / `docs/README.zh.md`: documentation index.
 - `docs/guides/`: operator-facing guides (CLI, MCP, etc).
 - `docs/references/`: compact operating notes for contributors and future agents.
 
