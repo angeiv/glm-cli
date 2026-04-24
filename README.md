@@ -49,7 +49,7 @@ glm inspect --json
 - 使用指南（CLI）：[docs/guides/cli.zh.md](./docs/guides/cli.zh.md)
 - 使用指南（MCP）：[docs/guides/mcp.zh.md](./docs/guides/mcp.zh.md)
 - 配置与环境变量（完整清单）：[docs/references/config-surface.zh.md](./docs/references/config-surface.zh.md)
-- 架构与仓库约束：[ARCHITECTURE.md](./ARCHITECTURE.md) / [AGENTS.md](./AGENTS.md)
+- 架构与仓库约束：[ARCHITECTURE.zh.md](./ARCHITECTURE.zh.md) / [AGENTS.md](./AGENTS.md)
 
 ## 开发
 ```bash

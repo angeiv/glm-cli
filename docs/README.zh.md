@@ -19,5 +19,5 @@
 
 ## 仓库文档
 
-- 架构：[../ARCHITECTURE.md](../ARCHITECTURE.md)
+- 架构：[../ARCHITECTURE.zh.md](../ARCHITECTURE.zh.md)
 - 贡献与 agent 约束：[../AGENTS.md](../AGENTS.md)
