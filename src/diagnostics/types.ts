@@ -22,7 +22,19 @@ export type RuntimeLoopStatus = {
 export type RuntimeMcpStatus = {
   enabled: boolean;
   configPath: string;
+  cachePath: string;
   configuredServerCount: number;
+  modeCounts: {
+    direct: number;
+    proxy: number;
+    hybrid: number;
+  };
+};
+
+export type RuntimeNotificationStatus = {
+  enabled: boolean;
+  onTurnEnd: boolean;
+  onLoopResult: boolean;
 };
 
 export type RuntimePaths = {
@@ -50,6 +62,7 @@ export type RuntimeStatus = {
   diagnostics: RuntimeDiagnosticsConfig & {
     eventCount: number;
   };
+  notifications: RuntimeNotificationStatus;
   mcp: RuntimeMcpStatus;
   paths: RuntimePaths;
 };

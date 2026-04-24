@@ -87,6 +87,11 @@ Example `~/.glm/config.json`:
   "approvalPolicy": "ask",
   "debugRuntime": false,
   "eventLogLimit": 200,
+  "notifications": {
+    "enabled": false,
+    "onTurnEnd": true,
+    "onLoopResult": true
+  },
   "generation": {
     "maxOutputTokens": 8192,
     "temperature": 0.2,
@@ -119,6 +124,9 @@ Reads one supported config key and prints its value. Supported keys:
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
+- `notificationsEnabled`
+- `notificationsOnTurnEnd`
+- `notificationsOnLoopResult`
 - `glmEndpoint`
 - `maxOutputTokens`
 - `temperature`
@@ -141,6 +149,9 @@ Common examples:
 - `glm config set glmEndpoint bigmodel-coding`
 - `glm config set debugRuntime true`
 - `glm config set eventLogLimit 500`
+- `glm config set notificationsEnabled true`
+- `glm config set notificationsOnTurnEnd true`
+- `glm config set notificationsOnLoopResult true`
 - `glm config set maxOutputTokens 8192`
 - `glm config set thinkingMode enabled`
 - `glm config set clearThinking false`
@@ -175,12 +186,21 @@ In interactive mode, you can also switch the policy on the fly:
 - `/events`
 - `/events clear`
 
+System notifications:
+- When `notifications.enabled=true`, glm emits local notifications on supported terminals
+- `notifications.onTurnEnd` controls normal turn-complete notifications
+- `notifications.onLoopResult` controls explicit or automatic loop terminal-result notifications
+- Environment overrides are also supported: `GLM_NOTIFY_ENABLED`, `GLM_NOTIFY_ON_TURN_END`, `GLM_NOTIFY_ON_LOOP_RESULT`
+- Optional sound hook: `GLM_NOTIFY_SOUND_CMD='...'`
+
 ## MCP (Model Context Protocol)
 glm can load MCP servers from a config file and expose their tools to the agent.
 
 ### Config file
 Default path: `~/.glm/mcp.json`  
 Override: `GLM_MCP_CONFIG=/absolute/or/~/path/to/mcp.json`  
+Metadata cache: `~/.glm/agent/mcp-cache.json`
+Override cache path: `GLM_MCP_CACHE_PATH=/absolute/or/~/path/to/mcp-cache.json`
 Disable: `GLM_MCP_DISABLED=1`
 
 glm supports local `stdio` MCP servers and remote MCP servers (`streamable-http` / `sse`). Supported format:
@@ -192,7 +212,9 @@ glm supports local `stdio` MCP servers and remote MCP servers (`streamable-http`
       "args": ["-y", "some-mcp-server-package"],
       "env": {
         "SOME_API_KEY": "..."
-      }
+      },
+      "toolMode": "hybrid",
+      "cacheMaxAgeMs": 604800000
     },
     "remote-server": {
       "type": "streamable-http",
@@ -211,6 +233,20 @@ Remote transport values:
 - `type: "sse"`: compatibility path for older MCP servers
 - local `stdio` servers can omit `type`
 
+### MCP adapter modes
+Each server can opt into its own `toolMode`:
+
+- `direct`: default mode. Connect eagerly at startup and register each remote tool as a first-class tool.
+- `proxy`: register only a single `mcp__<server>__proxy` tool and connect lazily on demand.
+- `hybrid`: prefer the local metadata cache; if the cache is valid, register direct tools from cache, otherwise fall back to `proxy`.
+
+Cache-related settings:
+- `cacheMaxAgeMs`: per-server cache TTL, default 7 days
+- `GLM_MCP_CACHE_PATH`: overrides the global cache file location
+- the metadata cache stores tool names, descriptions, and input schemas only, never tool results
+
+In `hybrid` mode, a cold start without valid cache begins in `proxy` mode. After the first successful live connection refreshes the cache, run `/mcp reload` or restart the session to switch to cached direct tools.
+
 ### BigModel Coding Plan MCP Examples
 You can drop the following into `~/.glm/mcp.json`:
 
@@ -223,21 +259,24 @@ You can drop the following into `~/.glm/mcp.json`:
       "env": {
         "Z_AI_API_KEY": "YOUR_API_KEY",
         "Z_AI_MODE": "ZHIPU"
-      }
+      },
+      "toolMode": "hybrid"
     },
     "search": {
       "type": "streamable-http",
       "url": "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
-      }
+      },
+      "toolMode": "proxy"
     },
     "reader": {
       "type": "streamable-http",
       "url": "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
-      }
+      },
+      "toolMode": "hybrid"
     },
     "zread": {
       "type": "streamable-http",
@@ -253,6 +292,8 @@ You can drop the following into `~/.glm/mcp.json`:
 Notes:
 - `vision` is a local stdio MCP server provided as `@z_ai/mcp-server`
 - `search`, `reader`, and `zread` are remote MCP endpoints and require `Authorization: Bearer <API_KEY>`
+- the example uses `hybrid` for `vision` / `reader`, which is a good fit when you want cached direct tools without eager startup connections
+- the example uses `proxy` for `search`, which is a better fit when the tool surface changes often or you prefer a single stable entrypoint
 - `search` / `reader` partially overlap with the built-in `web_search` / `web_fetch`; if you already use Coding Plan, the MCP path is usually the cleaner integration
 - BigModel currently documents plan-based quota limits for `search` / `reader` / `zread`, so check your account limits before relying on them
 

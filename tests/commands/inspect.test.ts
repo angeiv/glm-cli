@@ -13,7 +13,11 @@ describe("inspectRuntime", () => {
       mcpPath,
       JSON.stringify({
         mcpServers: {
-          reader: { type: "streamable-http", url: "https://example.com/mcp" },
+          reader: {
+            type: "streamable-http",
+            url: "https://example.com/mcp",
+            toolMode: "hybrid",
+          },
         },
       }),
       "utf8",
@@ -33,6 +37,7 @@ describe("inspectRuntime", () => {
         },
         env: {
           GLM_MCP_CONFIG: mcpPath,
+          GLM_MCP_CACHE_PATH: join(dir, "mcp-cache.json"),
         },
       },
       {
@@ -59,6 +64,12 @@ describe("inspectRuntime", () => {
       verifyCommand: "pnpm test",
     });
     expect(status.mcp.configuredServerCount).toBe(1);
+    expect(status.mcp.cachePath).toBe(join(dir, "mcp-cache.json"));
+    expect(status.mcp.modeCounts).toMatchObject({
+      direct: 0,
+      proxy: 0,
+      hybrid: 1,
+    });
     expect(status.diagnostics).toMatchObject({
       debugRuntime: true,
       eventLogLimit: 64,
@@ -69,6 +80,7 @@ describe("inspectRuntime", () => {
 describe("runInspectCommand", () => {
   test("prints structured JSON when --json is requested", async () => {
     const log = vi.fn();
+    const missingMcpPath = join(tmpdir(), "glm-inspect-missing-config.json");
 
     const exitCode = await runInspectCommand(
       {
@@ -78,7 +90,9 @@ describe("runInspectCommand", () => {
           model: "glm-5.1",
           yolo: false,
         },
-        env: {},
+        env: {
+          GLM_MCP_CONFIG: missingMcpPath,
+        },
         json: true,
       },
       {
@@ -103,6 +117,13 @@ describe("runInspectCommand", () => {
       diagnostics: expect.objectContaining({
         debugRuntime: false,
         eventLogLimit: 200,
+      }),
+      mcp: expect.objectContaining({
+        modeCounts: expect.objectContaining({
+          direct: 0,
+          proxy: 0,
+          hybrid: 0,
+        }),
       }),
     });
   });
