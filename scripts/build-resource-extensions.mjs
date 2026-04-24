@@ -37,24 +37,13 @@ export async function buildResourceExtensions(rootDir = process.cwd()) {
     }
 
     console.log(`  Compiling ${extDir}/index.ts...`);
-    try {
-      execSync(
-        `npx tsc --skipLibCheck --module NodeNext --moduleResolution NodeNext --target ES2022 --outDir "${extPath}" "${tsFile}"`,
-        {
-          stdio: "pipe",
-          cwd: rootDir,
-        },
-      );
-    } catch {
-      console.log("    tsc failed, trying esbuild...");
-      execSync(
-        `npx esbuild "${tsFile}" --outfile="${jsFile}" --format=esm --platform=node --bundle --external:@mariozechner/* --external:node:*`,
-        {
-          stdio: "pipe",
-          cwd: rootDir,
-        },
-      );
-    }
+    execSync(
+      `npx esbuild "${tsFile}" --outfile="${jsFile}" --format=esm --platform=node --bundle --external:@mariozechner/* --external:node:*`,
+      {
+        stdio: "pipe",
+        cwd: rootDir,
+      },
+    );
   }
 }
 
