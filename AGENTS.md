@@ -36,11 +36,10 @@ Short repo guide for contributors and agents working inside `glm-cli`.
 - `resources/extensions/glm-policy/`: approval policy and dangerous-command behavior.
 - `resources/extensions/glm-web/`: built-in web helpers.
 
-### Tests and planning docs
+### Tests and docs
 
 - `tests/`: Vitest coverage for CLI, config, loop, extensions, runtime, and session logic.
-- `docs/superpowers/specs/`: product/design specs captured in-repo.
-- `docs/superpowers/plans/`: execution plans already translated into repo work items.
+- `docs/guides/`: operator-facing guides (CLI, MCP, etc).
 - `docs/references/`: compact operating notes for contributors and future agents.
 
 ## Command map
