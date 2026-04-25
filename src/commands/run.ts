@@ -64,7 +64,12 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
         PI_SKIP_VERSION_CHECK: process.env.PI_SKIP_VERSION_CHECK ?? "1",
       },
       async () => {
-        const promptMode = input.promptMode ?? (loopOptions.enabled ? "intensive" : "standard");
+        const configuredLane = fileConfig.taskLaneDefault ?? "auto";
+        const promptMode =
+          input.promptMode ??
+          (configuredLane === "auto"
+            ? (loopOptions.enabled ? "intensive" : "standard")
+            : (configuredLane as PromptMode));
         const runtime = await createGlmRuntime({
           cwd: input.cwd,
           ...runtimeConfig,

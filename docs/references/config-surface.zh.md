@@ -24,6 +24,7 @@
 
 - `defaultProvider`
 - `defaultModel`
+- `taskLaneDefault`
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
@@ -57,6 +58,7 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 
 - `defaultProvider`
 - `defaultModel`
+- `taskLaneDefault`
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`

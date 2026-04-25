@@ -24,6 +24,7 @@ Supported persisted keys today:
 
 - `defaultProvider`
 - `defaultModel`
+- `taskLaneDefault`
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
@@ -57,6 +58,7 @@ Anthropic-compatible credentials are env-only today.
 
 - `defaultProvider`
 - `defaultModel`
+- `taskLaneDefault`
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
