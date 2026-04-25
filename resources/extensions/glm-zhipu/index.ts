@@ -1,5 +1,8 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { resolveGlmProfile } from "../shared/glm-profile.js";
+import { resolveGlmProfileV2 } from "../shared/glm-profile.js";
+import { readGlmModelProfileOverrides } from "../shared/glm-user-config.js";
+
+const modelProfileOverrides = readGlmModelProfileOverrides();
 
 export type ZhipuPayloadOverrides = {
   thinkingMode?: "auto" | "enabled" | "disabled";
@@ -84,14 +87,17 @@ export function shouldApplyGlmNativePayloadPatches(model: {
   id?: string;
   baseUrl?: string;
   api?: string;
+  provider?: string;
 }): boolean {
   if (model.api !== "openai-completions") {
     return false;
   }
 
-  const profile = resolveGlmProfile({
+  const profile = resolveGlmProfileV2({
+    provider: model.provider,
     modelId: model.id ?? "",
     baseUrl: model.baseUrl,
+    overrides: modelProfileOverrides,
   });
 
   return profile.payloadPatchPolicy === "glm-native";
