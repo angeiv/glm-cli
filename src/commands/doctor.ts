@@ -147,6 +147,7 @@ export async function runDoctor(options: DoctorDependencies): Promise<DoctorResu
       notifications,
       paths: resolveGlmSessionPaths(options.cwd),
       env: options.env,
+      config,
     }),
   };
 }

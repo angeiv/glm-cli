@@ -44,6 +44,7 @@ export async function inspectRuntime(
     notifications,
     paths: resolveGlmSessionPaths(input.cwd),
     env,
+    config,
   });
 }
 
