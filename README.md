@@ -36,11 +36,22 @@ npx -y @angeiv/glm --help
 ## 快速开始
 
 ```bash
+# 进入交互模式（默认命令）
 glm
+
+# 在指定目录启动交互会话（作为工作目录）
 glm chat /path/to/project
+
+# 执行一次性任务并退出
 glm run "修复测试失败"
+
+# 启用 loop：执行 -> 验证 -> 修复（最多 4 轮），失败时停在 handoff 点
 glm run "修复测试失败" --loop --verify "pnpm test" --max-rounds 4 --fail-mode handoff
+
+# 运行内置验证场景（smoke/test/build）
 glm verify smoke
+
+# 查看本次运行的有效状态（provider/model/loop/MCP/approval 等）
 glm inspect --json
 ```
 
