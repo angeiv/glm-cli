@@ -53,6 +53,16 @@ export type LoopConfig = {
   enabledByDefault?: boolean;
   profile?: LoopProfileName;
   maxRounds?: number;
+  /**
+   * Optional safety cap for tool calls executed while a loop is active.
+   * Note: enforced at the product layer, not by the provider.
+   */
+  maxToolCalls?: number;
+  /**
+   * Optional safety cap for verification runs executed while a loop is active.
+   * Note: enforced at the product layer, not by the provider.
+   */
+  maxVerifyRuns?: number;
   failureMode?: LoopFailureMode;
   autoVerify?: boolean;
   verifyCommand?: string;
@@ -226,6 +236,8 @@ function cloneLoopConfig(config?: LoopConfig): LoopConfig {
     (config as unknown as { enabledByDefault?: unknown })?.enabledByDefault;
   const rawProfile = (config as unknown as { profile?: unknown })?.profile;
   const rawMaxRounds = (config as unknown as { maxRounds?: unknown })?.maxRounds;
+  const rawMaxToolCalls = (config as unknown as { maxToolCalls?: unknown })?.maxToolCalls;
+  const rawMaxVerifyRuns = (config as unknown as { maxVerifyRuns?: unknown })?.maxVerifyRuns;
   const rawFailureMode = (config as unknown as { failureMode?: unknown })?.failureMode;
   const rawAutoVerify = (config as unknown as { autoVerify?: unknown })?.autoVerify;
   const rawVerifyCommand = (config as unknown as { verifyCommand?: unknown })?.verifyCommand;
@@ -243,6 +255,8 @@ function cloneLoopConfig(config?: LoopConfig): LoopConfig {
       rawMaxRounds === undefined
         ? BASE_DEFAULT_CONFIG_FILE.loop.maxRounds
         : (rawMaxRounds as number),
+    ...(rawMaxToolCalls === undefined ? {} : { maxToolCalls: rawMaxToolCalls as number }),
+    ...(rawMaxVerifyRuns === undefined ? {} : { maxVerifyRuns: rawMaxVerifyRuns as number }),
     failureMode:
       rawFailureMode === undefined
         ? BASE_DEFAULT_CONFIG_FILE.loop.failureMode
@@ -451,6 +465,20 @@ function validateLoopConfig(config: LoopConfig): void {
 
   if (!Number.isInteger(config.maxRounds) || (config.maxRounds ?? 0) <= 0) {
     throw new Error(`Invalid loop.maxRounds in config file: ${config.maxRounds}`);
+  }
+
+  if (
+    config.maxToolCalls !== undefined &&
+    (!Number.isInteger(config.maxToolCalls) || config.maxToolCalls <= 0)
+  ) {
+    throw new Error(`Invalid loop.maxToolCalls in config file: ${config.maxToolCalls}`);
+  }
+
+  if (
+    config.maxVerifyRuns !== undefined &&
+    (!Number.isInteger(config.maxVerifyRuns) || config.maxVerifyRuns <= 0)
+  ) {
+    throw new Error(`Invalid loop.maxVerifyRuns in config file: ${config.maxVerifyRuns}`);
   }
 
   if (!isLoopFailureMode(config.failureMode)) {

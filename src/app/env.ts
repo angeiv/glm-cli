@@ -15,6 +15,8 @@ export type RuntimeCliFlags = {
   loop?: boolean;
   verify?: string;
   maxRounds?: number;
+  maxToolCalls?: number;
+  maxVerifyRuns?: number;
   failMode?: LoopFailureMode;
 };
 
@@ -32,6 +34,8 @@ export type RuntimeEnvVars = Partial<{
   GLM_LOOP_ENABLED: string;
   GLM_LOOP_PROFILE: string;
   GLM_LOOP_MAX_ROUNDS: string;
+  GLM_LOOP_MAX_TOOL_CALLS: string;
+  GLM_LOOP_MAX_VERIFY_RUNS: string;
   GLM_LOOP_FAILURE_MODE: string;
   GLM_LOOP_AUTO_VERIFY: string;
   GLM_LOOP_VERIFY_COMMAND: string;
@@ -66,6 +70,8 @@ export type LoopRuntimeOptions = {
   enabled: boolean;
   profile: LoopProfileName;
   maxRounds: number;
+  maxToolCalls?: number;
+  maxVerifyRuns?: number;
   failureMode: LoopFailureMode;
   autoVerify: boolean;
   /** Explicit verifier command (CLI flag or GLM_LOOP_VERIFY_COMMAND). */
@@ -277,6 +283,8 @@ export function resolveLoopRuntimeOptions(
   const envEnabled = parseBoolean(env.GLM_LOOP_ENABLED);
   const envProfile = parseLoopProfile(env.GLM_LOOP_PROFILE);
   const envMaxRounds = parsePositiveInteger(env.GLM_LOOP_MAX_ROUNDS);
+  const envMaxToolCalls = parsePositiveInteger(env.GLM_LOOP_MAX_TOOL_CALLS);
+  const envMaxVerifyRuns = parsePositiveInteger(env.GLM_LOOP_MAX_VERIFY_RUNS);
   const envFailureMode = parseLoopFailureMode(env.GLM_LOOP_FAILURE_MODE);
   const envAutoVerify = parseBoolean(env.GLM_LOOP_AUTO_VERIFY);
   const envVerifyCommand = readConfiguredEnvValue(
@@ -287,6 +295,9 @@ export function resolveLoopRuntimeOptions(
     env.GLM_LOOP_VERIFY_FALLBACK_COMMAND,
     undefined,
   );
+
+  const maxToolCalls = cli.maxToolCalls ?? envMaxToolCalls ?? fileLoop?.maxToolCalls;
+  const maxVerifyRuns = cli.maxVerifyRuns ?? envMaxVerifyRuns ?? fileLoop?.maxVerifyRuns;
 
   return {
     enabled:
@@ -303,6 +314,8 @@ export function resolveLoopRuntimeOptions(
       envMaxRounds ??
       fileLoop?.maxRounds ??
       3,
+    ...(maxToolCalls === undefined ? {} : { maxToolCalls }),
+    ...(maxVerifyRuns === undefined ? {} : { maxVerifyRuns }),
     failureMode:
       cli.failMode ??
       envFailureMode ??
@@ -324,6 +337,12 @@ export function buildLoopEnvironment(
     GLM_LOOP_ENABLED: loop.enabled ? "1" : "0",
     GLM_LOOP_PROFILE: loop.profile,
     GLM_LOOP_MAX_ROUNDS: String(loop.maxRounds),
+    ...(loop.maxToolCalls === undefined
+      ? { GLM_LOOP_MAX_TOOL_CALLS: undefined }
+      : { GLM_LOOP_MAX_TOOL_CALLS: String(loop.maxToolCalls) }),
+    ...(loop.maxVerifyRuns === undefined
+      ? { GLM_LOOP_MAX_VERIFY_RUNS: undefined }
+      : { GLM_LOOP_MAX_VERIFY_RUNS: String(loop.maxVerifyRuns) }),
     GLM_LOOP_FAILURE_MODE: loop.failureMode,
     GLM_LOOP_AUTO_VERIFY: loop.autoVerify ? "1" : "0",
     ...(loop.verifyCommand ? { GLM_LOOP_VERIFY_COMMAND: loop.verifyCommand } : { GLM_LOOP_VERIFY_COMMAND: undefined }),

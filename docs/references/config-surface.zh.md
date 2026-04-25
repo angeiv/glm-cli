@@ -37,6 +37,8 @@
 - `loop.enabledByDefault`
 - `loop.profile`
 - `loop.maxRounds`
+- `loop.maxToolCalls`
+- `loop.maxVerifyRuns`
 - `loop.failureMode`
 - `loop.autoVerify`
 - `loop.verifyCommand`
@@ -68,6 +70,8 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `loopEnabledByDefault`
 - `loopProfile`
 - `loopMaxRounds`
+- `loopMaxToolCalls`
+- `loopMaxVerifyRuns`
 - `loopFailureMode`
 - `loopAutoVerify`
 - `loopVerifyCommand`
@@ -98,6 +102,8 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `GLM_LOOP_ENABLED`
 - `GLM_LOOP_PROFILE`
 - `GLM_LOOP_MAX_ROUNDS`
+- `GLM_LOOP_MAX_TOOL_CALLS`
+- `GLM_LOOP_MAX_VERIFY_RUNS`
 - `GLM_LOOP_FAILURE_MODE`
 - `GLM_LOOP_AUTO_VERIFY`
 - `GLM_LOOP_VERIFY_COMMAND`
@@ -137,4 +143,3 @@ CLI 会通过 flags 影响 runtime 行为。排查时建议直接运行 `glm ins
 - Loop options 解析在 `src/app/env.ts`。
 - Session 路径派生在 `src/session/session-paths.ts`。
 - 打包的 prompts/extensions 同步逻辑在 `src/app/resource-sync.ts`。
-

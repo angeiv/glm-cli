@@ -220,6 +220,8 @@ export async function buildRuntimeStatus(args: {
       enabled: args.loop.enabled,
       profile: args.loop.profile,
       maxRounds: args.loop.maxRounds,
+      ...(args.loop.maxToolCalls === undefined ? {} : { maxToolCalls: args.loop.maxToolCalls }),
+      ...(args.loop.maxVerifyRuns === undefined ? {} : { maxVerifyRuns: args.loop.maxVerifyRuns }),
       failureMode: args.loop.failureMode,
       autoVerify: args.loop.autoVerify,
       ...(args.loop.verifyCommand ? { verifyCommand: args.loop.verifyCommand } : {}),
@@ -263,7 +265,11 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Model: ${status.model}`,
     `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
     `Approval policy: ${status.approvalPolicy}`,
-    `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
+    `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds}${
+      status.loop.maxToolCalls === undefined ? "" : ` | tools<=${status.loop.maxToolCalls}`
+    }${
+      status.loop.maxVerifyRuns === undefined ? "" : ` | verify<=${status.loop.maxVerifyRuns}`
+    } | fail ${status.loop.failureMode}`,
     `Tool signature: ${status.toolSignature.hash.slice(0, 12)} (builtin ${status.toolSignature.builtinTools.length} | custom ${status.toolSignature.customTools.length} | mcp ${status.mcp.configuredServerCount})`,
     `Verifier: ${verifier}`,
     `Notifications: ${status.notifications.enabled ? "on" : "off"} | turnEnd ${status.notifications.onTurnEnd ? "on" : "off"} | loopResult ${status.notifications.onLoopResult ? "on" : "off"}`,

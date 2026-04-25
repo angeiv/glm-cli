@@ -37,6 +37,8 @@ Supported persisted keys today:
 - `loop.enabledByDefault`
 - `loop.profile`
 - `loop.maxRounds`
+- `loop.maxToolCalls`
+- `loop.maxVerifyRuns`
 - `loop.failureMode`
 - `loop.autoVerify`
 - `loop.verifyCommand`
@@ -68,6 +70,8 @@ Anthropic-compatible credentials are env-only today.
 - `loopEnabledByDefault`
 - `loopProfile`
 - `loopMaxRounds`
+- `loopMaxToolCalls`
+- `loopMaxVerifyRuns`
 - `loopFailureMode`
 - `loopAutoVerify`
 - `loopVerifyCommand`
@@ -98,6 +102,8 @@ Capability and loop env inputs currently include:
 - `GLM_LOOP_ENABLED`
 - `GLM_LOOP_PROFILE`
 - `GLM_LOOP_MAX_ROUNDS`
+- `GLM_LOOP_MAX_TOOL_CALLS`
+- `GLM_LOOP_MAX_VERIFY_RUNS`
 - `GLM_LOOP_FAILURE_MODE`
 - `GLM_LOOP_AUTO_VERIFY`
 - `GLM_LOOP_VERIFY_COMMAND`
