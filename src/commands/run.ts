@@ -9,6 +9,7 @@ import type { LoopFailureMode } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
 import type { PromptMode } from "../prompt/mode-overlays.js";
 import { runSingleTask, runTaskLoop } from "../runtime/run-runtime.js";
+import { routePromptModeForTask } from "../runtime/task-router.js";
 import {
   createGlmRuntime,
   withPreservedProcessCwd,
@@ -65,10 +66,12 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
       },
       async () => {
         const configuredLane = fileConfig.taskLaneDefault ?? "auto";
-        const promptMode =
-          input.promptMode ??
+        const promptMode = input.promptMode ??
           (configuredLane === "auto"
-            ? (loopOptions.enabled ? "intensive" : "standard")
+            ? routePromptModeForTask({
+                task: input.task,
+                loopEnabled: loopOptions.enabled,
+              }).mode
             : (configuredLane as PromptMode));
         const runtime = await createGlmRuntime({
           cwd: input.cwd,

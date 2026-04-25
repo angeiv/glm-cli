@@ -98,6 +98,8 @@ glm inspect --json
 
 你也可以通过 `glm config set taskLaneDefault <auto|direct|standard|intensive>` 覆盖上述默认值。
 
+当 `taskLaneDefault=auto` 时，`glm run` 会对简单任务（如文档、lint、format）自动选择 `direct`，其他情况选择 `standard`；`glm run --loop` 仍会强制使用 `intensive`。
+
 ## 审批（`--yolo` 与 `/approval`）
 
 `--yolo` 会把当前命令调用的 `approvalPolicy` 设为 `never`（跳过非危险命令的确认）。危险 shell 命令（例如 `rm`）仍然必须显式确认。

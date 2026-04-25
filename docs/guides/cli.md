@@ -98,6 +98,8 @@ Defaults:
 
 You can override these defaults via `glm config set taskLaneDefault <auto|direct|standard|intensive>`.
 
+When `taskLaneDefault=auto`, `glm run` will pick `direct` for trivial tasks (docs/lint/format) and `standard` otherwise. `glm run --loop` still forces `intensive`.
+
 ## Approvals (`--yolo` and `/approval`)
 
 `--yolo` toggles `approvalPolicy=never` for the current invocation (skip non-dangerous confirmations). Dangerous commands (for example `rm`) still require explicit approval.
