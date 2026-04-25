@@ -9,6 +9,7 @@ import type {
 export type RunLoopControllerInput = {
   task: string;
   maxRounds: number;
+  maxVerifyRuns?: number;
   failureMode: LoopFailureMode;
   profile: LoopProfile;
   executeTurn: (message: string, round: number) => Promise<void>;
@@ -51,6 +52,26 @@ export async function runLoopController(
         rounds,
         summary: input.profile.buildSuccessSummary(rounds),
       };
+    }
+
+    const canVerifyAgain =
+      input.maxVerifyRuns === undefined ? true : rounds.length < input.maxVerifyRuns;
+
+    if (!canVerifyAgain) {
+      const budgetStop: VerificationResult = {
+        kind: "unavailable",
+        ...(verification.command ? { command: verification.command } : {}),
+        summary: `Verification budget exceeded (maxVerifyRuns=${input.maxVerifyRuns}). Last result: ${verification.summary}`,
+      };
+
+      const status = input.failureMode === "fail" ? "failed" : "handoff";
+      return buildTerminalResult({
+        task: input.task,
+        status,
+        profile: input.profile,
+        rounds,
+        lastResult: budgetStop,
+      });
     }
 
     const canRepairAgain =

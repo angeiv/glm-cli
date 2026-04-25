@@ -60,6 +60,31 @@ describe("runLoopController", () => {
     expect(result.summary).toContain("still failing");
   });
 
+  test("stops before repair when maxVerifyRuns would be exceeded", async () => {
+    const prompts: string[] = [];
+
+    const result = await runLoopController({
+      task: "fix tests",
+      maxRounds: 3,
+      maxVerifyRuns: 1,
+      failureMode: "handoff",
+      profile: createCodeLoopProfile(),
+      executeTurn: async (message) => {
+        prompts.push(message);
+      },
+      runVerification: async () => ({
+        kind: "fail",
+        command: "pnpm test",
+        exitCode: 1,
+        summary: "still failing",
+      }),
+    });
+
+    expect(result.status).toBe("handoff");
+    expect(prompts).toHaveLength(1);
+    expect(result.summary).toContain("Verification budget exceeded");
+  });
+
   test("respects the prompt mode when building the loop contract", async () => {
     const prompts: string[] = [];
 
