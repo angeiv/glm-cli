@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const projectRoot = process.cwd();
-const entryPoint = resolve(projectRoot, "src/models/glm-profile-core.ts");
+const entryPoint = resolve(projectRoot, "src/models/glm-profile-runtime.ts");
 const outputFile = resolve(
   projectRoot,
   "resources/extensions/shared/glm-profile.js",
@@ -21,7 +21,7 @@ execFileSync(
     "--format=esm",
     "--platform=node",
     "--bundle",
-    "--banner:js=// GENERATED FROM src/models/glm-profile-core.ts. DO NOT EDIT.",
+    "--banner:js=// GENERATED FROM src/models/glm-profile-runtime.ts. DO NOT EDIT.",
   ],
   {
     cwd: projectRoot,
