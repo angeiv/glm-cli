@@ -59,6 +59,8 @@ test("createGlmSession resolves the requested model explicitly and restores mode
     session: {
       model: options.model,
       prompt,
+      getActiveToolNames: vi.fn(() => ["read", "bash", "edit", "write"]),
+      setActiveToolsByName: vi.fn(),
     },
     extensionsResult: { extensions: [], errors: [], runtime: {} },
     modelFallbackMessage: undefined,
@@ -150,6 +152,8 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
   const createAgentSessionFromServices = vi.fn(async (options: { model?: unknown }) => ({
     session: {
       model: options.model,
+      getActiveToolNames: vi.fn(() => ["read", "bash", "edit", "write"]),
+      setActiveToolsByName: vi.fn(),
     },
     extensionsResult: { extensions: [], errors: [], runtime: {} },
     modelFallbackMessage: undefined,

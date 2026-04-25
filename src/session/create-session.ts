@@ -13,7 +13,7 @@ import type { ProviderName } from "../providers/types.js";
 import { isProviderName } from "../providers/types.js";
 import { createGlmServices, createGlmSessionManager } from "./managers.js";
 import { resolveGlmSessionPaths } from "./session-paths.js";
-import { createBuiltinTools, createPlanTools } from "../tools/index.js";
+import { createPlanTools } from "../tools/index.js";
 import type { PromptMode } from "../prompt/mode-overlays.js";
 import {
   buildNotificationEnvironment,
@@ -43,7 +43,6 @@ export type GlmSessionOptions = GlmSessionInput & {
   sessionDir: string;
   authPath: string;
   modelsPath: string;
-  tools: ReturnType<typeof createBuiltinTools>;
   customTools: ReturnType<typeof createPlanTools>;
 };
 
@@ -403,9 +402,21 @@ export function buildSessionOptions(input: GlmSessionInput): GlmSessionOptions {
     ...input,
     promptMode: input.promptMode ?? "standard",
     ...paths,
-    tools: createBuiltinTools(input.cwd),
     customTools: createPlanTools(),
   };
+}
+
+const DEFAULT_TOOL_NAMES = ["grep", "find", "ls"] as const;
+
+function enableDefaultTools(session: {
+  getActiveToolNames(): string[];
+  setActiveToolsByName(names: string[]): void;
+}) {
+  const active = new Set(session.getActiveToolNames());
+  for (const name of DEFAULT_TOOL_NAMES) {
+    active.add(name);
+  }
+  session.setActiveToolsByName([...active]);
 }
 
 export async function createGlmSession(
@@ -421,13 +432,13 @@ export async function createGlmSession(
     },
     shouldPassExplicitModel: true,
   });
-      const result = await createAgentSessionFromServices({
-        services,
-        sessionManager,
-        model,
-    tools: options.tools,
+  const result = await createAgentSessionFromServices({
+    services,
+    sessionManager,
+    model,
     customTools: options.customTools,
   });
+  enableDefaultTools(result.session);
 
   return {
     ...result,
@@ -471,37 +482,37 @@ export async function createGlmRuntime(
       sessionManager,
       sessionStartEvent,
       model,
-      tools: options.tools,
       customTools: options.customTools,
-      });
-      const activeSelection =
-        getGlmModelSelection(result.session.model) ?? strategy.selection;
-      if (activeSelection) {
-        await syncPackagedResources(options.agentDir);
-        const config = await readConfigFile();
-        setRuntimeStatus(
-          await buildRuntimeStatus({
-            cwd: options.cwd,
-            runtime: {
-              provider: resolveStatusProvider(activeSelection.provider, options.provider),
-              model: activeSelection.model,
-              approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
-            },
-            loop: resolveLoopRuntimeOptions({}, process.env, config),
-            diagnostics: resolveDiagnosticsRuntimeOptions(config),
-            notifications: resolveNotificationRuntimeOptions(process.env, config),
-            paths: {
-              agentDir: options.agentDir,
-              sessionDir: options.sessionDir,
-              authPath: options.authPath,
-              modelsPath: options.modelsPath,
-            },
-            env: process.env,
-          }),
-        );
-      }
-      preferredSelection =
-        getGlmModelSelection(result.session.model) ?? preferredSelection;
+    });
+    enableDefaultTools(result.session);
+    const activeSelection =
+      getGlmModelSelection(result.session.model) ?? strategy.selection;
+    if (activeSelection) {
+      await syncPackagedResources(options.agentDir);
+      const config = await readConfigFile();
+      setRuntimeStatus(
+        await buildRuntimeStatus({
+          cwd: options.cwd,
+          runtime: {
+            provider: resolveStatusProvider(activeSelection.provider, options.provider),
+            model: activeSelection.model,
+            approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
+          },
+          loop: resolveLoopRuntimeOptions({}, process.env, config),
+          diagnostics: resolveDiagnosticsRuntimeOptions(config),
+          notifications: resolveNotificationRuntimeOptions(process.env, config),
+          paths: {
+            agentDir: options.agentDir,
+            sessionDir: options.sessionDir,
+            authPath: options.authPath,
+            modelsPath: options.modelsPath,
+          },
+          env: process.env,
+        }),
+      );
+    }
+    preferredSelection =
+      getGlmModelSelection(result.session.model) ?? preferredSelection;
 
     return {
       ...result,
