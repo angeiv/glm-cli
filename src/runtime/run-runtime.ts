@@ -204,6 +204,10 @@ export async function runTaskLoop(
 ): Promise<number> {
   const profile = createLoopProfile(options.profile, promptMode);
   const verifier = await resolveVerifier(runtime.cwd, options);
+  const maxToolCalls = options.maxToolCalls;
+  const maxVerifyRuns = options.maxVerifyRuns;
+  let toolCallsUsed = 0;
+  let verifyRunsUsed = 0;
 
   try {
     await bindRuntimeSession(runtime);
@@ -211,19 +215,40 @@ export async function runTaskLoop(
     const result = await runLoopController({
       task,
       maxRounds: options.maxRounds,
+      ...(maxVerifyRuns === undefined ? {} : { maxVerifyRuns }),
       failureMode: options.failureMode,
       profile,
       executeTurn: async (message) => {
+        const beforeCount = runtime.session.state.messages.length;
         const exitCode = await promptOnce(runtime, message);
         if (exitCode !== 0) {
           throw new Error("Loop turn failed before verification could run.");
         }
+
+        const nextMessages = runtime.session.state.messages.slice(beforeCount) as Array<{ role?: string }>;
+        const toolDelta = nextMessages.filter((msg) => msg.role === "tool").length;
+        toolCallsUsed += toolDelta;
       },
       runVerification: async () => {
+        if (maxToolCalls !== undefined && toolCallsUsed > maxToolCalls) {
+          return {
+            kind: "unavailable",
+            summary: `Tool call budget exceeded (maxToolCalls=${maxToolCalls}, used=${toolCallsUsed}).`,
+          } satisfies VerificationResult;
+        }
+
+        if (maxVerifyRuns !== undefined && verifyRunsUsed >= maxVerifyRuns) {
+          return {
+            kind: "unavailable",
+            summary: `Verification budget exceeded (maxVerifyRuns=${maxVerifyRuns}).`,
+          } satisfies VerificationResult;
+        }
+
         if (verifier.kind !== "command") {
           return toVerificationResult(verifier);
         }
 
+        verifyRunsUsed += 1;
         return runVerificationCommand({
           cwd: runtime.cwd,
           command: verifier.command,
