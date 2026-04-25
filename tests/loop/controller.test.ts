@@ -59,4 +59,27 @@ describe("runLoopController", () => {
     expect(result.summary).toContain("pnpm test");
     expect(result.summary).toContain("still failing");
   });
+
+  test("respects the prompt mode when building the loop contract", async () => {
+    const prompts: string[] = [];
+
+    const result = await runLoopController({
+      task: "fix tests",
+      maxRounds: 1,
+      failureMode: "handoff",
+      profile: createCodeLoopProfile("direct"),
+      executeTurn: async (message) => {
+        prompts.push(message);
+      },
+      runVerification: async () => ({
+        kind: "pass",
+        command: "pnpm test",
+        exitCode: 0,
+        summary: "all tests passed",
+      }),
+    });
+
+    expect(result.status).toBe("succeeded");
+    expect(prompts[0]).toContain("Task overlay (direct):");
+  });
 });

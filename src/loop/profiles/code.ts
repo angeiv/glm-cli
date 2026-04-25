@@ -4,12 +4,13 @@ import {
   composeRepairPrompt,
   composeTaskPrompt,
 } from "../../runtime/prompt.js";
+import type { PromptMode } from "../../prompt/mode-overlays.js";
 
-export function createCodeLoopProfile(): LoopProfile {
+export function createCodeLoopProfile(promptMode: PromptMode = "intensive"): LoopProfile {
   return {
     name: "code",
     buildLoopContract(task: string): string {
-      return composeTaskPrompt(task, "intensive");
+      return composeTaskPrompt(task, promptMode);
     },
     buildRepairPrompt(result: VerificationResult, nextRound: number): string {
       return composeRepairPrompt(result, nextRound);
