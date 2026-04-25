@@ -1,6 +1,7 @@
+import type { GlmConfigFile } from "../app/config-store.js";
 import type { LoopRuntimeOptions, RuntimeConfig } from "../app/env.js";
 import { getRuntimeEvents } from "./event-log.js";
-import { resolveGlmProfile } from "../models/resolve-glm-profile.js";
+import { resolveGlmProfileV2 } from "../models/resolve-glm-profile-v2.js";
 import {
   getMcpMetadataCachePath,
   resolveMcpConfigPath,
@@ -136,14 +137,18 @@ async function readVerificationStatus(cwd: string): Promise<RuntimeVerificationS
 function resolveRuntimeBaseUrl(
   provider: string,
   env: NodeJS.ProcessEnv,
+  config?: GlmConfigFile,
 ): string | undefined {
   if (provider === "glm") {
-    const explicitBaseUrl = env.GLM_BASE_URL?.trim();
+    const explicitBaseUrl =
+      env.GLM_BASE_URL?.trim() || config?.providers?.glm?.baseURL?.trim();
     if (explicitBaseUrl) {
       return explicitBaseUrl;
     }
 
-    const endpoint = env.GLM_ENDPOINT?.trim().toLowerCase();
+    const endpoint =
+      env.GLM_ENDPOINT?.trim().toLowerCase() ||
+      config?.providers?.glm?.endpoint?.trim().toLowerCase();
     if (
       endpoint === "zai" ||
       endpoint === "z.ai" ||
@@ -170,7 +175,11 @@ function resolveRuntimeBaseUrl(
   }
 
   if (provider === "openai-compatible" || provider === "openai-responses") {
-    return env.OPENAI_BASE_URL?.trim() || undefined;
+    return (
+      env.OPENAI_BASE_URL?.trim() ||
+      config?.providers?.["openai-compatible"]?.baseURL?.trim() ||
+      undefined
+    );
   }
 
   if (provider === "anthropic") {
@@ -188,6 +197,7 @@ export async function buildRuntimeStatus(args: {
   notifications: RuntimeNotificationStatus;
   paths: RuntimePaths;
   env: NodeJS.ProcessEnv;
+  config?: GlmConfigFile;
 }): Promise<RuntimeStatus> {
   const mcp = await readConfiguredMcpServerCount(args.env);
   const toolSignature = await computeRuntimeToolSignature({
@@ -201,9 +211,11 @@ export async function buildRuntimeStatus(args: {
     provider: args.runtime.provider,
     model: args.runtime.model,
     resolvedModel: (() => {
-      const profile = resolveGlmProfile({
+      const profile = resolveGlmProfileV2({
+        provider: args.runtime.provider,
         modelId: args.runtime.model,
-        baseUrl: resolveRuntimeBaseUrl(args.runtime.provider, args.env),
+        baseUrl: resolveRuntimeBaseUrl(args.runtime.provider, args.env, args.config),
+        overrides: args.config?.modelProfiles?.overrides,
       });
 
       return {

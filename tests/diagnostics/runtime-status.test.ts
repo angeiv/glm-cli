@@ -8,6 +8,7 @@ import {
   formatRuntimeStatusLines,
 } from "../../src/diagnostics/runtime-status.js";
 import { resolveGlmSessionPaths } from "../../src/session/session-paths.js";
+import { normalizeConfigFile } from "../../src/app/config-store.js";
 
 afterEach(() => {
   clearRuntimeStatus();
@@ -166,5 +167,59 @@ describe("buildRuntimeStatus", () => {
       ]),
     );
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");
+  });
+
+  test("applies model profile overrides when resolving canonical model ids", async () => {
+    const status = await buildRuntimeStatus({
+      cwd: "/tmp/repo",
+      runtime: {
+        provider: "anthropic",
+        model: "ZhipuAI/GLM-5-Long",
+        approvalPolicy: "ask",
+      },
+      loop: {
+        enabled: false,
+        profile: "code",
+        maxRounds: 3,
+        failureMode: "handoff",
+        autoVerify: true,
+      },
+      diagnostics: {
+        debugRuntime: false,
+        eventLogLimit: 10,
+      },
+      notifications: {
+        enabled: false,
+        onTurnEnd: true,
+        onLoopResult: true,
+      },
+      paths: resolveGlmSessionPaths("/tmp/repo"),
+      env: {
+        ANTHROPIC_BASE_URL: "https://api-inference.modelscope.cn/v1/messages",
+      },
+      config: normalizeConfigFile({
+        modelProfiles: {
+          overrides: [
+            {
+              match: {
+                provider: "anthropic",
+                baseUrl: "*modelscope.cn*",
+                modelId: "ZhipuAI/GLM-5*",
+              },
+              canonicalModelId: "glm-5",
+              caps: {
+                contextWindow: 96_000,
+              },
+            },
+          ],
+        },
+      }),
+    });
+
+    expect(status.resolvedModel).toMatchObject({
+      canonicalModelId: "glm-5",
+      platform: "gateway-modelscope-openai",
+      confidence: "medium",
+    });
   });
 });

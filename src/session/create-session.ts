@@ -355,26 +355,27 @@ async function prepareGlmSession(
     hooksPath: process.env.GLM_HOOKS_PATH?.trim() || DEFAULT_HOOKS_PATH,
     hookTimeoutMs: config.hookTimeoutMs ?? 5000,
   });
-  setRuntimeStatus(
-    await buildRuntimeStatus({
-      cwd: options.cwd,
-      runtime: {
-        provider: resolveStatusProvider(strategy.selection?.provider, options.provider),
-        model: strategy.selection?.model ?? options.model,
-        approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
-      },
-      loop: resolveLoopRuntimeOptions({}, process.env, config),
-      diagnostics,
-      notifications,
-      paths: {
-        agentDir: options.agentDir,
-        sessionDir: options.sessionDir,
-        authPath: options.authPath,
-        modelsPath: options.modelsPath,
-      },
-      env: process.env,
-    }),
-  );
+	  setRuntimeStatus(
+	    await buildRuntimeStatus({
+	      cwd: options.cwd,
+	      runtime: {
+	        provider: resolveStatusProvider(strategy.selection?.provider, options.provider),
+	        model: strategy.selection?.model ?? options.model,
+	        approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
+	      },
+	      loop: resolveLoopRuntimeOptions({}, process.env, config),
+	      diagnostics,
+	      notifications,
+	      paths: {
+	        agentDir: options.agentDir,
+	        sessionDir: options.sessionDir,
+	        authPath: options.authPath,
+	        modelsPath: options.modelsPath,
+	      },
+	      env: process.env,
+	      config,
+	    }),
+	  );
 
   return withScopedEnvironment(
     {
@@ -496,27 +497,28 @@ export async function createGlmRuntime(
     if (activeSelection) {
       await syncPackagedResources(options.agentDir);
       const config = await readConfigFile();
-      setRuntimeStatus(
-        await buildRuntimeStatus({
-          cwd: options.cwd,
-          runtime: {
-            provider: resolveStatusProvider(activeSelection.provider, options.provider),
-            model: activeSelection.model,
-            approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
-          },
-          loop: resolveLoopRuntimeOptions({}, process.env, config),
-          diagnostics: resolveDiagnosticsRuntimeOptions(config),
-          notifications: resolveNotificationRuntimeOptions(process.env, config),
-          paths: {
-            agentDir: options.agentDir,
-            sessionDir: options.sessionDir,
-            authPath: options.authPath,
-            modelsPath: options.modelsPath,
-          },
-          env: process.env,
-        }),
-      );
-    }
+	      setRuntimeStatus(
+	        await buildRuntimeStatus({
+	          cwd: options.cwd,
+	          runtime: {
+	            provider: resolveStatusProvider(activeSelection.provider, options.provider),
+	            model: activeSelection.model,
+	            approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
+	          },
+	          loop: resolveLoopRuntimeOptions({}, process.env, config),
+	          diagnostics: resolveDiagnosticsRuntimeOptions(config),
+	          notifications: resolveNotificationRuntimeOptions(process.env, config),
+	          paths: {
+	            agentDir: options.agentDir,
+	            sessionDir: options.sessionDir,
+	            authPath: options.authPath,
+	            modelsPath: options.modelsPath,
+	          },
+	          env: process.env,
+	          config,
+	        }),
+	      );
+	    }
     preferredSelection =
       getGlmModelSelection(result.session.model) ?? preferredSelection;
 
