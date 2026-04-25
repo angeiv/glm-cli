@@ -63,10 +63,15 @@ export async function runChatCommand(input: ChatCommandInput): Promise<void> {
         PI_SKIP_VERSION_CHECK: process.env.PI_SKIP_VERSION_CHECK ?? "1",
       },
       async () => {
+        const configuredLane = fileConfig.taskLaneDefault ?? "auto";
         const runtime = await createGlmRuntime({
           cwd: input.cwd,
           ...runtimeConfig,
-          promptMode: input.promptMode ?? "standard",
+          promptMode:
+            input.promptMode ??
+            (configuredLane === "auto"
+              ? "standard"
+              : (configuredLane as PromptMode)),
         });
 
         await runChatSession(runtime);

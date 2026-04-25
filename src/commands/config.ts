@@ -14,6 +14,7 @@ import {
 const CONFIG_KEYS = [
   "defaultProvider",
   "defaultModel",
+  "taskLaneDefault",
   "approvalPolicy",
   "debugRuntime",
   "eventLogLimit",
@@ -42,6 +43,7 @@ const CONFIG_KEYS = [
 type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 const GLM_ENDPOINT_PRESETS = ["bigmodel", "bigmodel-coding", "zai", "zai-coding"] as const;
+const TASK_LANE_DEFAULTS = ["auto", "direct", "standard", "intensive"] as const;
 const THINKING_MODES = ["auto", "enabled", "disabled"] as const;
 const TOOL_STREAM_MODES = ["auto", "on", "off"] as const;
 const RESPONSE_FORMAT_TYPES = ["json_object"] as const;
@@ -62,6 +64,9 @@ function isConfigKey(value: string): value is ConfigKey {
 function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   if (key === "defaultModel") {
     return config.defaultModel ?? "";
+  }
+  if (key === "taskLaneDefault") {
+    return config.taskLaneDefault ?? "auto";
   }
   if (key === "approvalPolicy") {
     return config.approvalPolicy ?? "ask";
@@ -149,6 +154,12 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
   if (key === "defaultProvider") {
     if (trimmed !== "glm" && trimmed !== "openai-compatible" && trimmed !== "openai-responses") {
       throw new Error("defaultProvider must be glm, openai-compatible, or openai-responses");
+    }
+  }
+
+  if (key === "taskLaneDefault") {
+    if (!TASK_LANE_DEFAULTS.includes(trimmed as (typeof TASK_LANE_DEFAULTS)[number])) {
+      throw new Error(`taskLaneDefault must be ${TASK_LANE_DEFAULTS.join(", ")}`);
     }
   }
 
@@ -352,6 +363,8 @@ export async function configSet(
 
   if (key === "defaultProvider") {
     config.defaultProvider = parsedValue as GlmConfigFile["defaultProvider"];
+  } else if (key === "taskLaneDefault") {
+    config.taskLaneDefault = parsedValue as GlmConfigFile["taskLaneDefault"];
   } else if (key === "approvalPolicy") {
     config.approvalPolicy = parsedValue as ApprovalPolicy;
   } else if (key === "debugRuntime") {

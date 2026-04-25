@@ -17,6 +17,20 @@ describe("configGet", () => {
     expect(log).toHaveBeenCalledWith("glm-5-air");
   });
 
+  test("reads task lane defaults", async () => {
+    const log = vi.fn();
+    const value = await configGet("taskLaneDefault", {
+      readConfigFile: async () => ({
+        ...getDefaultConfigFile(),
+        taskLaneDefault: "direct",
+      }),
+      log,
+    });
+
+    expect(value).toBe("direct");
+    expect(log).toHaveBeenCalledWith("direct");
+  });
+
   test("reads glm capability keys", async () => {
     const log = vi.fn();
     const value = await configGet("thinkingMode", {
@@ -137,6 +151,25 @@ describe("configSet", () => {
       }),
     );
     expect(log).toHaveBeenCalledWith("Updated approvalPolicy=never");
+  });
+
+  test("updates task lane defaults and persists them", async () => {
+    const writeConfigFile = vi.fn(async () => undefined);
+    const log = vi.fn();
+
+    const updated = await configSet("taskLaneDefault", "intensive", {
+      readConfigFile: async () => getDefaultConfigFile(),
+      writeConfigFile,
+      log,
+    });
+
+    expect(updated.taskLaneDefault).toBe("intensive");
+    expect(writeConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskLaneDefault: "intensive",
+      }),
+    );
+    expect(log).toHaveBeenCalledWith("Updated taskLaneDefault=intensive");
   });
 
   test("updates GLM capability keys and persists them", async () => {

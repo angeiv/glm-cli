@@ -24,6 +24,7 @@ export type ApprovalPolicy = "ask" | "auto" | "never";
 export type ThinkingMode = "auto" | "enabled" | "disabled";
 export type ToolStreamMode = "auto" | "on" | "off";
 export type ResponseFormatType = "json_object";
+export type TaskLaneDefault = "auto" | "direct" | "standard" | "intensive";
 export type LoopProfileName = "code";
 export type LoopFailureMode = "handoff" | "fail";
 export type DiagnosticsConfig = {
@@ -79,6 +80,7 @@ const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
 const VALID_THINKING_MODES: ThinkingMode[] = ["auto", "enabled", "disabled"];
 const VALID_TOOL_STREAM_MODES: ToolStreamMode[] = ["auto", "on", "off"];
 const VALID_RESPONSE_FORMAT_TYPES: ResponseFormatType[] = ["json_object"];
+const VALID_TASK_LANE_DEFAULTS: TaskLaneDefault[] = ["auto", "direct", "standard", "intensive"];
 const VALID_LOOP_PROFILES: LoopProfileName[] = ["code"];
 const VALID_LOOP_FAILURE_MODES: LoopFailureMode[] = ["handoff", "fail"];
 
@@ -121,6 +123,7 @@ function buildDefaultConfigFile(): GlmConfigFile {
   return {
     defaultProvider: "glm",
     defaultModel: "glm-5.1",
+    taskLaneDefault: "auto",
     approvalPolicy: "ask",
     debugRuntime: false,
     eventLogLimit: 200,
@@ -140,6 +143,7 @@ function buildDefaultConfigFile(): GlmConfigFile {
 export type GlmConfigFile = {
   defaultProvider?: PersistedProviderName;
   defaultModel?: string;
+  taskLaneDefault?: TaskLaneDefault;
   approvalPolicy?: ApprovalPolicy;
   debugRuntime?: boolean;
   eventLogLimit?: number;
@@ -314,6 +318,7 @@ function cloneModelProfilesConfig(
 
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
   const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
+  const rawTaskLaneDefault = (config as unknown as { taskLaneDefault?: unknown })?.taskLaneDefault;
   const rawDebugRuntime = (config as unknown as { debugRuntime?: unknown })?.debugRuntime;
   const rawEventLogLimit = (config as unknown as { eventLogLimit?: unknown })?.eventLogLimit;
   const rawHooksEnabled = (config as unknown as { hooksEnabled?: unknown })?.hooksEnabled;
@@ -329,6 +334,10 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
   return {
     defaultProvider,
     defaultModel: config?.defaultModel ?? BASE_DEFAULT_CONFIG_FILE.defaultModel,
+    taskLaneDefault:
+      rawTaskLaneDefault === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.taskLaneDefault
+        : (rawTaskLaneDefault as TaskLaneDefault),
     approvalPolicy: config?.approvalPolicy ?? BASE_DEFAULT_CONFIG_FILE.approvalPolicy,
     debugRuntime:
       rawDebugRuntime === undefined
@@ -398,6 +407,10 @@ function isResponseFormatType(value?: string): value is ResponseFormatType {
   return VALID_RESPONSE_FORMAT_TYPES.includes(value as ResponseFormatType);
 }
 
+function isTaskLaneDefault(value?: string): value is TaskLaneDefault {
+  return VALID_TASK_LANE_DEFAULTS.includes(value as TaskLaneDefault);
+}
+
 function isLoopProfileName(value?: string): value is LoopProfileName {
   return VALID_LOOP_PROFILES.includes(value as LoopProfileName);
 }
@@ -413,6 +426,10 @@ function validateConfigFile(config: GlmConfigFile): void {
 
   if (typeof config.defaultModel !== "string") {
     throw new Error(`Invalid defaultModel in config file: ${typeof config.defaultModel}`);
+  }
+
+  if (!isTaskLaneDefault(config.taskLaneDefault)) {
+    throw new Error(`Invalid taskLaneDefault in config file: ${config.taskLaneDefault}`);
   }
 
   if (!isApprovalPolicy(config.approvalPolicy)) {
