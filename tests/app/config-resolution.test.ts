@@ -208,6 +208,70 @@ describe("config store normalization", () => {
     await expect(readConfigFile()).rejects.toThrow(/endpoint/i);
   });
 
+  test("readConfigFile accepts model profile overrides", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+      modelProfiles: {
+        overrides: [
+          {
+            match: {
+              provider: "anthropic",
+              baseUrl: "*modelscope.cn*",
+              modelId: "ZhipuAI/GLM-5*",
+            },
+            canonicalModelId: "glm-5",
+            caps: {
+              contextWindow: 96000,
+              supportsToolStream: false,
+            },
+          },
+        ],
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    const config = await readConfigFile();
+    expect(config.modelProfiles?.overrides).toHaveLength(1);
+    expect(config.modelProfiles?.overrides?.[0]).toMatchObject({
+      canonicalModelId: "glm-5",
+      match: {
+        provider: "anthropic",
+        baseUrl: "*modelscope.cn*",
+        modelId: "ZhipuAI/GLM-5*",
+      },
+      caps: {
+        contextWindow: 96000,
+        supportsToolStream: false,
+      },
+    });
+  });
+
+  test("readConfigFile rejects invalid model profile override rules", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+      modelProfiles: {
+        overrides: [
+          {
+            match: {},
+          },
+        ],
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/match must specify at least one selector/i);
+  });
+
   test("readConfigFile rejects invalid glm capability values", async () => {
     const payload = JSON.stringify({
       defaultProvider: "glm",
