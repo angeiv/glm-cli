@@ -36,11 +36,22 @@ npx -y @angeiv/glm --help
 ## Quick start
 
 ```bash
+# Start an interactive session (default command)
 glm
+
+# Start an interactive session in a specific directory (used as the working dir)
 glm chat /path/to/project
+
+# Run a one-shot task and exit
 glm run "fix the failing tests"
+
+# Enable the delivery-quality loop: run -> verify -> repair (up to 4 rounds), hand off on failure
 glm run "fix the failing tests" --loop --verify "pnpm test" --max-rounds 4 --fail-mode handoff
+
+# Run a built-in verification scenario (smoke/test/build)
 glm verify smoke
+
+# Inspect the effective runtime state (provider/model/loop/MCP/approval)
 glm inspect --json
 ```
 
