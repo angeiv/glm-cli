@@ -1,14 +1,11 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { AssistantMessageEventStream, streamSimple, type Context, type Model, type SimpleStreamOptions } from "@mariozechner/pi-ai";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { readFileSync } from "node:fs";
 import {
-  getGenericOpenAiCompatibleCaps,
   getStandardGlmModel,
   getStandardGlmModels,
-  resolveGlmProfile,
+  resolveGlmProfileV2,
 } from "../shared/glm-profile.js";
+import { readGlmModelProfileOverrides, readGlmUserConfig } from "../shared/glm-user-config.js";
 
 const OPENAI_COMPAT = {
   // Many OpenAI-compatible servers reject the newer "developer" role.
@@ -27,11 +24,6 @@ const ZHIPU_OPENAI_COMPAT = {
   thinkingFormat: "zai",
   zaiToolStream: true,
 } as const;
-
-function isZhipuOpenAiCompatBaseUrl(baseUrl: string): boolean {
-  const normalized = baseUrl.trim().toLowerCase();
-  return normalized.includes("open.bigmodel.cn") || normalized.includes("api.z.ai");
-}
 
 const GLM_BASE_URL_PRESETS = {
   // BigModel
@@ -597,22 +589,13 @@ function resolveModelId(...candidates: Array<string | undefined>): string | unde
   return undefined;
 }
 
-function buildCustomModelDefinition(modelId: string, compat: typeof OPENAI_COMPAT = OPENAI_COMPAT) {
-  const genericCaps = getGenericOpenAiCompatibleCaps();
-  return {
-    id: modelId,
-    name: modelId,
-    reasoning: true,
-    input: ["text"],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: genericCaps.contextWindow,
-    maxTokens: genericCaps.maxOutputTokens,
-    compat,
-  };
-}
-
 function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string) {
-  const profile = resolveGlmProfile({ modelId, baseUrl });
+  const profile = resolveGlmProfileV2({
+    provider: "openai-compatible",
+    modelId,
+    baseUrl,
+    overrides: modelProfileOverrides,
+  });
   const canonical = profile.canonicalModelId
     ? getStandardGlmModel(profile.canonicalModelId)
     : undefined;
@@ -633,7 +616,12 @@ function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string
 }
 
 function resolveOpenAiResponsesModelDefinition(modelId: string, baseUrl: string) {
-  const profile = resolveGlmProfile({ modelId, baseUrl });
+  const profile = resolveGlmProfileV2({
+    provider: "openai-responses",
+    modelId,
+    baseUrl,
+    overrides: modelProfileOverrides,
+  });
   const canonical = profile.canonicalModelId
     ? getStandardGlmModel(profile.canonicalModelId)
     : undefined;
@@ -649,24 +637,51 @@ function resolveOpenAiResponsesModelDefinition(modelId: string, baseUrl: string)
   };
 }
 
-export function resolveAnthropicModels(requestedModelId: string) {
-  const standardModels = getStandardGlmModels().map((model) => ({
-    id: model.id,
-    name: model.displayName,
-    reasoning: model.supportsThinking,
-    input: model.modalities,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: model.contextWindow,
-    maxTokens: model.maxOutputTokens,
-  }));
+export function resolveAnthropicModels(options: { requestedModelId: string; baseUrl: string }) {
+  const standardModels = getStandardGlmModels().map((model) => {
+    const profile = resolveGlmProfileV2({
+      provider: "anthropic",
+      modelId: model.id,
+      baseUrl: options.baseUrl,
+      overrides: modelProfileOverrides,
+    });
 
-  if (standardModels.some((model) => model.id === requestedModelId)) {
+    return {
+      id: model.id,
+      name: model.displayName,
+      reasoning: profile.effectiveCaps.supportsThinking,
+      input: model.modalities,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: profile.effectiveCaps.contextWindow,
+      maxTokens: profile.effectiveCaps.maxOutputTokens,
+    };
+  });
+
+  if (standardModels.some((model) => model.id === options.requestedModelId)) {
     return standardModels;
   }
 
+  const profile = resolveGlmProfileV2({
+    provider: "anthropic",
+    modelId: options.requestedModelId,
+    baseUrl: options.baseUrl,
+    overrides: modelProfileOverrides,
+  });
+  const canonical = profile.canonicalModelId
+    ? getStandardGlmModel(profile.canonicalModelId)
+    : undefined;
+
   return [
     ...standardModels,
-    buildCustomModelDefinition(requestedModelId),
+    {
+      id: options.requestedModelId,
+      name: canonical?.displayName ?? options.requestedModelId,
+      reasoning: profile.canonicalModelId ? profile.effectiveCaps.supportsThinking : true,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: profile.effectiveCaps.contextWindow,
+      maxTokens: profile.effectiveCaps.maxOutputTokens,
+    },
   ];
 }
 
@@ -695,10 +710,8 @@ function normalizeProvider(value: unknown): PersistedProviderConfig | undefined 
 }
 
 function readPersistedConfig(): PersistedConfig {
-  const configPath = join(homedir(), ".glm", "config.json");
   try {
-    const contents = readFileSync(configPath, "utf8");
-    const parsed = JSON.parse(contents);
+    const parsed = readGlmUserConfig();
     if (typeof parsed !== "object" || parsed === null) {
       return {};
     }
@@ -718,6 +731,7 @@ function readPersistedConfig(): PersistedConfig {
 }
 
 const persistedConfig = readPersistedConfig();
+const modelProfileOverrides = readGlmModelProfileOverrides();
 
 export function resolveProviderSettings(options: {
   envApiKey?: string;
@@ -757,9 +771,11 @@ export default function (pi: ExtensionAPI) {
       apiKey: glmSettings.apiKey,
       api: "openai-completions",
       models: getStandardGlmModels().map((model) => {
-        const profile = resolveGlmProfile({
+        const profile = resolveGlmProfileV2({
+          provider: "glm",
           modelId: model.id,
           baseUrl: glmSettings.baseUrl,
+          overrides: modelProfileOverrides,
         });
         const compat = profile.payloadPatchPolicy === "glm-native"
           ? ZHIPU_OPENAI_COMPAT
@@ -829,7 +845,7 @@ export default function (pi: ExtensionAPI) {
       // to a non-streaming request to surface real HTTP errors without Pi's retry UI.
       api: isModelscope ? "anthropic-messages-modelscope" : "anthropic-messages",
       ...(isModelscope ? { streamSimple: createStreamFirstModelscopeAnthropicApi() } : {}),
-      models: resolveAnthropicModels(anthropicModelId),
+      models: resolveAnthropicModels({ requestedModelId: anthropicModelId, baseUrl }),
     });
   }
 }
