@@ -14,7 +14,7 @@ import type { VerifyScenarioName } from "./harness/scenarios.js";
 import type { PromptMode } from "./prompt/mode-overlays.js";
 
 const HELP_TEXT = `
-glm - local-repository coding assistant
+glm - local-first agent CLI for GLM
 
 Usage:
   glm [options]                        Start interactive chat (default)
