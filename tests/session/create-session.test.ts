@@ -289,6 +289,54 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
   });
   expect(resumed.shouldPassExplicitModel).toBe(true);
 
+  const startupResume = resolveRuntimeModelStrategy(
+    {
+      provider: "openai-compatible",
+      model: "glm-openai-test",
+    },
+    {
+      buildSessionContext: () => ({
+        messages: [{ role: "user", content: "hi" }],
+        thinkingLevel: "medium",
+        model: {
+          provider: "openai-compatible",
+          modelId: "saved-session-model",
+        },
+      }),
+    },
+    { type: "session_start", reason: "startup" },
+  );
+
+  expect(startupResume.selection).toEqual({
+    provider: "openai-compatible",
+    model: "glm-openai-test",
+  });
+  expect(startupResume.shouldPassExplicitModel).toBe(true);
+
+  const reloaded = resolveRuntimeModelStrategy(
+    {
+      provider: "openai-compatible",
+      model: "glm-openai-test",
+    },
+    {
+      buildSessionContext: () => ({
+        messages: [{ role: "user", content: "hi" }],
+        thinkingLevel: "medium",
+        model: {
+          provider: "openai-compatible",
+          modelId: "saved-session-model",
+        },
+      }),
+    },
+    { type: "session_start", reason: "reload" },
+  );
+
+  expect(reloaded.selection).toEqual({
+    provider: "openai-compatible",
+    model: "glm-openai-test",
+  });
+  expect(reloaded.shouldPassExplicitModel).toBe(true);
+
   const freshNewSession = resolveRuntimeModelStrategy(
     currentBuiltInSelection!,
     {

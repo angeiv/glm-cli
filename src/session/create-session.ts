@@ -251,7 +251,13 @@ export function resolveRuntimeModelStrategy(
   sessionStartEvent?: { type: "session_start"; reason: string },
 ): RuntimeModelStrategy {
   const reason = sessionStartEvent?.reason;
-  const shouldPinPreferredSelection = !reason || reason === "new" || reason === "resume" || reason === "fork";
+  const shouldPinPreferredSelection =
+    !reason ||
+    reason === "startup" ||
+    reason === "reload" ||
+    reason === "new" ||
+    reason === "resume" ||
+    reason === "fork";
 
   // glm chooses to keep the currently selected model across session switches/resumes.
   // This avoids surprising behavior when users change credentials/model IDs in a new terminal
