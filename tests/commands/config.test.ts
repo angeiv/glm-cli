@@ -53,6 +53,24 @@ describe("configGet", () => {
     expect(log).toHaveBeenCalledWith("5");
   });
 
+  test("reads loop budget keys", async () => {
+    const log = vi.fn();
+    const value = await configGet("loopMaxToolCalls", {
+      readConfigFile: async () => ({
+        ...getDefaultConfigFile(),
+        loop: {
+          ...getDefaultConfigFile().loop,
+          maxToolCalls: 25,
+          maxVerifyRuns: 3,
+        },
+      }),
+      log,
+    });
+
+    expect(value).toBe("25");
+    expect(log).toHaveBeenCalledWith("25");
+  });
+
   test("reads diagnostics keys", async () => {
     const log = vi.fn();
     const value = await configGet("eventLogLimit", {
@@ -168,6 +186,25 @@ describe("configSet", () => {
       expect.objectContaining({
         loop: expect.objectContaining({
           failureMode: "fail",
+        }),
+      }),
+    );
+  });
+
+  test("updates loop budget keys and persists them", async () => {
+    const writeConfigFile = vi.fn(async () => undefined);
+
+    const updated = await configSet("loopMaxVerifyRuns", "2", {
+      readConfigFile: async () => getDefaultConfigFile(),
+      writeConfigFile,
+      log: vi.fn(),
+    });
+
+    expect(updated.loop.maxVerifyRuns).toBe(2);
+    expect(writeConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        loop: expect.objectContaining({
+          maxVerifyRuns: 2,
         }),
       }),
     );

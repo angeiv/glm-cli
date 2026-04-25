@@ -33,6 +33,8 @@ const CONFIG_KEYS = [
   "loopEnabledByDefault",
   "loopProfile",
   "loopMaxRounds",
+  "loopMaxToolCalls",
+  "loopMaxVerifyRuns",
   "loopFailureMode",
   "loopAutoVerify",
   "loopVerifyCommand",
@@ -119,6 +121,12 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   }
   if (key === "loopMaxRounds") {
     return config.loop.maxRounds?.toString() ?? "3";
+  }
+  if (key === "loopMaxToolCalls") {
+    return config.loop.maxToolCalls?.toString() ?? CLEARABLE_VALUE;
+  }
+  if (key === "loopMaxVerifyRuns") {
+    return config.loop.maxVerifyRuns?.toString() ?? CLEARABLE_VALUE;
   }
   if (key === "loopFailureMode") {
     return config.loop.failureMode ?? "handoff";
@@ -288,6 +296,17 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
     return parsed;
   }
 
+  if (key === "loopMaxToolCalls" || key === "loopMaxVerifyRuns") {
+    if (trimmed === CLEARABLE_VALUE) {
+      return undefined;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(`${key} must be a positive integer or ${CLEARABLE_VALUE}`);
+    }
+    return parsed;
+  }
+
   if (key === "loopVerifyCommand") {
     if (trimmed === CLEARABLE_VALUE) {
       return undefined;
@@ -383,6 +402,18 @@ export async function configSet(
     config.loop.profile = parsedValue as LoopProfileName;
   } else if (key === "loopMaxRounds") {
     config.loop.maxRounds = parsedValue as number;
+  } else if (key === "loopMaxToolCalls") {
+    if (parsedValue === undefined) {
+      delete config.loop.maxToolCalls;
+    } else {
+      config.loop.maxToolCalls = parsedValue as number;
+    }
+  } else if (key === "loopMaxVerifyRuns") {
+    if (parsedValue === undefined) {
+      delete config.loop.maxVerifyRuns;
+    } else {
+      config.loop.maxVerifyRuns = parsedValue as number;
+    }
   } else if (key === "loopFailureMode") {
     config.loop.failureMode = parsedValue as LoopFailureMode;
   } else if (key === "loopAutoVerify") {

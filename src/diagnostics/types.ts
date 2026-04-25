@@ -14,6 +14,8 @@ export type RuntimeLoopStatus = {
   enabled: boolean;
   profile: LoopProfileName;
   maxRounds: number;
+  maxToolCalls?: number;
+  maxVerifyRuns?: number;
   failureMode: LoopFailureMode;
   autoVerify: boolean;
   verifyCommand?: string;
