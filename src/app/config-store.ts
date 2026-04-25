@@ -1,5 +1,6 @@
 import { getGlmConfigPath, getGlmRootDir } from "./dirs.js";
 import * as fsPromises from "node:fs/promises";
+import type { GlmProfileOverrideRule } from "../models/resolve-glm-profile-v2.js";
 
 export const fileSystem = {
   readFile: fsPromises.readFile,
@@ -48,6 +49,9 @@ export type GlmCapabilitiesConfig = {
   clearThinking?: boolean;
   toolStream?: ToolStreamMode;
   responseFormat?: ResponseFormatType;
+};
+export type ModelProfilesConfig = {
+  overrides?: GlmProfileOverrideRule[];
 };
 export type LoopConfig = {
   enabledByDefault?: boolean;
@@ -145,6 +149,7 @@ export type GlmConfigFile = {
   generation: GenerationConfig;
   glmCapabilities: GlmCapabilitiesConfig;
   loop: LoopConfig;
+  modelProfiles?: ModelProfilesConfig;
   providers: Record<StorageProviderKey, ProviderConfig>;
 };
 
@@ -271,6 +276,42 @@ function cloneLoopConfig(config?: LoopConfig): LoopConfig {
   };
 }
 
+function cloneModelProfilesConfig(
+  config?: ModelProfilesConfig,
+): ModelProfilesConfig | undefined {
+  const rawOverrides = (config as unknown as { overrides?: unknown })?.overrides;
+  if (rawOverrides === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(rawOverrides)) {
+    // Preserve invalid values so validation can surface a helpful error.
+    return { ...(config as any) } as ModelProfilesConfig;
+  }
+
+  if (rawOverrides.length === 0) {
+    return undefined;
+  }
+
+  const overrides = rawOverrides.map((rule) => {
+    if (!rule || typeof rule !== "object") {
+      return rule as GlmProfileOverrideRule;
+    }
+
+    const record = rule as Record<string, unknown>;
+    const match = record.match;
+    const caps = record.caps;
+
+    return {
+      ...record,
+      ...(match && typeof match === "object" ? { match: { ...(match as Record<string, unknown>) } } : { match }),
+      ...(caps && typeof caps === "object" ? { caps: { ...(caps as Record<string, unknown>) } } : { caps }),
+    } as GlmProfileOverrideRule;
+  });
+
+  return { overrides };
+}
+
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
   const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
   const rawDebugRuntime = (config as unknown as { debugRuntime?: unknown })?.debugRuntime;
@@ -281,6 +322,9 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
     rawDefaultProvider === undefined
       ? BASE_DEFAULT_CONFIG_FILE.defaultProvider
       : (rawDefaultProvider as PersistedProviderName);
+  const modelProfiles = cloneModelProfilesConfig(
+    (config as unknown as { modelProfiles?: ModelProfilesConfig })?.modelProfiles,
+  );
 
   return {
     defaultProvider,
@@ -318,6 +362,7 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       (config as unknown as { loop?: LoopConfig })?.loop ??
         BASE_DEFAULT_CONFIG_FILE.loop,
     ),
+    ...(modelProfiles ? { modelProfiles } : {}),
     providers: {
       glm: cloneProviderConfig(
         config?.providers?.glm ?? BASE_DEFAULT_CONFIG_FILE.providers.glm,
@@ -390,6 +435,7 @@ function validateConfigFile(config: GlmConfigFile): void {
   validateGenerationConfig(config.generation);
   validateGlmCapabilitiesConfig(config.glmCapabilities);
   validateLoopConfig(config.loop);
+  validateModelProfilesConfig(config.modelProfiles);
 
   Object.entries(config.providers).forEach(([key, value]) => {
     validateProviderConfig(value, key as StorageProviderKey);
@@ -492,6 +538,141 @@ function validateLoopConfig(config: LoopConfig): void {
   if (config.verifyCommand !== undefined && typeof config.verifyCommand !== "string") {
     throw new Error(`Invalid loop.verifyCommand in config file: ${typeof config.verifyCommand}`);
   }
+}
+
+const GLM_MODEL_CAP_KEYS = new Set([
+  "contextWindow",
+  "maxOutputTokens",
+  "supportsThinking",
+  "defaultThinkingMode",
+  "supportsPreservedThinking",
+  "supportsStreaming",
+  "supportsToolCall",
+  "supportsToolStream",
+  "supportsCache",
+  "supportsStructuredOutput",
+  "supportsMcp",
+]);
+
+function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
+  if (config === undefined) return;
+  if (typeof config !== "object" || config === null) {
+    throw new Error(`Invalid modelProfiles in config file: ${typeof config}`);
+  }
+
+  const overrides = (config as unknown as { overrides?: unknown })?.overrides;
+  if (overrides === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(overrides)) {
+    throw new Error(`Invalid modelProfiles.overrides in config file: ${typeof overrides}`);
+  }
+
+  overrides.forEach((rule, index) => {
+    if (typeof rule !== "object" || rule === null) {
+      throw new Error(`Invalid modelProfiles.overrides[${index}] in config file: ${typeof rule}`);
+    }
+
+    const record = rule as Record<string, unknown>;
+    const match = record.match;
+    if (typeof match !== "object" || match === null) {
+      throw new Error(`Invalid modelProfiles.overrides[${index}].match in config file: ${typeof match}`);
+    }
+
+    const matchRecord = match as Record<string, unknown>;
+    const matchKeys = [
+      "provider",
+      "baseUrl",
+      "modelId",
+      "canonicalModelId",
+      "platform",
+      "upstreamVendor",
+    ] as const;
+    const populatedKeys = matchKeys.filter((key) => {
+      const value = matchRecord[key];
+      if (value === undefined) return false;
+      if (typeof value !== "string") {
+        throw new Error(
+          `Invalid modelProfiles.overrides[${index}].match.${key} in config file: ${typeof value}`,
+        );
+      }
+      if (!value.trim()) {
+        throw new Error(
+          `Invalid modelProfiles.overrides[${index}].match.${key} in config file: empty string`,
+        );
+      }
+      return true;
+    });
+
+    if (populatedKeys.length === 0) {
+      throw new Error(
+        `Invalid modelProfiles.overrides[${index}] in config file: match must specify at least one selector`,
+      );
+    }
+
+    const canonicalModelId = record.canonicalModelId;
+    if (canonicalModelId !== undefined) {
+      if (typeof canonicalModelId !== "string") {
+        throw new Error(
+          `Invalid modelProfiles.overrides[${index}].canonicalModelId in config file: ${typeof canonicalModelId}`,
+        );
+      }
+      if (!canonicalModelId.trim()) {
+        throw new Error(
+          `Invalid modelProfiles.overrides[${index}].canonicalModelId in config file: empty string`,
+        );
+      }
+    }
+
+    const payloadPatchPolicy = record.payloadPatchPolicy;
+    if (payloadPatchPolicy !== undefined) {
+      if (payloadPatchPolicy !== "glm-native" && payloadPatchPolicy !== "safe-openai-compatible") {
+        throw new Error(
+          `Invalid modelProfiles.overrides[${index}].payloadPatchPolicy in config file: ${String(payloadPatchPolicy)}`,
+        );
+      }
+    }
+
+    const caps = record.caps;
+    if (caps === undefined) {
+      return;
+    }
+
+    if (typeof caps !== "object" || caps === null) {
+      throw new Error(`Invalid modelProfiles.overrides[${index}].caps in config file: ${typeof caps}`);
+    }
+
+    for (const [key, value] of Object.entries(caps)) {
+      if (!GLM_MODEL_CAP_KEYS.has(key)) {
+        throw new Error(`Invalid modelProfiles.overrides[${index}].caps key: ${key}`);
+      }
+
+      if (key === "contextWindow" || key === "maxOutputTokens") {
+        if (!Number.isInteger(value) || (value as number) <= 0) {
+          throw new Error(
+            `Invalid modelProfiles.overrides[${index}].caps.${key} in config file: ${String(value)}`,
+          );
+        }
+        continue;
+      }
+
+      if (key === "defaultThinkingMode") {
+        if (value !== "auto" && value !== "enabled" && value !== "disabled") {
+          throw new Error(
+            `Invalid modelProfiles.overrides[${index}].caps.defaultThinkingMode in config file: ${String(value)}`,
+          );
+        }
+        continue;
+      }
+
+      if (typeof value !== "boolean") {
+        throw new Error(
+          `Invalid modelProfiles.overrides[${index}].caps.${key} in config file: ${typeof value}`,
+        );
+      }
+    }
+  });
 }
 
 function validateProviderConfig(config: ProviderConfig, key: StorageProviderKey): void {

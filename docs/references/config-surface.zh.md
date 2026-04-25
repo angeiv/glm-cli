@@ -42,6 +42,7 @@
 - `loop.failureMode`
 - `loop.autoVerify`
 - `loop.verifyCommand`
+- `modelProfiles.overrides`
 - `providers.glm.apiKey`
 - `providers.glm.baseURL`
 - `providers.glm.endpoint`
