@@ -14,6 +14,7 @@ import type {
   RuntimeStatus,
   RuntimeVerificationStatus,
 } from "./types.js";
+import { computeRuntimeToolSignature } from "./tool-signature.js";
 
 const GLM_RUNTIME_STATUS = Symbol.for("glm.runtimeStatus");
 
@@ -189,6 +190,10 @@ export async function buildRuntimeStatus(args: {
   env: NodeJS.ProcessEnv;
 }): Promise<RuntimeStatus> {
   const mcp = await readConfiguredMcpServerCount(args.env);
+  const toolSignature = await computeRuntimeToolSignature({
+    cwd: args.cwd,
+    env: args.env,
+  });
   const verification = await readVerificationStatus(args.cwd);
 
   return withEventCount({
@@ -209,6 +214,7 @@ export async function buildRuntimeStatus(args: {
         confidence: profile.evidence.confidence,
       };
     })(),
+    toolSignature,
     approvalPolicy: args.runtime.approvalPolicy,
     loop: {
       enabled: args.loop.enabled,
@@ -258,6 +264,7 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
+    `Tool signature: ${status.toolSignature.hash.slice(0, 12)} (builtin ${status.toolSignature.builtinTools.length} | custom ${status.toolSignature.customTools.length} | mcp ${status.mcp.configuredServerCount})`,
     `Verifier: ${verifier}`,
     `Notifications: ${status.notifications.enabled ? "on" : "off"} | turnEnd ${status.notifications.onTurnEnd ? "on" : "off"} | loopResult ${status.notifications.onLoopResult ? "on" : "off"}`,
     `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount} | direct ${status.mcp.modeCounts.direct} | proxy ${status.mcp.modeCounts.proxy} | hybrid ${status.mcp.modeCounts.hybrid}`,

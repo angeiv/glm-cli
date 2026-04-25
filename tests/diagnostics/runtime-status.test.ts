@@ -135,6 +135,14 @@ describe("buildRuntimeStatus", () => {
         hybrid: 1,
       },
     });
+    expect(status.toolSignature).toMatchObject({
+      hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      builtinTools: expect.arrayContaining(["read", "write", "grep", "bash"]),
+      customTools: expect.arrayContaining(["update_plan", "mark_task_done", "show_plan"]),
+      mcp: expect.objectContaining({
+        configPath: mcpPath,
+      }),
+    });
     expect(status.diagnostics).toMatchObject({
       debugRuntime: true,
       eventLogLimit: 25,

@@ -3,6 +3,7 @@ import type {
   LoopFailureMode,
   LoopProfileName,
 } from "../app/config-store.js";
+import type { RuntimeToolSignature } from "./tool-signature.js";
 
 export type RuntimeDiagnosticsConfig = {
   debugRuntime: boolean;
@@ -69,6 +70,7 @@ export type RuntimeStatus = {
   provider: string;
   model: string;
   resolvedModel: RuntimeResolvedModelStatus;
+  toolSignature: RuntimeToolSignature;
   approvalPolicy: ApprovalPolicy;
   loop: RuntimeLoopStatus;
   diagnostics: RuntimeDiagnosticsConfig & {
