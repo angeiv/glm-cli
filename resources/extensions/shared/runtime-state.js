@@ -75,6 +75,18 @@ export function buildRuntimeStatusLines(status) {
       ? `auto-detect (fallback: ${status.loop.verifyFallbackCommand})`
       : "auto-detect";
 
+  const toolSignatureHash = status.toolSignature?.hash;
+  const toolSignatureLine = toolSignatureHash
+    ? `Tool signature: ${String(toolSignatureHash).slice(0, 12)} (builtin ${status.toolSignature?.builtinTools?.length ?? 0} | custom ${status.toolSignature?.customTools?.length ?? 0} | mcp ${status.mcp?.configuredServerCount ?? 0})`
+    : "Tool signature: unknown";
+
+  const loopBudgets = [
+    `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds}`,
+    status.loop.maxToolCalls === undefined ? undefined : `tools<=${status.loop.maxToolCalls}`,
+    status.loop.maxVerifyRuns === undefined ? undefined : `verify<=${status.loop.maxVerifyRuns}`,
+    `fail ${status.loop.failureMode}`,
+  ].filter(Boolean).join(" | ");
+
   return [
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
@@ -84,10 +96,11 @@ export function buildRuntimeStatusLines(status) {
       ? `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens}`
       : "Model caps: unknown",
     `Approval policy: ${status.approvalPolicy}`,
-    `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
+    loopBudgets,
     status.compaction
       ? `Compaction: ${status.compaction.enabled ? "on" : "off"} | reserve=${status.compaction.reserveTokens} | keepRecent=${status.compaction.keepRecentTokens}`
       : "Compaction: status unavailable",
+    toolSignatureLine,
     `Verifier: ${verifier}`,
     `Notifications: ${status.notifications?.enabled ? "on" : "off"} | turnEnd ${status.notifications?.onTurnEnd ? "on" : "off"} | loopResult ${status.notifications?.onLoopResult ? "on" : "off"}`,
     `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount} | direct ${status.mcp.modeCounts?.direct ?? 0} | proxy ${status.mcp.modeCounts?.proxy ?? 0} | hybrid ${status.mcp.modeCounts?.hybrid ?? 0}`,
