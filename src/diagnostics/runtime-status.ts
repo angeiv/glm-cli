@@ -1,6 +1,6 @@
 import type { GlmConfigFile } from "../app/config-store.js";
 import { buildCapabilityEnvironment, type LoopRuntimeOptions, type RuntimeConfig } from "../app/env.js";
-import { getRuntimeEvents } from "./event-log.js";
+import { appendRuntimeEvent, getRuntimeEvents } from "./event-log.js";
 import { resolveGlmProfileV2 } from "../models/resolve-glm-profile-v2.js";
 import { formatCompactionSource, resolveRuntimeCompactionStatus } from "./compaction-settings.js";
 import {
@@ -320,7 +320,36 @@ export async function buildRuntimeStatus(args: {
 }
 
 export function setRuntimeStatus(status: RuntimeStatus): void {
-  getRuntimeStatusStore().status = withEventCount(status);
+  const store = getRuntimeStatusStore();
+  const previous = store.status;
+
+  if (
+    previous?.toolSignature?.hash &&
+    status.toolSignature?.hash &&
+    previous.toolSignature.hash !== status.toolSignature.hash
+  ) {
+    appendRuntimeEvent({
+      type: "tools.changed",
+      level: "warn",
+      summary: `tool signature changed: ${previous.toolSignature.hash.slice(0, 12)} -> ${status.toolSignature.hash.slice(0, 12)}`,
+      details: {
+        before: {
+          hash: previous.toolSignature.hash,
+          builtinTools: previous.toolSignature.builtinTools,
+          customTools: previous.toolSignature.customTools,
+          mcp: previous.toolSignature.mcp,
+        },
+        after: {
+          hash: status.toolSignature.hash,
+          builtinTools: status.toolSignature.builtinTools,
+          customTools: status.toolSignature.customTools,
+          mcp: status.toolSignature.mcp,
+        },
+      },
+    });
+  }
+
+  store.status = withEventCount(status);
 }
 
 export function getRuntimeStatus(): RuntimeStatus | undefined {
