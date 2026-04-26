@@ -94,6 +94,7 @@ export type RuntimeStatus = {
   cwd: string;
   provider: string;
   model: string;
+  baseUrl?: string;
   resolvedModel: RuntimeResolvedModelStatus;
   toolSignature: RuntimeToolSignature;
   approvalPolicy: ApprovalPolicy;
