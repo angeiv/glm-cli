@@ -143,6 +143,13 @@ Token / 成本统计：
 - `/loop clear-verify`
 - `/loop run <task>`
 
+会话记忆（session memory）：
+
+- `/memory`
+- `/memory note <text>`
+- `/memory clear-notes`
+- `/memory path`
+
 ## 内置 Web Tools
 
 glm 内置了两个可被模型调用的 web 相关工具：

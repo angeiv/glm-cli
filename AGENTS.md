@@ -12,6 +12,8 @@ Short repo guide for contributors and agents working inside `glm-cli`.
 - `src/commands/run.ts`: one-shot task execution and loop entry.
 - `src/commands/config.ts`: `glm config get|set`.
 - `src/commands/doctor.ts`: local diagnostics before session startup.
+- `src/commands/inspect.ts`: `glm inspect` (prints effective runtime state).
+- `src/commands/verify.ts`: `glm verify` (runs verifier + writes artifacts).
 
 ### Runtime, session, and prompt stack
 
@@ -34,6 +36,7 @@ Short repo guide for contributors and agents working inside `glm-cli`.
 - `resources/extensions/glm-zhipu/`: GLM-specific request shaping.
 - `resources/extensions/glm-mcp/`: MCP config loading and tool exposure.
 - `resources/extensions/glm-policy/`: approval policy and dangerous-command behavior.
+- `resources/extensions/glm-memory/`: session memory (`/memory`) and compaction persistence.
 - `resources/extensions/glm-web/`: built-in web helpers.
 
 ### Tests and docs

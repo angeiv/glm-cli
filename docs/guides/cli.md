@@ -143,6 +143,13 @@ Delivery-quality loop:
 - `/loop clear-verify`
 - `/loop run <task>`
 
+Session memory:
+
+- `/memory`
+- `/memory note <text>`
+- `/memory clear-notes`
+- `/memory path`
+
 ## Built-in web tools
 
 glm bundles two web-related tools that models can call:
