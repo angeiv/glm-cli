@@ -26,6 +26,8 @@ export type RunCommandInput = {
   loop?: boolean;
   verify?: string;
   maxRounds?: number;
+  maxToolCalls?: number;
+  maxVerifyRuns?: number;
   failMode?: LoopFailureMode;
 };
 
@@ -48,6 +50,8 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
       loop: input.loop,
       verify: input.verify,
       maxRounds: input.maxRounds,
+      maxToolCalls: input.maxToolCalls,
+      maxVerifyRuns: input.maxVerifyRuns,
       failMode: input.failMode,
     },
     process.env,

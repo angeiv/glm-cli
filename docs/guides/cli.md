@@ -80,6 +80,8 @@ These flags apply to `glm`, `glm chat`, and `glm run`:
 - `--loop`: enable the delivery-quality loop
 - `--verify <command>`: loop verifier command (or `glm verify` override)
 - `--max-rounds <n>`: loop round limit
+- `--max-tool-calls <n>`: loop tool call budget
+- `--max-verify-runs <n>`: loop verification budget
 - `--fail-mode <handoff|fail>`: loop terminal behavior
 
 ## Prompt lanes (`--mode`)

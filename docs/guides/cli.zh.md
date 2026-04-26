@@ -80,6 +80,8 @@ glm inspect --json
 - `--loop`：启用交付质量 loop
 - `--verify <command>`：loop 的 verifier 命令（或 `glm verify` 覆盖）
 - `--max-rounds <n>`：loop 最大轮数
+- `--max-tool-calls <n>`：loop 工具调用预算
+- `--max-verify-runs <n>`：loop 验证预算
 - `--fail-mode <handoff|fail>`：loop 终止策略
 
 ## Prompt lane（`--mode`）
