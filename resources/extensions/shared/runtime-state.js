@@ -68,6 +68,31 @@ export function getRuntimeStatus() {
   };
 }
 
+export function patchRuntimeLoopStatus(patch) {
+  const store = globalThis[GLM_RUNTIME_STATUS];
+  if (!store || typeof store !== "object") {
+    return;
+  }
+
+  const status = store.status;
+  if (!status || typeof status !== "object") {
+    return;
+  }
+
+  const loop = status.loop;
+  if (!loop || typeof loop !== "object") {
+    return;
+  }
+
+  store.status = {
+    ...status,
+    loop: {
+      ...loop,
+      ...patch,
+    },
+  };
+}
+
 export function buildRuntimeStatusLines(status) {
   const verifier = status.loop.verifyCommand
     ? status.loop.verifyCommand
@@ -115,10 +140,33 @@ export function buildRuntimeStatusLines(status) {
     ? `Tool signature: ${String(toolSignatureHash).slice(0, 12)} (builtin ${status.toolSignature?.builtinTools?.length ?? 0} | custom ${status.toolSignature?.customTools?.length ?? 0} | mcp ${status.mcp?.configuredServerCount ?? 0})`
     : "Tool signature: unknown";
 
+  const roundsPart =
+    status.loop.roundsUsed !== undefined
+      ? `rounds ${status.loop.roundsUsed}/${status.loop.maxRounds}`
+      : `rounds ${status.loop.maxRounds}`;
+
+  const toolsBudget =
+    status.loop.maxToolCalls === undefined
+      ? status.loop.toolCallsUsed === undefined
+        ? undefined
+        : `tools used ${status.loop.toolCallsUsed}`
+      : status.loop.toolCallsUsed === undefined
+        ? `tools<=${status.loop.maxToolCalls}`
+        : `tools ${status.loop.toolCallsUsed}/${status.loop.maxToolCalls}`;
+
+  const verifyBudget =
+    status.loop.maxVerifyRuns === undefined
+      ? status.loop.verifyRunsUsed === undefined
+        ? undefined
+        : `verify used ${status.loop.verifyRunsUsed}`
+      : status.loop.verifyRunsUsed === undefined
+        ? `verify<=${status.loop.maxVerifyRuns}`
+        : `verify ${status.loop.verifyRunsUsed}/${status.loop.maxVerifyRuns}`;
+
   const loopBudgets = [
-    `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds}`,
-    status.loop.maxToolCalls === undefined ? undefined : `tools<=${status.loop.maxToolCalls}`,
-    status.loop.maxVerifyRuns === undefined ? undefined : `verify<=${status.loop.maxVerifyRuns}`,
+    `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | ${roundsPart}`,
+    toolsBudget,
+    verifyBudget,
     `fail ${status.loop.failureMode}`,
   ].filter(Boolean).join(" | ");
 

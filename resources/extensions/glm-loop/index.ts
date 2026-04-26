@@ -7,7 +7,7 @@ import type {
 } from "@mariozechner/pi-coding-agent";
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { appendRuntimeEvent } from "../shared/runtime-state.js";
+import { appendRuntimeEvent, patchRuntimeLoopStatus } from "../shared/runtime-state.js";
 import { notifyLoopResult } from "../shared/notify.js";
 import { writeVerificationArtifact } from "../../../src/harness/artifacts.js";
 
@@ -673,6 +673,24 @@ function refreshLoopStatus(
   const resolvedState =
     state ?? readPersistedState(ctx.sessionManager, readDefaultState(process.env));
   const active = getActiveLoop(ctx.sessionManager);
+
+  if (active) {
+    patchRuntimeLoopStatus({
+      roundsUsed: getCurrentRound(active),
+      toolCallsUsed: active.toolCallsUsed,
+      verifyRunsUsed: active.verifyRunsUsed,
+      mode: active.mode,
+      phase: active.phase,
+    });
+  } else {
+    patchRuntimeLoopStatus({
+      roundsUsed: undefined,
+      toolCallsUsed: undefined,
+      verifyRunsUsed: undefined,
+      mode: undefined,
+      phase: undefined,
+    });
+  }
 
   if (active?.mode === "manual") {
     setLoopStatus(ctx, formatActiveLoopStatus(active));

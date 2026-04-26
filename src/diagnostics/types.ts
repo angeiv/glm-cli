@@ -37,6 +37,11 @@ export type RuntimeLoopStatus = {
   maxRounds: number;
   maxToolCalls?: number;
   maxVerifyRuns?: number;
+  roundsUsed?: number;
+  toolCallsUsed?: number;
+  verifyRunsUsed?: number;
+  mode?: "manual" | "auto";
+  phase?: "run" | "verify" | "repair";
   failureMode: LoopFailureMode;
   autoVerify: boolean;
   verifyCommand?: string;
