@@ -90,12 +90,27 @@ export type RuntimeResolvedModelStatus = {
   maxOutputTokens: number;
 };
 
+export type RuntimeGenerationStatus = {
+  maxOutputTokens?: number;
+  temperature?: number;
+  topP?: number;
+};
+
+export type RuntimeGlmCapabilitiesStatus = {
+  thinkingMode?: string;
+  clearThinking?: boolean;
+  toolStream?: string;
+  responseFormat?: string;
+};
+
 export type RuntimeStatus = {
   cwd: string;
   provider: string;
   model: string;
   baseUrl?: string;
   resolvedModel: RuntimeResolvedModelStatus;
+  generation: RuntimeGenerationStatus;
+  glmCapabilities: RuntimeGlmCapabilitiesStatus;
   toolSignature: RuntimeToolSignature;
   approvalPolicy: ApprovalPolicy;
   loop: RuntimeLoopStatus;

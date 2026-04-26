@@ -75,6 +75,41 @@ export function buildRuntimeStatusLines(status) {
       ? `auto-detect (fallback: ${status.loop.verifyFallbackCommand})`
       : "auto-detect";
 
+  const generation = status.generation || {};
+  const generationParts = [];
+  if (generation.maxOutputTokens !== undefined) {
+    generationParts.push(`maxOutputTokens=${generation.maxOutputTokens}`);
+  }
+  if (generation.temperature !== undefined) {
+    generationParts.push(`temperature=${generation.temperature}`);
+  }
+  if (generation.topP !== undefined) {
+    generationParts.push(`topP=${generation.topP}`);
+  }
+  const generationLine =
+    generationParts.length > 0
+      ? `Generation: ${generationParts.join(" | ")}`
+      : "Generation: default";
+
+  const glmCaps = status.glmCapabilities || {};
+  const glmParts = [];
+  if (glmCaps.thinkingMode) {
+    glmParts.push(`thinkingMode=${glmCaps.thinkingMode}`);
+  }
+  if (glmCaps.clearThinking !== undefined) {
+    glmParts.push(`clearThinking=${glmCaps.clearThinking ? "on" : "off"}`);
+  }
+  if (glmCaps.toolStream) {
+    glmParts.push(`toolStream=${glmCaps.toolStream}`);
+  }
+  if (glmCaps.responseFormat) {
+    glmParts.push(`responseFormat=${glmCaps.responseFormat}`);
+  }
+  const glmLine =
+    glmParts.length > 0
+      ? `GLM overrides: ${glmParts.join(" | ")}`
+      : "GLM overrides: none";
+
   const toolSignatureHash = status.toolSignature?.hash;
   const toolSignatureLine = toolSignatureHash
     ? `Tool signature: ${String(toolSignatureHash).slice(0, 12)} (builtin ${status.toolSignature?.builtinTools?.length ?? 0} | custom ${status.toolSignature?.customTools?.length ?? 0} | mcp ${status.mcp?.configuredServerCount ?? 0})`
@@ -95,6 +130,8 @@ export function buildRuntimeStatusLines(status) {
     status.resolvedModel?.contextWindow
       ? `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens}`
       : "Model caps: unknown",
+    generationLine,
+    glmLine,
     `Approval policy: ${status.approvalPolicy}`,
     loopBudgets,
     status.compaction
