@@ -59,6 +59,8 @@ type LoopState = {
   enabled: boolean;
   profile: LoopProfileName;
   maxRounds: number;
+  maxToolCalls?: number;
+  maxVerifyRuns?: number;
   failureMode: LoopFailureMode;
   autoVerify: boolean;
   verifyCommand?: string;
@@ -90,6 +92,10 @@ type ActiveLoopSession =
       phase: LoopPhase;
       currentRound: number;
       maxRounds: number;
+      toolCallsUsed: number;
+      verifyRunsUsed: number;
+      maxToolCalls?: number;
+      maxVerifyRuns?: number;
     }
   | {
       mode: "auto";
@@ -100,6 +106,9 @@ type ActiveLoopSession =
       state: LoopState;
       verifier: VerificationCommandResolution;
       announceSuccess: boolean;
+      toolCallsUsed: number;
+      verifyRunsUsed: number;
+      entryCursor?: number;
     };
 
 const LOOP_STATE_ENTRY = "glm.loop.state";
@@ -146,15 +155,28 @@ function parsePositiveInteger(value: string | undefined, fallback: number): numb
   return parsed;
 }
 
+function parseOptionalPositiveInteger(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value.trim());
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return undefined;
+  }
+  return parsed;
+}
+
 function readDefaultState(env: NodeJS.ProcessEnv): LoopState {
   const failureMode =
     env.GLM_LOOP_FAILURE_MODE === "fail" ? "fail" : "handoff";
   const profile = env.GLM_LOOP_PROFILE === "code" ? "code" : "code";
+  const maxToolCalls = parseOptionalPositiveInteger(env.GLM_LOOP_MAX_TOOL_CALLS);
+  const maxVerifyRuns = parseOptionalPositiveInteger(env.GLM_LOOP_MAX_VERIFY_RUNS);
 
   return {
     enabled: parseBoolean(env.GLM_LOOP_ENABLED, false),
     profile,
     maxRounds: parsePositiveInteger(env.GLM_LOOP_MAX_ROUNDS, 3),
+    ...(maxToolCalls === undefined ? {} : { maxToolCalls }),
+    ...(maxVerifyRuns === undefined ? {} : { maxVerifyRuns }),
     failureMode,
     autoVerify: parseBoolean(env.GLM_LOOP_AUTO_VERIFY, true),
     ...(env.GLM_LOOP_VERIFY_COMMAND?.trim()
@@ -172,6 +194,14 @@ function isLoopState(value: unknown): value is LoopState {
     typeof maybe.maxRounds === "number" &&
     Number.isInteger(maybe.maxRounds) &&
     maybe.maxRounds > 0 &&
+    (maybe.maxToolCalls === undefined ||
+      (typeof maybe.maxToolCalls === "number" &&
+        Number.isInteger(maybe.maxToolCalls) &&
+        maybe.maxToolCalls > 0)) &&
+    (maybe.maxVerifyRuns === undefined ||
+      (typeof maybe.maxVerifyRuns === "number" &&
+        Number.isInteger(maybe.maxVerifyRuns) &&
+        maybe.maxVerifyRuns > 0)) &&
     (maybe.failureMode === "handoff" || maybe.failureMode === "fail") &&
     typeof maybe.autoVerify === "boolean" &&
     (maybe.verifyCommand === undefined || typeof maybe.verifyCommand === "string")
@@ -188,7 +218,7 @@ function readPersistedState(
     if (entry.type !== "custom") continue;
     if (entry.customType !== LOOP_STATE_ENTRY) continue;
     if (isLoopState(entry.data)) {
-      return entry.data;
+      return { ...fallback, ...entry.data };
     }
   }
 
@@ -378,6 +408,20 @@ function emitLoopMessage(pi: ExtensionAPI, lines: string[]): void {
   });
 }
 
+function countToolResultMessages(entries: unknown[], fromIndex: number): number {
+  if (!Array.isArray(entries) || entries.length === 0) return 0;
+  const start = Number.isInteger(fromIndex) && fromIndex > 0 ? fromIndex : 0;
+  let count = 0;
+  for (let i = start; i < entries.length; i++) {
+    const entry = entries[i] as any;
+    if (!entry || typeof entry !== "object") continue;
+    if (entry.type !== "message") continue;
+    if (entry.message?.role !== "toolResult") continue;
+    count += 1;
+  }
+  return count;
+}
+
 function getCurrentRound(active: ActiveLoopSession): number {
   return active.currentRound;
 }
@@ -397,6 +441,8 @@ function buildActiveLoopLines(active: ActiveLoopSession): string[] {
       `Task: ${active.task}`,
       `Phase: ${active.phase}`,
       `Current round: ${getCurrentRound(active)} / ${getMaxRounds(active)}`,
+      `Tool calls: ${active.toolCallsUsed}${active.maxToolCalls === undefined ? "" : ` / ${active.maxToolCalls}`}`,
+      `Verify runs: ${active.verifyRunsUsed}${active.maxVerifyRuns === undefined ? "" : ` / ${active.maxVerifyRuns}`}`,
     ];
   }
 
@@ -405,6 +451,8 @@ function buildActiveLoopLines(active: ActiveLoopSession): string[] {
     `Task: ${active.task}`,
     `Phase: ${active.phase}`,
     `Current round: ${getCurrentRound(active)} / ${getMaxRounds(active)}`,
+    `Tool calls: ${active.toolCallsUsed}${active.state.maxToolCalls === undefined ? "" : ` / ${active.state.maxToolCalls}`}`,
+    `Verify runs: ${active.verifyRunsUsed}${active.state.maxVerifyRuns === undefined ? "" : ` / ${active.state.maxVerifyRuns}`}`,
     `Verifier source: ${active.verifier.source ?? "none"}`,
     active.verifier.kind === "command"
       ? `Verifier: ${active.verifier.command}`
@@ -506,6 +554,8 @@ function buildStatusLines(
     `Loop ${state.enabled ? "armed" : "disabled"} for this session.`,
     `Profile: ${state.profile}`,
     `Max rounds: ${state.maxRounds}`,
+    ...(state.maxToolCalls === undefined ? [] : [`Max tool calls: ${state.maxToolCalls}`]),
+    ...(state.maxVerifyRuns === undefined ? [] : [`Max verify runs: ${state.maxVerifyRuns}`]),
     `Failure mode: ${state.failureMode}`,
     `Auto verify: ${state.autoVerify ? "on" : "off"}`,
     `Verifier: ${verifier}`,
@@ -573,7 +623,20 @@ function getLoopTerminalStatus(
 }
 
 function formatActiveLoopStatus(active: ActiveLoopSession): string {
-  return `loop ${active.mode} ${active.phase} r${getCurrentRound(active)}/${getMaxRounds(active)}`;
+  const base = `loop ${active.mode} ${active.phase} r${getCurrentRound(active)}/${getMaxRounds(active)}`;
+  const maxToolCalls = active.mode === "auto" ? active.state.maxToolCalls : active.maxToolCalls;
+  const maxVerifyRuns = active.mode === "auto" ? active.state.maxVerifyRuns : active.maxVerifyRuns;
+  const toolsBudget =
+    maxToolCalls === undefined
+      ? undefined
+      : `tools ${active.toolCallsUsed}/${maxToolCalls}`;
+  const verifyBudget =
+    maxVerifyRuns === undefined
+      ? undefined
+      : `verify ${active.verifyRunsUsed}/${maxVerifyRuns}`;
+
+  const suffix = [toolsBudget, verifyBudget].filter(Boolean).join(" | ");
+  return suffix ? `${base} | ${suffix}` : base;
 }
 
 function setActiveLoopPhase(
@@ -893,14 +956,27 @@ async function executeLoopRun(
 ): Promise<void> {
   const verifier = await resolveVerifier(ctx.cwd, state);
   const rounds: VerificationResult[] = [];
+  const active = getActiveLoop(ctx.sessionManager);
+  const manual = active?.mode === "manual" ? active : undefined;
+  let toolCallsUsed = manual?.toolCallsUsed ?? 0;
   appendRuntimeEvent({
     type: "loop.run_started",
     summary: `${task} | mode=manual`,
   });
 
   const runTurn = async (message: string) => {
+    const entriesBefore = typeof ctx.sessionManager.getEntries === "function"
+      ? ctx.sessionManager.getEntries().length
+      : undefined;
     pi.sendUserMessage(message);
     await ctx.waitForIdle();
+    if (entriesBefore !== undefined) {
+      const entries = ctx.sessionManager.getEntries();
+      toolCallsUsed += countToolResultMessages(entries, entriesBefore);
+      if (manual) {
+        manual.toolCallsUsed = toolCallsUsed;
+      }
+    }
   };
 
   clearLoopTerminalStatus(ctx.sessionManager);
@@ -909,6 +985,56 @@ async function executeLoopRun(
   for (let round = 1; round <= state.maxRounds; round++) {
     setActiveLoopPhase(ctx.sessionManager, "verify", round);
     refreshLoopStatus(ctx, state);
+    if (state.maxToolCalls !== undefined && toolCallsUsed > state.maxToolCalls) {
+      const verification: VerificationResult = {
+        kind: "unavailable",
+        summary: `Tool call budget exceeded (maxToolCalls=${state.maxToolCalls}, used=${toolCallsUsed}).`,
+      };
+      appendRuntimeEvent({
+        type: "loop.verify",
+        level: "warn",
+        summary: `${verification.kind} | ${verification.summary}`,
+      });
+      rounds.push(verification);
+      if (manual) {
+        manual.verifyRunsUsed = rounds.length;
+      }
+      const status: LoopExecutionStatus =
+        state.failureMode === "fail" ? "failed" : "handoff";
+      const outcome = buildFailureSummary({
+        task,
+        status,
+        rounds,
+        lastResult: verification,
+      });
+      persistLoopResult(pi, createLoopResultRecord({
+        status,
+        task,
+        rounds: rounds.length,
+        verification,
+        outcome,
+      }));
+      setLoopTerminalStatus(
+        ctx.sessionManager,
+        status === "failed" ? "loop failed" : "loop handoff",
+      );
+      refreshLoopStatus(ctx, state);
+      notifyLoopResult(ctx.sessionManager.getSessionId(), {
+        status,
+        task,
+        rounds: rounds.length,
+      });
+      appendRuntimeEvent({
+        type: "loop.result",
+        level: status === "failed" ? "error" : "warn",
+        summary: `${status} | ${task} | rounds=${rounds.length}`,
+      });
+      emitLoopMessage(
+        pi,
+        outcome.split("\n"),
+      );
+      return;
+    }
     const verification =
       verifier.kind === "command"
         ? await runVerification(pi, ctx, verifier.command)
@@ -922,6 +1048,9 @@ async function executeLoopRun(
       summary: `${verification.kind}${verification.command ? ` | ${verification.command}` : ""} | ${verification.summary}`,
     });
     rounds.push(verification);
+    if (manual) {
+      manual.verifyRunsUsed = rounds.length;
+    }
 
     if (verification.kind === "pass") {
       const outcome = buildSuccessSummary(rounds);
@@ -944,6 +1073,52 @@ async function executeLoopRun(
         summary: `succeeded | ${task} | rounds=${rounds.length}`,
       });
       emitLoopMessage(pi, buildSuccessSummary(rounds).split("\n"));
+      return;
+    }
+
+    const canVerifyAgain =
+      state.maxVerifyRuns === undefined ? true : rounds.length < state.maxVerifyRuns;
+    if (!canVerifyAgain) {
+      const budgetStop: VerificationResult = {
+        kind: "unavailable",
+        ...(verification.command ? { command: verification.command } : {}),
+        summary: `Verification budget exceeded (maxVerifyRuns=${state.maxVerifyRuns}). Last result: ${verification.summary}`,
+      };
+
+      const status: LoopExecutionStatus =
+        state.failureMode === "fail" ? "failed" : "handoff";
+      const outcome = buildFailureSummary({
+        task,
+        status,
+        rounds,
+        lastResult: budgetStop,
+      });
+      persistLoopResult(pi, createLoopResultRecord({
+        status,
+        task,
+        rounds: rounds.length,
+        verification: budgetStop,
+        outcome,
+      }));
+      setLoopTerminalStatus(
+        ctx.sessionManager,
+        status === "failed" ? "loop failed" : "loop handoff",
+      );
+      refreshLoopStatus(ctx, state);
+      notifyLoopResult(ctx.sessionManager.getSessionId(), {
+        status,
+        task,
+        rounds: rounds.length,
+      });
+      appendRuntimeEvent({
+        type: "loop.result",
+        level: status === "failed" ? "error" : "warn",
+        summary: `${status} | ${task} | rounds=${rounds.length}`,
+      });
+      emitLoopMessage(
+        pi,
+        outcome.split("\n"),
+      );
       return;
     }
 
@@ -1016,6 +1191,9 @@ async function startAutoLoopIfNeeded(
 
   const verifier = await resolveVerifier(ctx.cwd, state);
   clearLoopTerminalStatus(ctx.sessionManager);
+  const entryCursor = typeof ctx.sessionManager.getEntries === "function"
+    ? ctx.sessionManager.getEntries().length
+    : undefined;
   activeLoops.set(sessionId, {
     mode: "auto",
     task,
@@ -1025,6 +1203,9 @@ async function startAutoLoopIfNeeded(
     state,
     verifier,
     announceSuccess: false,
+    toolCallsUsed: 0,
+    verifyRunsUsed: 0,
+    ...(entryCursor === undefined ? {} : { entryCursor }),
   });
   appendRuntimeEvent({
     type: "loop.run_started",
@@ -1045,8 +1226,68 @@ async function continueAutoLoop(
     return;
   }
 
+  if (typeof ctx.sessionManager.getEntries === "function") {
+    const entries = ctx.sessionManager.getEntries();
+    const cursor = active.entryCursor ?? 0;
+    active.toolCallsUsed += countToolResultMessages(entries, cursor);
+    active.entryCursor = entries.length;
+  }
+
   setActiveLoopPhase(ctx.sessionManager, "verify");
   refreshLoopStatus(ctx);
+  if (
+    active.state.maxToolCalls !== undefined &&
+    active.toolCallsUsed > active.state.maxToolCalls
+  ) {
+    const verification: VerificationResult = {
+      kind: "unavailable",
+      summary: `Tool call budget exceeded (maxToolCalls=${active.state.maxToolCalls}, used=${active.toolCallsUsed}).`,
+    };
+    appendRuntimeEvent({
+      type: "loop.verify",
+      level: "warn",
+      summary: `${verification.kind} | ${verification.summary}`,
+    });
+    active.rounds.push(verification);
+    active.verifyRunsUsed = active.rounds.length;
+
+    activeLoops.delete(sessionId);
+    const status: LoopExecutionStatus =
+      active.state.failureMode === "fail" ? "failed" : "handoff";
+    const outcome = buildFailureSummary({
+      task: active.task,
+      status,
+      rounds: active.rounds,
+      lastResult: verification,
+    });
+    persistLoopResult(pi, createLoopResultRecord({
+      status,
+      task: active.task,
+      rounds: active.rounds.length,
+      verification,
+      outcome,
+    }));
+    setLoopTerminalStatus(
+      ctx.sessionManager,
+      status === "failed" ? "loop failed" : "loop handoff",
+    );
+    notifyLoopResult(ctx.sessionManager.getSessionId(), {
+      status,
+      task: active.task,
+      rounds: active.rounds.length,
+    });
+    appendRuntimeEvent({
+      type: "loop.result",
+      level: status === "failed" ? "error" : "warn",
+      summary: `${status} | ${active.task} | rounds=${active.rounds.length}`,
+    });
+    emitLoopMessage(
+      pi,
+      outcome.split("\n"),
+    );
+    return;
+  }
+
   const verification =
     active.verifier.kind === "command"
       ? await runVerification(pi, ctx, active.verifier.command)
@@ -1060,6 +1301,7 @@ async function continueAutoLoop(
     summary: `${verification.kind}${verification.command ? ` | ${verification.command}` : ""} | ${verification.summary}`,
   });
   active.rounds.push(verification);
+  active.verifyRunsUsed = active.rounds.length;
 
   if (verification.kind === "pass") {
     activeLoops.delete(sessionId);
@@ -1084,6 +1326,53 @@ async function continueAutoLoop(
     if (active.announceSuccess) {
       emitLoopMessage(pi, outcome.split("\n"));
     }
+    return;
+  }
+
+  const canVerifyAgain =
+    active.state.maxVerifyRuns === undefined
+      ? true
+      : active.rounds.length < active.state.maxVerifyRuns;
+  if (!canVerifyAgain) {
+    activeLoops.delete(sessionId);
+    const status: LoopExecutionStatus =
+      active.state.failureMode === "fail" ? "failed" : "handoff";
+    const budgetStop: VerificationResult = {
+      kind: "unavailable",
+      ...(verification.command ? { command: verification.command } : {}),
+      summary: `Verification budget exceeded (maxVerifyRuns=${active.state.maxVerifyRuns}). Last result: ${verification.summary}`,
+    };
+    const outcome = buildFailureSummary({
+      task: active.task,
+      status,
+      rounds: active.rounds,
+      lastResult: budgetStop,
+    });
+    persistLoopResult(pi, createLoopResultRecord({
+      status,
+      task: active.task,
+      rounds: active.rounds.length,
+      verification: budgetStop,
+      outcome,
+    }));
+    setLoopTerminalStatus(
+      ctx.sessionManager,
+      status === "failed" ? "loop failed" : "loop handoff",
+    );
+    notifyLoopResult(ctx.sessionManager.getSessionId(), {
+      status,
+      task: active.task,
+      rounds: active.rounds.length,
+    });
+    appendRuntimeEvent({
+      type: "loop.result",
+      level: status === "failed" ? "error" : "warn",
+      summary: `${status} | ${active.task} | rounds=${active.rounds.length}`,
+    });
+    emitLoopMessage(
+      pi,
+      outcome.split("\n"),
+    );
     return;
   }
 
@@ -1148,6 +1437,9 @@ export default function (pi: ExtensionAPI) {
       if (active?.mode === "auto") {
         clearLoopTerminalStatus(ctx.sessionManager);
         setActiveLoopPhase(ctx.sessionManager, "run");
+        if (typeof ctx.sessionManager.getEntries === "function") {
+          active.entryCursor = ctx.sessionManager.getEntries().length;
+        }
       }
     }
     refreshLoopStatus(ctx);
@@ -1272,6 +1564,10 @@ export default function (pi: ExtensionAPI) {
           phase: "run",
           currentRound: 1,
           maxRounds: state.maxRounds,
+          toolCallsUsed: 0,
+          verifyRunsUsed: 0,
+          ...(state.maxToolCalls === undefined ? {} : { maxToolCalls: state.maxToolCalls }),
+          ...(state.maxVerifyRuns === undefined ? {} : { maxVerifyRuns: state.maxVerifyRuns }),
         });
         refreshLoopStatus(ctx, state);
         try {
