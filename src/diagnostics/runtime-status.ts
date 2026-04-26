@@ -210,16 +210,18 @@ export async function buildRuntimeStatus(args: {
     agentDir: args.paths.agentDir,
     cwd: args.cwd,
   });
+  const baseUrl = resolveRuntimeBaseUrl(args.runtime.provider, args.env, args.config);
 
   return withEventCount({
     cwd: args.cwd,
     provider: args.runtime.provider,
     model: args.runtime.model,
+    baseUrl,
     resolvedModel: (() => {
       const profile = resolveGlmProfileV2({
         provider: args.runtime.provider,
         modelId: args.runtime.model,
-        baseUrl: resolveRuntimeBaseUrl(args.runtime.provider, args.env, args.config),
+        baseUrl,
         overrides: args.config?.modelProfiles?.overrides,
       });
 
@@ -283,6 +285,7 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
     `Model: ${status.model}`,
+    `Base URL: ${status.baseUrl ?? "default"}`,
     `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
     `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens}`,
     `Approval policy: ${status.approvalPolicy}`,
