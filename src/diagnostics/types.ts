@@ -10,6 +10,27 @@ export type RuntimeDiagnosticsConfig = {
   eventLogLimit: number;
 };
 
+export type RuntimeSettingsSource = "default" | "global" | "project";
+
+export type RuntimeCompactionStatus = {
+  enabled: boolean;
+  reserveTokens: number;
+  keepRecentTokens: number;
+  settingsPaths: {
+    global: string;
+    project: string;
+  };
+  sources: {
+    enabled: RuntimeSettingsSource;
+    reserveTokens: RuntimeSettingsSource;
+    keepRecentTokens: RuntimeSettingsSource;
+  };
+  errors?: {
+    global?: string;
+    project?: string;
+  };
+};
+
 export type RuntimeLoopStatus = {
   enabled: boolean;
   profile: LoopProfileName;
@@ -65,6 +86,8 @@ export type RuntimeResolvedModelStatus = {
   upstreamVendor: string;
   payloadPatchPolicy: "glm-native" | "safe-openai-compatible";
   confidence: "high" | "medium" | "low";
+  contextWindow: number;
+  maxOutputTokens: number;
 };
 
 export type RuntimeStatus = {
@@ -75,6 +98,7 @@ export type RuntimeStatus = {
   toolSignature: RuntimeToolSignature;
   approvalPolicy: ApprovalPolicy;
   loop: RuntimeLoopStatus;
+  compaction: RuntimeCompactionStatus;
   diagnostics: RuntimeDiagnosticsConfig & {
     eventCount: number;
   };

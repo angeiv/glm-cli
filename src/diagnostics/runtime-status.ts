@@ -2,6 +2,7 @@ import type { GlmConfigFile } from "../app/config-store.js";
 import type { LoopRuntimeOptions, RuntimeConfig } from "../app/env.js";
 import { getRuntimeEvents } from "./event-log.js";
 import { resolveGlmProfileV2 } from "../models/resolve-glm-profile-v2.js";
+import { formatCompactionSource, resolveRuntimeCompactionStatus } from "./compaction-settings.js";
 import {
   getMcpMetadataCachePath,
   resolveMcpConfigPath,
@@ -205,6 +206,10 @@ export async function buildRuntimeStatus(args: {
     env: args.env,
   });
   const verification = await readVerificationStatus(args.cwd);
+  const compaction = await resolveRuntimeCompactionStatus({
+    agentDir: args.paths.agentDir,
+    cwd: args.cwd,
+  });
 
   return withEventCount({
     cwd: args.cwd,
@@ -224,6 +229,8 @@ export async function buildRuntimeStatus(args: {
         upstreamVendor: profile.evidence.upstreamVendor,
         payloadPatchPolicy: profile.payloadPatchPolicy,
         confidence: profile.evidence.confidence,
+        contextWindow: profile.effectiveCaps.contextWindow,
+        maxOutputTokens: profile.effectiveCaps.maxOutputTokens,
       };
     })(),
     toolSignature,
@@ -239,6 +246,7 @@ export async function buildRuntimeStatus(args: {
       ...(args.loop.verifyCommand ? { verifyCommand: args.loop.verifyCommand } : {}),
       ...(args.loop.verifyFallbackCommand ? { verifyFallbackCommand: args.loop.verifyFallbackCommand } : {}),
     },
+    compaction,
     diagnostics: {
       debugRuntime: args.diagnostics.debugRuntime,
       eventLogLimit: args.diagnostics.eventLogLimit,
@@ -276,12 +284,14 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Provider: ${status.provider}`,
     `Model: ${status.model}`,
     `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
+    `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens}`,
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds}${
       status.loop.maxToolCalls === undefined ? "" : ` | tools<=${status.loop.maxToolCalls}`
     }${
       status.loop.maxVerifyRuns === undefined ? "" : ` | verify<=${status.loop.maxVerifyRuns}`
     } | fail ${status.loop.failureMode}`,
+    `Compaction: ${status.compaction.enabled ? "on" : "off"} | reserve=${status.compaction.reserveTokens} | keepRecent=${status.compaction.keepRecentTokens} | source=${formatCompactionSource(compactionSourceSummary(status))}`,
     `Tool signature: ${status.toolSignature.hash.slice(0, 12)} (builtin ${status.toolSignature.builtinTools.length} | custom ${status.toolSignature.customTools.length} | mcp ${status.mcp.configuredServerCount})`,
     `Verifier: ${verifier}`,
     `Notifications: ${status.notifications.enabled ? "on" : "off"} | turnEnd ${status.notifications.onTurnEnd ? "on" : "off"} | loopResult ${status.notifications.onLoopResult ? "on" : "off"}`,
@@ -292,4 +302,13 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Diagnostics: debugRuntime=${status.diagnostics.debugRuntime} | eventLogLimit=${status.diagnostics.eventLogLimit} | events=${status.diagnostics.eventCount}`,
     `Session dir: ${status.paths.sessionDir}`,
   ];
+}
+
+function compactionSourceSummary(status: RuntimeStatus): "default" | "global" | "project" | "mixed" {
+  const sources = status.compaction.sources;
+  const values = new Set(Object.values(sources));
+  if (values.size === 1) {
+    return values.values().next().value as "default" | "global" | "project";
+  }
+  return "mixed";
 }

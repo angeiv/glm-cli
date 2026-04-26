@@ -117,6 +117,8 @@ describe("buildRuntimeStatus", () => {
       upstreamVendor: "unknown",
       payloadPatchPolicy: "glm-native",
       confidence: "high",
+      contextWindow: 204_800,
+      maxOutputTokens: 131_072,
     });
     expect(status.approvalPolicy).toBe("auto");
     expect(status.loop).toMatchObject({
@@ -160,6 +162,11 @@ describe("buildRuntimeStatus", () => {
       command: "pnpm test",
       exitCode: 1,
       summary: "tests failed",
+    });
+    expect(status.compaction).toMatchObject({
+      enabled: true,
+      reserveTokens: 16_384,
+      keepRecentTokens: 20_000,
     });
     expect(formatRuntimeStatusLines(status)).toEqual(
       expect.arrayContaining([
