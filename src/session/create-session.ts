@@ -28,13 +28,6 @@ import {
 import { appendRuntimeEvent, configureRuntimeEventLog } from "../diagnostics/event-log.js";
 import { loadHooks } from "../hooks/loader.js";
 import { DEFAULT_HOOKS_PATH } from "../hooks/registry.js";
-import {
-  buildGlmSessionEnvSnapshot,
-  diffGlmSessionEnvSnapshots,
-  GLM_SESSION_ENV_ENTRY,
-  normalizeSessionStartReason,
-  readLatestGlmSessionEnvSnapshot,
-} from "./session-env.js";
 
 export type GlmSessionInput = {
   cwd: string;
@@ -107,6 +100,60 @@ const MODEL_SELECTION_ENV_KEYS = [
   "OPENAI_MODEL",
   "ANTHROPIC_MODEL",
 ] as const;
+
+function maybeWarnOnStoredSessionModelMismatch(args: {
+  sessionManager: Pick<ReturnType<typeof createGlmSessionManager>, "buildSessionContext"> &
+    Partial<Pick<ReturnType<typeof createGlmSessionManager>, "getSessionId">>;
+  reason: string | undefined;
+  currentSelection: GlmModelSelection | undefined;
+}): void {
+  const reason = args.reason?.trim();
+  if (reason !== "startup" && reason !== "reload" && reason !== "resume") {
+    return;
+  }
+
+  const current = args.currentSelection;
+  if (!current) return;
+
+  let savedModel: any;
+  try {
+    savedModel = args.sessionManager.buildSessionContext().model;
+  } catch {
+    return;
+  }
+
+  if (!savedModel || typeof savedModel !== "object") return;
+
+  const savedProvider = String((savedModel as any).provider ?? "");
+  const savedModelId =
+    typeof (savedModel as any).modelId === "string"
+      ? (savedModel as any).modelId.trim()
+      : "";
+
+  if (!isProviderName(savedProvider) || !savedModelId) return;
+  if (savedProvider === current.provider && savedModelId === current.model) return;
+
+  appendRuntimeEvent({
+    type: "session.resume",
+    level: "warn",
+    summary: `stored session model differs: ${savedProvider}/${savedModelId} -> ${current.provider}/${current.model} (using current config)`,
+    details: {
+      reason,
+      stored: { provider: savedProvider, model: savedModelId },
+      current: { provider: current.provider, model: current.model },
+      ...(typeof args.sessionManager.getSessionId === "function"
+        ? { sessionId: args.sessionManager.getSessionId() }
+        : {}),
+    },
+  });
+
+  // Only print at process startup; avoid disrupting the interactive UI during in-session reloads.
+  if (reason === "startup" || reason === "resume") {
+    console.warn(
+      `Resuming session created with ${savedProvider}/${savedModelId}; using ${current.provider}/${current.model}.`,
+    );
+  }
+}
 const SESSION_APPROVAL_SCOPED_METHODS = new Set([
   "abort",
   "bindExtensions",
@@ -289,38 +336,6 @@ export function resolveRuntimeModelStrategy(
     },
     shouldPassExplicitModel: false,
   };
-}
-
-function summarizeSessionEnvChanges(
-  changes: Array<{ key: string; from: unknown; to: unknown }>,
-): string {
-  if (changes.length === 0) return "env unchanged";
-
-  const formatValue = (key: string, value: unknown): string => {
-    if (key === "toolSignature.hash" && typeof value === "string") {
-      return value.slice(0, 12);
-    }
-    if (typeof value === "string") {
-      return value.length > 80 ? `${value.slice(0, 77)}...` : value;
-    }
-    if (value === null) return "null";
-    if (value === undefined) return "undefined";
-    if (typeof value === "number" || typeof value === "boolean") return String(value);
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
-  };
-
-  const rendered = changes
-    .slice(0, 4)
-    .map(
-      (change) =>
-        `${change.key}=${formatValue(change.key, change.from)}→${formatValue(change.key, change.to)}`,
-    );
-
-  return `env changed: ${rendered.join(", ")}${changes.length > 4 ? ` (+${changes.length - 4} more)` : ""}`;
 }
 
 function wrapSessionWithApprovalPolicy<T extends object>(
@@ -525,6 +540,11 @@ export async function createGlmRuntime(
       sessionManager,
       sessionStartEvent,
     );
+    maybeWarnOnStoredSessionModelMismatch({
+      sessionManager,
+      reason: sessionStartEvent?.reason,
+      currentSelection: strategy.selection ?? preferredSelection,
+    });
 
     const { services, model } = await prepareGlmSession(options, strategy);
     const result = await createAgentSessionFromServices({
@@ -560,35 +580,6 @@ export async function createGlmRuntime(
         config,
       });
       setRuntimeStatus(status);
-
-      const reason = normalizeSessionStartReason(sessionStartEvent?.reason);
-      const previousSnapshot = readLatestGlmSessionEnvSnapshot(
-        sessionManager.getEntries() as unknown as Array<{ type?: string; customType?: string; data?: unknown }>,
-      );
-      const nextSnapshot = buildGlmSessionEnvSnapshot(status, reason);
-      sessionManager.appendCustomEntry(GLM_SESSION_ENV_ENTRY, nextSnapshot);
-
-      const changes = diffGlmSessionEnvSnapshots(previousSnapshot, nextSnapshot);
-      const changeSummary = previousSnapshot
-        ? summarizeSessionEnvChanges(changes)
-        : "no previous snapshot";
-      const summary = `Session ${reason}: provider=${nextSnapshot.provider} model=${nextSnapshot.model} (${changeSummary})`;
-
-      appendRuntimeEvent({
-        type: "session.env_snapshot",
-        summary,
-        ...(changes.length > 0 || sessionStartEvent?.previousSessionFile
-          ? {
-              details: {
-                reason,
-                ...(sessionStartEvent?.previousSessionFile
-                  ? { previousSessionFile: sessionStartEvent.previousSessionFile }
-                  : {}),
-                ...(changes.length > 0 ? { changes } : {}),
-              },
-            }
-          : {}),
-      });
     }
     preferredSelection =
       getGlmModelSelection(result.session.model) ?? preferredSelection;
