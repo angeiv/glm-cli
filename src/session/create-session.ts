@@ -25,9 +25,16 @@ import {
   buildRuntimeStatus,
   setRuntimeStatus,
 } from "../diagnostics/runtime-status.js";
-import { configureRuntimeEventLog } from "../diagnostics/event-log.js";
+import { appendRuntimeEvent, configureRuntimeEventLog } from "../diagnostics/event-log.js";
 import { loadHooks } from "../hooks/loader.js";
 import { DEFAULT_HOOKS_PATH } from "../hooks/registry.js";
+import {
+  buildGlmSessionEnvSnapshot,
+  diffGlmSessionEnvSnapshots,
+  GLM_SESSION_ENV_ENTRY,
+  normalizeSessionStartReason,
+  readLatestGlmSessionEnvSnapshot,
+} from "./session-env.js";
 
 export type GlmSessionInput = {
   cwd: string;
@@ -248,7 +255,11 @@ export function resolveRuntimeModelStrategy(
     ReturnType<typeof createGlmSessionManager>,
     "buildSessionContext"
   >,
-  sessionStartEvent?: { type: "session_start"; reason: string },
+  sessionStartEvent?: {
+    type: "session_start";
+    reason: string;
+    previousSessionFile?: string;
+  },
 ): RuntimeModelStrategy {
   const reason = sessionStartEvent?.reason;
   const shouldPinPreferredSelection =
@@ -278,6 +289,38 @@ export function resolveRuntimeModelStrategy(
     },
     shouldPassExplicitModel: false,
   };
+}
+
+function summarizeSessionEnvChanges(
+  changes: Array<{ key: string; from: unknown; to: unknown }>,
+): string {
+  if (changes.length === 0) return "env unchanged";
+
+  const formatValue = (key: string, value: unknown): string => {
+    if (key === "toolSignature.hash" && typeof value === "string") {
+      return value.slice(0, 12);
+    }
+    if (typeof value === "string") {
+      return value.length > 80 ? `${value.slice(0, 77)}...` : value;
+    }
+    if (value === null) return "null";
+    if (value === undefined) return "undefined";
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  };
+
+  const rendered = changes
+    .slice(0, 4)
+    .map(
+      (change) =>
+        `${change.key}=${formatValue(change.key, change.from)}→${formatValue(change.key, change.to)}`,
+    );
+
+  return `env changed: ${rendered.join(", ")}${changes.length > 4 ? ` (+${changes.length - 4} more)` : ""}`;
 }
 
 function wrapSessionWithApprovalPolicy<T extends object>(
@@ -497,28 +540,56 @@ export async function createGlmRuntime(
     if (activeSelection) {
       await syncPackagedResources(options.agentDir);
       const config = await readConfigFile();
-	      setRuntimeStatus(
-	        await buildRuntimeStatus({
-	          cwd: options.cwd,
-	          runtime: {
-	            provider: resolveStatusProvider(activeSelection.provider, options.provider),
-	            model: activeSelection.model,
-	            approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
-	          },
-	          loop: resolveLoopRuntimeOptions({}, process.env, config),
-	          diagnostics: resolveDiagnosticsRuntimeOptions(config),
-	          notifications: resolveNotificationRuntimeOptions(process.env, config),
-	          paths: {
-	            agentDir: options.agentDir,
-	            sessionDir: options.sessionDir,
-	            authPath: options.authPath,
-	            modelsPath: options.modelsPath,
-	          },
-	          env: process.env,
-	          config,
-	        }),
-	      );
-	    }
+      const status = await buildRuntimeStatus({
+        cwd: options.cwd,
+        runtime: {
+          provider: resolveStatusProvider(activeSelection.provider, options.provider),
+          model: activeSelection.model,
+          approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
+        },
+        loop: resolveLoopRuntimeOptions({}, process.env, config),
+        diagnostics: resolveDiagnosticsRuntimeOptions(config),
+        notifications: resolveNotificationRuntimeOptions(process.env, config),
+        paths: {
+          agentDir: options.agentDir,
+          sessionDir: options.sessionDir,
+          authPath: options.authPath,
+          modelsPath: options.modelsPath,
+        },
+        env: process.env,
+        config,
+      });
+      setRuntimeStatus(status);
+
+      const reason = normalizeSessionStartReason(sessionStartEvent?.reason);
+      const previousSnapshot = readLatestGlmSessionEnvSnapshot(
+        sessionManager.getEntries() as unknown as Array<{ type?: string; customType?: string; data?: unknown }>,
+      );
+      const nextSnapshot = buildGlmSessionEnvSnapshot(status, reason);
+      sessionManager.appendCustomEntry(GLM_SESSION_ENV_ENTRY, nextSnapshot);
+
+      const changes = diffGlmSessionEnvSnapshots(previousSnapshot, nextSnapshot);
+      const changeSummary = previousSnapshot
+        ? summarizeSessionEnvChanges(changes)
+        : "no previous snapshot";
+      const summary = `Session ${reason}: provider=${nextSnapshot.provider} model=${nextSnapshot.model} (${changeSummary})`;
+
+      appendRuntimeEvent({
+        type: "session.env_snapshot",
+        summary,
+        ...(changes.length > 0 || sessionStartEvent?.previousSessionFile
+          ? {
+              details: {
+                reason,
+                ...(sessionStartEvent?.previousSessionFile
+                  ? { previousSessionFile: sessionStartEvent.previousSessionFile }
+                  : {}),
+                ...(changes.length > 0 ? { changes } : {}),
+              },
+            }
+          : {}),
+      });
+    }
     preferredSelection =
       getGlmModelSelection(result.session.model) ?? preferredSelection;
 
@@ -543,6 +614,27 @@ export async function createGlmRuntime(
     preferredSelection =
       getGlmModelSelection(runtime.session.model) ?? preferredSelection;
     return originalNewSession(options);
+  };
+
+  const originalSwitchSession = runtime.switchSession.bind(runtime);
+  runtime.switchSession = async (sessionPath, cwdOverride) => {
+    preferredSelection =
+      getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    return originalSwitchSession(sessionPath, cwdOverride);
+  };
+
+  const originalFork = runtime.fork.bind(runtime);
+  runtime.fork = async (entryId) => {
+    preferredSelection =
+      getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    return originalFork(entryId);
+  };
+
+  const originalImportFromJsonl = runtime.importFromJsonl.bind(runtime);
+  runtime.importFromJsonl = async (sessionPath, cwdOverride) => {
+    preferredSelection =
+      getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    return originalImportFromJsonl(sessionPath, cwdOverride);
   };
 
   return wrapRuntimeWithApprovalPolicy(runtime, input.approvalPolicy);

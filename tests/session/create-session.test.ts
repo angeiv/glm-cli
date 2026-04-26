@@ -449,6 +449,9 @@ test("createGlmRuntime scopes approval policy for direct runtime session usage a
       prompt,
     },
     newSession: vi.fn(async () => ({ cancelled: false })),
+    switchSession: vi.fn(async () => ({ cancelled: false })),
+    fork: vi.fn(async () => ({ cancelled: false })),
+    importFromJsonl: vi.fn(async () => ({ cancelled: false })),
   };
 
   vi.doMock("@mariozechner/pi-coding-agent", async () => {
@@ -530,6 +533,9 @@ test("approval policy can be changed at runtime via shared global state", async 
       prompt,
     },
     newSession: vi.fn(async () => ({ cancelled: false })),
+    switchSession: vi.fn(async () => ({ cancelled: false })),
+    fork: vi.fn(async () => ({ cancelled: false })),
+    importFromJsonl: vi.fn(async () => ({ cancelled: false })),
   };
 
   vi.doMock("@mariozechner/pi-coding-agent", async () => {
