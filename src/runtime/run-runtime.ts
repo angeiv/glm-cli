@@ -226,7 +226,8 @@ export async function runTaskLoop(
         }
 
         const nextMessages = runtime.session.state.messages.slice(beforeCount) as Array<{ role?: string }>;
-        const toolDelta = nextMessages.filter((msg) => msg.role === "tool").length;
+        // Pi stores tool executions as `toolResult` messages.
+        const toolDelta = nextMessages.filter((msg) => msg.role === "toolResult").length;
         toolCallsUsed += toolDelta;
       },
       runVerification: async () => {

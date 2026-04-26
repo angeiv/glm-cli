@@ -45,7 +45,7 @@ function createFakeRuntime(
           content: [{ type: "text", text: replies.shift() ?? "ok" }],
         });
         for (let i = 0; i < toolMessagesPerPrompt; i++) {
-          state.messages.push({ role: "tool", content: [{ type: "text", text: "tool result" }] });
+          state.messages.push({ role: "toolResult", content: [{ type: "text", text: "tool result" }] });
         }
       }),
       agent: {
