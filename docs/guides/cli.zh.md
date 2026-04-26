@@ -122,6 +122,34 @@ glm 使用 `settings.json` 文件管理很多运行时行为（如 compact、ret
 - 全局：`~/.glm/agent/settings.json`
 - 项目级：`<project>/.glm/settings.json`
 
+### Compaction（上下文压缩）
+
+当 session 变大时，glm 会自动压缩上下文（compaction），以尽量保持在所选模型的上下文窗口内。交互模式下也可以手动触发：
+
+```text
+/compact
+/compact 只保留高层计划与验证结果
+```
+
+Compaction 配置（写在任一 `settings.json` 中）：
+
+```json
+{
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  }
+}
+```
+
+触发条件：
+
+- 当估算的上下文 token 使用量超过 `contextWindow - reserveTokens` 时，会触发 compaction。
+- 压缩后会尽量保留约 `keepRecentTokens` 的近期上下文。
+
+`glm inspect --json` 会同时输出模型的 `contextWindow` 与最终生效的 compaction 配置。
+
 交互模式流式输出时：
 
 - `Enter` 会发送 steering message（`steer`）到当前生成过程

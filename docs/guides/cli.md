@@ -122,6 +122,34 @@ glm uses `settings.json` files for many runtime behaviors (compaction, retry, st
 - Global: `~/.glm/agent/settings.json`
 - Per-project: `<project>/.glm/settings.json`
 
+### Compaction (context compression)
+
+When a session gets large, glm compacts the retained context to stay within the selected model's context window. In interactive mode you can also force a compaction:
+
+```text
+/compact
+/compact keep only the high-level plan and verification results
+```
+
+Compaction settings (in either `settings.json`):
+
+```json
+{
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  }
+}
+```
+
+Trigger condition:
+
+- Compaction runs once the estimated context usage exceeds `contextWindow - reserveTokens`.
+- After compaction, glm keeps approximately `keepRecentTokens` worth of recent context.
+
+`glm inspect --json` prints both the resolved model context window and the effective compaction settings.
+
 While streaming in interactive mode:
 
 - `Enter` sends a steering message (`steer`) into the current generation.

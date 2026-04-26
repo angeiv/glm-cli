@@ -15,8 +15,28 @@ Agent-facing map of the current `glm` config and runtime state.
 - `~/.glm/agent/prompts/system.md`: synced base contract prompt
 - `~/.glm/agent/auth.json`: runtime auth state path
 - `~/.glm/agent/models.json`: runtime model cache path
+- `~/.glm/agent/settings.json`: global runtime settings (`/compact`, retry, steering, etc)
 - `~/.glm/sessions/`: session directories derived from cwd
 - `~/.glm/logs/`: reserved log directory helper
+
+## `settings.json` shape
+
+`settings.json` is a runtime-owned settings file (separate from `config.json`). It supports global and per-project overrides:
+
+- Global: `~/.glm/agent/settings.json`
+- Per-project: `<project>/.glm/settings.json`
+
+Compaction controls (defaults shown):
+
+```json
+{
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  }
+}
+```
 
 ## `config.json` shape
 

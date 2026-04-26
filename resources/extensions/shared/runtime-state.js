@@ -80,8 +80,14 @@ export function buildRuntimeStatusLines(status) {
     `Provider: ${status.provider}`,
     `Model: ${status.model}`,
     `Resolved: canonical=${status.resolvedModel?.canonicalModelId ?? "none"} | platform=${status.resolvedModel?.platform ?? "unknown"} | upstream=${status.resolvedModel?.upstreamVendor ?? "unknown"} | patch=${status.resolvedModel?.payloadPatchPolicy ?? "safe-openai-compatible"} | confidence=${status.resolvedModel?.confidence ?? "low"}`,
+    status.resolvedModel?.contextWindow
+      ? `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens}`
+      : "Model caps: unknown",
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds} | fail ${status.loop.failureMode}`,
+    status.compaction
+      ? `Compaction: ${status.compaction.enabled ? "on" : "off"} | reserve=${status.compaction.reserveTokens} | keepRecent=${status.compaction.keepRecentTokens}`
+      : "Compaction: status unavailable",
     `Verifier: ${verifier}`,
     `Notifications: ${status.notifications?.enabled ? "on" : "off"} | turnEnd ${status.notifications?.onTurnEnd ? "on" : "off"} | loopResult ${status.notifications?.onLoopResult ? "on" : "off"}`,
     `MCP: ${status.mcp.enabled ? "enabled" : "disabled"} | servers ${status.mcp.configuredServerCount} | direct ${status.mcp.modeCounts?.direct ?? 0} | proxy ${status.mcp.modeCounts?.proxy ?? 0} | hybrid ${status.mcp.modeCounts?.hybrid ?? 0}`,

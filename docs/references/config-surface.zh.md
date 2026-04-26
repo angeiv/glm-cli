@@ -15,8 +15,28 @@
 - `~/.glm/agent/prompts/system.md`：同步后的 base contract prompt
 - `~/.glm/agent/auth.json`：runtime 维护的认证信息文件路径
 - `~/.glm/agent/models.json`：runtime 维护的模型注册表缓存路径
+- `~/.glm/agent/settings.json`：全局运行时设置文件（`/compact`、retry、steering 等）
 - `~/.glm/sessions/`：按 cwd 派生的 session 目录
 - `~/.glm/logs/`：预留日志目录
+
+## `settings.json` 结构
+
+`settings.json` 是运行时设置文件（与 `config.json` 分离），支持全局与项目级覆盖：
+
+- 全局：`~/.glm/agent/settings.json`
+- 项目级：`<project>/.glm/settings.json`
+
+Compaction（上下文压缩）配置项（展示默认值）：
+
+```json
+{
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  }
+}
+```
 
 ## `config.json` 结构
 
