@@ -7,6 +7,7 @@ import { buildRepoOverlay } from "../prompt/repo-overlay.js";
 import { buildTaskOverlay } from "../prompt/task-overlay.js";
 import { buildVerificationOverlay } from "../prompt/verification-overlay.js";
 import type { VerificationResult } from "../loop/types.js";
+import { buildRepoContextPack } from "./repo-context.js";
 
 export type RuntimePromptStack = {
   systemPrompt: string;
@@ -27,12 +28,14 @@ export async function buildRuntimePromptStack(args: {
   mode: PromptMode;
 }): Promise<RuntimePromptStack> {
   const repoOverlay = await buildRepoOverlay(args.cwd);
+  const repoContextPack = await buildRepoContextPack(args.cwd);
 
   return {
     systemPrompt: await loadSystemPrompt(args.agentDir),
     appendSystemPrompt: [
       buildModeOverlay(args.mode),
       ...(repoOverlay ? [repoOverlay] : []),
+      ...(repoContextPack ? [repoContextPack] : []),
     ],
   };
 }
