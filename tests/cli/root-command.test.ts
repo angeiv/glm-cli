@@ -77,6 +77,10 @@ describe("parseCliArgs", () => {
         "pnpm test",
         "--max-rounds",
         "4",
+        "--max-tool-calls",
+        "10",
+        "--max-verify-runs",
+        "2",
         "--fail-mode",
         "fail",
       ]),
@@ -86,6 +90,8 @@ describe("parseCliArgs", () => {
       loop: true,
       verify: "pnpm test",
       maxRounds: 4,
+      maxToolCalls: 10,
+      maxVerifyRuns: 2,
       failMode: "fail",
     });
   });

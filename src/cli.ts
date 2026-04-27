@@ -35,6 +35,8 @@ Options:
   --loop                Enable the delivery-quality loop
   --verify <command>    Verification command to run after each loop round
   --max-rounds <n>      Maximum loop rounds before stopping
+  --max-tool-calls <n>  Maximum tool calls allowed during a loop run
+  --max-verify-runs <n> Maximum verification runs allowed during a loop run
   --fail-mode <mode>    Loop failure mode: handoff or fail
   --json                Print inspect/verify output as JSON
   --help, -h            Show help
@@ -60,6 +62,8 @@ type GlobalFlags = {
   loop: boolean;
   verify?: string;
   maxRounds?: number;
+  maxToolCalls?: number;
+  maxVerifyRuns?: number;
   failMode?: LoopFailureMode;
 };
 
@@ -72,6 +76,8 @@ type BaseCliArgs = {
   loop: boolean;
   verify?: string;
   maxRounds?: number;
+  maxToolCalls?: number;
+  maxVerifyRuns?: number;
   failMode?: LoopFailureMode;
 };
 
@@ -189,6 +195,24 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
       throw new Error("--max-rounds must be a positive integer");
     }
     flags.maxRounds = parsed;
+  }
+
+  const maxToolCallsFlag = extractFlagValue(args, "--max-tool-calls");
+  if (maxToolCallsFlag) {
+    const parsed = Number(maxToolCallsFlag);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error("--max-tool-calls must be a positive integer");
+    }
+    flags.maxToolCalls = parsed;
+  }
+
+  const maxVerifyRunsFlag = extractFlagValue(args, "--max-verify-runs");
+  if (maxVerifyRunsFlag) {
+    const parsed = Number(maxVerifyRunsFlag);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error("--max-verify-runs must be a positive integer");
+    }
+    flags.maxVerifyRuns = parsed;
   }
 
   const failModeFlag = extractFlagValue(args, "--fail-mode");
@@ -322,6 +346,8 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         loop: parsed.loop,
         verify: parsed.verify,
         maxRounds: parsed.maxRounds,
+        maxToolCalls: parsed.maxToolCalls,
+        maxVerifyRuns: parsed.maxVerifyRuns,
         failMode: parsed.failMode,
       });
     case "run":
@@ -335,6 +361,8 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         loop: parsed.loop,
         verify: parsed.verify,
         maxRounds: parsed.maxRounds,
+        maxToolCalls: parsed.maxToolCalls,
+        maxVerifyRuns: parsed.maxVerifyRuns,
         failMode: parsed.failMode,
       });
     case "verify":
@@ -354,6 +382,8 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
           loop: parsed.loop,
           verify: parsed.verify,
           maxRounds: parsed.maxRounds,
+          maxToolCalls: parsed.maxToolCalls,
+          maxVerifyRuns: parsed.maxVerifyRuns,
           failMode: parsed.failMode,
         },
       });
@@ -368,6 +398,8 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
           loop: parsed.loop,
           verify: parsed.verify,
           maxRounds: parsed.maxRounds,
+          maxToolCalls: parsed.maxToolCalls,
+          maxVerifyRuns: parsed.maxVerifyRuns,
           failMode: parsed.failMode,
         },
       });

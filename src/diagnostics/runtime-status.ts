@@ -1,6 +1,6 @@
 import type { GlmConfigFile } from "../app/config-store.js";
-import type { LoopRuntimeOptions, RuntimeConfig } from "../app/env.js";
-import { getRuntimeEvents } from "./event-log.js";
+import { buildCapabilityEnvironment, type LoopRuntimeOptions, type RuntimeConfig } from "../app/env.js";
+import { appendRuntimeEvent, getRuntimeEvents } from "./event-log.js";
 import { resolveGlmProfileV2 } from "../models/resolve-glm-profile-v2.js";
 import { formatCompactionSource, resolveRuntimeCompactionStatus } from "./compaction-settings.js";
 import {
@@ -11,6 +11,8 @@ import {
 import { readLatestVerificationArtifact } from "../harness/artifact-index.js";
 import type {
   RuntimeDiagnosticsConfig,
+  RuntimeGenerationStatus,
+  RuntimeGlmCapabilitiesStatus,
   RuntimeNotificationStatus,
   RuntimePaths,
   RuntimeStatus,
@@ -190,6 +192,32 @@ function resolveRuntimeBaseUrl(
   return undefined;
 }
 
+function parseOptionalBoolean(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") {
+    return true;
+  }
+  if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") {
+    return false;
+  }
+  return undefined;
+}
+
+function parseOptionalInteger(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value.trim());
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) return undefined;
+  return parsed;
+}
+
+function parseOptionalNumber(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value.trim());
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export async function buildRuntimeStatus(args: {
   cwd: string;
   runtime: RuntimeConfig;
@@ -211,6 +239,34 @@ export async function buildRuntimeStatus(args: {
     cwd: args.cwd,
   });
   const baseUrl = resolveRuntimeBaseUrl(args.runtime.provider, args.env, args.config);
+  const capabilitiesEnv = args.config
+    ? buildCapabilityEnvironment(args.env as any, args.config)
+    : {};
+  const generation: RuntimeGenerationStatus = {
+    ...(parseOptionalInteger(capabilitiesEnv.GLM_MAX_OUTPUT_TOKENS) === undefined
+      ? {}
+      : { maxOutputTokens: parseOptionalInteger(capabilitiesEnv.GLM_MAX_OUTPUT_TOKENS)! }),
+    ...(parseOptionalNumber(capabilitiesEnv.GLM_TEMPERATURE) === undefined
+      ? {}
+      : { temperature: parseOptionalNumber(capabilitiesEnv.GLM_TEMPERATURE)! }),
+    ...(parseOptionalNumber(capabilitiesEnv.GLM_TOP_P) === undefined
+      ? {}
+      : { topP: parseOptionalNumber(capabilitiesEnv.GLM_TOP_P)! }),
+  };
+  const glmCapabilities: RuntimeGlmCapabilitiesStatus = {
+    ...(capabilitiesEnv.GLM_THINKING_MODE
+      ? { thinkingMode: String(capabilitiesEnv.GLM_THINKING_MODE) }
+      : {}),
+    ...(parseOptionalBoolean(capabilitiesEnv.GLM_CLEAR_THINKING) === undefined
+      ? {}
+      : { clearThinking: parseOptionalBoolean(capabilitiesEnv.GLM_CLEAR_THINKING)! }),
+    ...(capabilitiesEnv.GLM_TOOL_STREAM
+      ? { toolStream: String(capabilitiesEnv.GLM_TOOL_STREAM) }
+      : {}),
+    ...(capabilitiesEnv.GLM_RESPONSE_FORMAT
+      ? { responseFormat: String(capabilitiesEnv.GLM_RESPONSE_FORMAT) }
+      : {}),
+  };
 
   return withEventCount({
     cwd: args.cwd,
@@ -235,6 +291,8 @@ export async function buildRuntimeStatus(args: {
         maxOutputTokens: profile.effectiveCaps.maxOutputTokens,
       };
     })(),
+    generation,
+    glmCapabilities,
     toolSignature,
     approvalPolicy: args.runtime.approvalPolicy,
     loop: {
@@ -262,7 +320,36 @@ export async function buildRuntimeStatus(args: {
 }
 
 export function setRuntimeStatus(status: RuntimeStatus): void {
-  getRuntimeStatusStore().status = withEventCount(status);
+  const store = getRuntimeStatusStore();
+  const previous = store.status;
+
+  if (
+    previous?.toolSignature?.hash &&
+    status.toolSignature?.hash &&
+    previous.toolSignature.hash !== status.toolSignature.hash
+  ) {
+    appendRuntimeEvent({
+      type: "tools.changed",
+      level: "warn",
+      summary: `tool signature changed: ${previous.toolSignature.hash.slice(0, 12)} -> ${status.toolSignature.hash.slice(0, 12)}`,
+      details: {
+        before: {
+          hash: previous.toolSignature.hash,
+          builtinTools: previous.toolSignature.builtinTools,
+          customTools: previous.toolSignature.customTools,
+          mcp: previous.toolSignature.mcp,
+        },
+        after: {
+          hash: status.toolSignature.hash,
+          builtinTools: status.toolSignature.builtinTools,
+          customTools: status.toolSignature.customTools,
+          mcp: status.toolSignature.mcp,
+        },
+      },
+    });
+  }
+
+  store.status = withEventCount(status);
 }
 
 export function getRuntimeStatus(): RuntimeStatus | undefined {
@@ -281,6 +368,37 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
       ? `auto-detect (fallback: ${status.loop.verifyFallbackCommand})`
       : "auto-detect";
 
+  const generationParts: string[] = [];
+  if (status.generation?.maxOutputTokens !== undefined) {
+    generationParts.push(`maxOutputTokens=${status.generation.maxOutputTokens}`);
+  }
+  if (status.generation?.temperature !== undefined) {
+    generationParts.push(`temperature=${status.generation.temperature}`);
+  }
+  if (status.generation?.topP !== undefined) {
+    generationParts.push(`topP=${status.generation.topP}`);
+  }
+  const generationLine =
+    generationParts.length > 0
+      ? `Generation: ${generationParts.join(" | ")}`
+      : "Generation: default";
+
+  const glmParts: string[] = [];
+  if (status.glmCapabilities?.thinkingMode) {
+    glmParts.push(`thinkingMode=${status.glmCapabilities.thinkingMode}`);
+  }
+  if (status.glmCapabilities?.clearThinking !== undefined) {
+    glmParts.push(`clearThinking=${status.glmCapabilities.clearThinking ? "on" : "off"}`);
+  }
+  if (status.glmCapabilities?.toolStream) {
+    glmParts.push(`toolStream=${status.glmCapabilities.toolStream}`);
+  }
+  if (status.glmCapabilities?.responseFormat) {
+    glmParts.push(`responseFormat=${status.glmCapabilities.responseFormat}`);
+  }
+  const glmLine =
+    glmParts.length > 0 ? `GLM overrides: ${glmParts.join(" | ")}` : "GLM overrides: none";
+
   return [
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
@@ -288,6 +406,8 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Base URL: ${status.baseUrl ?? "default"}`,
     `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
     `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens}`,
+    generationLine,
+    glmLine,
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds}${
       status.loop.maxToolCalls === undefined ? "" : ` | tools<=${status.loop.maxToolCalls}`
