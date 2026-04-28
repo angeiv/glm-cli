@@ -202,6 +202,10 @@ export function applyZhipuPayloadPatches(
       ? overrides.thinkingMode
       : undefined;
 
+  if (!supportsThinking && Object.prototype.hasOwnProperty.call(next, "thinking")) {
+    delete next.thinking;
+  }
+
   if (
     supportsThinking &&
     (forcedThinkingMode ||
