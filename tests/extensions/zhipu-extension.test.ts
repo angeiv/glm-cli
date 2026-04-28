@@ -81,6 +81,34 @@ describe("glm-zhipu extension", () => {
     expect(next.tool_stream).toBe(true);
   });
 
+  test("applyZhipuPayloadPatches avoids tool_stream when the resolved model profile does not support it", () => {
+    const payload = {
+      model: "glm-4.5-air",
+      stream: true,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "demo",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+    };
+
+    const next = applyZhipuPayloadPatches(
+      payload,
+      { toolStream: "on" },
+      {
+        provider: "glm",
+        id: "glm-4.5-air",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
+      },
+    ) as any;
+
+    expect(next).not.toHaveProperty("tool_stream");
+  });
+
   test("applyZhipuPayloadPatches can force thinking without pi toggles", () => {
     const payload = {
       model: "glm-5.1",
@@ -102,6 +130,14 @@ describe("glm-zhipu extension", () => {
     expect(
       shouldApplyGlmNativePayloadPatches({
         id: "glm-5.1",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
+        api: "openai-completions",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldApplyGlmNativePayloadPatches({
+        id: "glm-5",
         baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
         api: "openai-completions",
       }),
