@@ -126,6 +126,45 @@ describe("glm-zhipu extension", () => {
     });
   });
 
+  test("applyZhipuPayloadPatches injects response_format when configured and supported", () => {
+    const payload = {
+      model: "glm-5.1",
+      messages: [{ role: "user", content: "return json" }],
+    };
+
+    const next = applyZhipuPayloadPatches(
+      payload,
+      { responseFormatType: "json_object" },
+      {
+        provider: "glm",
+        id: "glm-5.1",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
+      },
+    ) as any;
+
+    expect(next.response_format).toEqual({ type: "json_object" });
+  });
+
+  test("applyZhipuPayloadPatches drops response_format when the resolved model caps do not support structured output", () => {
+    const payload = {
+      model: "glm-unknown",
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: "return json" }],
+    };
+
+    const next = applyZhipuPayloadPatches(
+      payload,
+      { responseFormatType: "json_object" },
+      {
+        provider: "glm",
+        id: "glm-unknown",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
+      },
+    ) as any;
+
+    expect(next).not.toHaveProperty("response_format");
+  });
+
   test("only enables native payload patches for known native GLM routes", () => {
     expect(
       shouldApplyGlmNativePayloadPatches({
