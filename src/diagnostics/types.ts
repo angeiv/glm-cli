@@ -93,6 +93,14 @@ export type RuntimeResolvedModelStatus = {
   confidence: "high" | "medium" | "low";
   contextWindow: number;
   maxOutputTokens: number;
+  supportsThinking: boolean;
+  supportsPreservedThinking: boolean;
+  supportsStreaming: boolean;
+  supportsToolCall: boolean;
+  supportsToolStream: boolean;
+  supportsCache: boolean;
+  supportsStructuredOutput: boolean;
+  supportsMcp: boolean;
 };
 
 export type RuntimeGenerationStatus = {
