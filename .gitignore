@@ -145,3 +145,6 @@ resources/extensions/shared/glm-profile.js
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local IDE/agent state
+.iflycode/
