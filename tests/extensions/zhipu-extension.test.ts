@@ -137,6 +137,14 @@ describe("glm-zhipu extension", () => {
 
     expect(
       shouldApplyGlmNativePayloadPatches({
+        id: "glm-5",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
+        api: "openai-completions",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldApplyGlmNativePayloadPatches({
         id: "z-ai/glm-5.1",
         baseUrl: "https://openrouter.ai/api/v1",
         api: "openai-completions",
