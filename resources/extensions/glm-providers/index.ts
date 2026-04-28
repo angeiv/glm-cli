@@ -22,7 +22,8 @@ const ZHIPU_OPENAI_COMPAT = {
   supportsReasoningEffort: false,
   maxTokensField: "max_tokens",
   thinkingFormat: "zai",
-  zaiToolStream: true,
+  // Enable tool streaming only when the resolved model profile supports it.
+  zaiToolStream: false,
 } as const;
 
 const GLM_BASE_URL_PRESETS = {
@@ -600,7 +601,7 @@ function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string
     ? getStandardGlmModel(profile.canonicalModelId)
     : undefined;
   const compat = profile.payloadPatchPolicy === "glm-native"
-    ? ZHIPU_OPENAI_COMPAT
+    ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
     : OPENAI_COMPAT;
 
   return {
@@ -778,7 +779,7 @@ export default function (pi: ExtensionAPI) {
           overrides: modelProfileOverrides,
         });
         const compat = profile.payloadPatchPolicy === "glm-native"
-          ? ZHIPU_OPENAI_COMPAT
+          ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
           : OPENAI_COMPAT;
 
         return {
