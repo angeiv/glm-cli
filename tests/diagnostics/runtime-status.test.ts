@@ -6,6 +6,9 @@ import {
   clearRuntimeStatus,
   buildRuntimeStatus,
   formatRuntimeStatusLines,
+  getRuntimeStatus,
+  patchRuntimeLoopStatus,
+  setRuntimeStatus,
 } from "../../src/diagnostics/runtime-status.js";
 import { resolveGlmSessionPaths } from "../../src/session/session-paths.js";
 import { normalizeConfigFile } from "../../src/app/config-store.js";
@@ -174,6 +177,53 @@ describe("buildRuntimeStatus", () => {
       ]),
     );
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");
+  });
+
+  test("patchRuntimeLoopStatus updates the in-process runtime status store", async () => {
+    const status = await buildRuntimeStatus({
+      cwd: "/tmp/repo",
+      runtime: {
+        provider: "glm",
+        model: "glm-5.1",
+        approvalPolicy: "ask",
+      },
+      loop: {
+        enabled: true,
+        profile: "code",
+        maxRounds: 3,
+        failureMode: "handoff",
+        autoVerify: true,
+      },
+      diagnostics: {
+        debugRuntime: false,
+        eventLogLimit: 10,
+      },
+      notifications: {
+        enabled: false,
+        onTurnEnd: true,
+        onLoopResult: true,
+      },
+      paths: resolveGlmSessionPaths("/tmp/repo"),
+      env: {},
+    });
+
+    setRuntimeStatus(status);
+    patchRuntimeLoopStatus({
+      roundsUsed: 2,
+      toolCallsUsed: 5,
+      verifyRunsUsed: 1,
+      mode: "auto",
+      phase: "verify",
+    });
+
+    const patched = getRuntimeStatus();
+    expect(patched?.loop).toMatchObject({
+      roundsUsed: 2,
+      toolCallsUsed: 5,
+      verifyRunsUsed: 1,
+      mode: "auto",
+      phase: "verify",
+    });
   });
 
   test("applies model profile overrides when resolving canonical model ids", async () => {

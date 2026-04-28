@@ -13,6 +13,7 @@ import type {
   RuntimeDiagnosticsConfig,
   RuntimeGenerationStatus,
   RuntimeGlmCapabilitiesStatus,
+  RuntimeLoopStatus,
   RuntimeNotificationStatus,
   RuntimePaths,
   RuntimeStatus,
@@ -365,6 +366,20 @@ export function getRuntimeStatus(): RuntimeStatus | undefined {
   return status ? withEventCount(status) : undefined;
 }
 
+export function patchRuntimeLoopStatus(patch: Partial<RuntimeLoopStatus>): void {
+  const store = getRuntimeStatusStore();
+  const status = store.status;
+  if (!status) return;
+
+  store.status = withEventCount({
+    ...status,
+    loop: {
+      ...status.loop,
+      ...patch,
+    },
+  });
+}
+
 export function clearRuntimeStatus(): void {
   delete getRuntimeStatusStore().status;
 }
@@ -407,6 +422,28 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
   const glmLine =
     glmParts.length > 0 ? `GLM overrides: ${glmParts.join(" | ")}` : "GLM overrides: none";
 
+  const loopSpendParts: string[] = [];
+  if (status.loop.roundsUsed !== undefined) {
+    loopSpendParts.push(`usedRounds ${status.loop.roundsUsed}/${status.loop.maxRounds}`);
+  }
+  if (status.loop.toolCallsUsed !== undefined) {
+    loopSpendParts.push(
+      status.loop.maxToolCalls === undefined
+        ? `usedTools ${status.loop.toolCallsUsed}`
+        : `usedTools ${status.loop.toolCallsUsed}/${status.loop.maxToolCalls}`,
+    );
+  }
+  if (status.loop.verifyRunsUsed !== undefined) {
+    loopSpendParts.push(
+      status.loop.maxVerifyRuns === undefined
+        ? `usedVerify ${status.loop.verifyRunsUsed}`
+        : `usedVerify ${status.loop.verifyRunsUsed}/${status.loop.maxVerifyRuns}`,
+    );
+  }
+  const loopModePart = status.loop.mode ? ` | mode ${status.loop.mode}` : "";
+  const loopPhasePart = status.loop.phase ? ` | phase ${status.loop.phase}` : "";
+  const loopSpendPart = loopSpendParts.length > 0 ? ` | ${loopSpendParts.join(" | ")}` : "";
+
   return [
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
@@ -421,7 +458,7 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
       status.loop.maxToolCalls === undefined ? "" : ` | tools<=${status.loop.maxToolCalls}`
     }${
       status.loop.maxVerifyRuns === undefined ? "" : ` | verify<=${status.loop.maxVerifyRuns}`
-    } | fail ${status.loop.failureMode}`,
+    } | fail ${status.loop.failureMode}${loopModePart}${loopPhasePart}${loopSpendPart}`,
     `Compaction: ${status.compaction.enabled ? "on" : "off"} | reserve=${status.compaction.reserveTokens} | keepRecent=${status.compaction.keepRecentTokens} | source=${formatCompactionSource(compactionSourceSummary(status))}`,
     `Tool signature: ${status.toolSignature.hash.slice(0, 12)} (builtin ${status.toolSignature.builtinTools.length} | custom ${status.toolSignature.customTools.length} | mcp ${status.mcp.configuredServerCount})`,
     `Verifier: ${verifier}`,
