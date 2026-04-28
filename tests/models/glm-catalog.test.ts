@@ -39,6 +39,16 @@ describe("GLM catalog", () => {
     });
   });
 
+  test("marks glm-4.6 as supporting MCP + tool streaming per official docs", () => {
+    const model = getStandardGlmModel("glm-4.6");
+
+    expect(model).toMatchObject({
+      id: "glm-4.6",
+      supportsMcp: true,
+      supportsToolStream: true,
+    });
+  });
+
   test("exposes generic openai-compatible fallback caps", () => {
     expect(getGenericOpenAiCompatibleCaps()).toMatchObject({
       contextWindow: 128_000,

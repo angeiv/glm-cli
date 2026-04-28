@@ -212,10 +212,10 @@ const STANDARD_GLM_MODELS = [
     supportsPreservedThinking: false,
     supportsStreaming: true,
     supportsToolCall: true,
-    supportsToolStream: false,
+    supportsToolStream: true,
     supportsCache: true,
     supportsStructuredOutput: true,
-    supportsMcp: false,
+    supportsMcp: true,
   },
   {
     id: "glm-4.5-air",
