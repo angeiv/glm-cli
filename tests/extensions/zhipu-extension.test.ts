@@ -62,6 +62,17 @@ describe("glm-zhipu extension", () => {
     expect(next).not.toHaveProperty("reasoning_effort");
   });
 
+  test("applyZhipuPayloadPatches does not inject clear_thinking unless configured", () => {
+    const payload = {
+      model: "glm-5.1",
+      enable_thinking: true,
+    };
+
+    const next = applyZhipuPayloadPatches(payload, {}) as any;
+    expect(next.thinking).toEqual({ type: "enabled" });
+    expect(next).not.toHaveProperty("enable_thinking");
+  });
+
   test("applyZhipuPayloadPatches does not inject thinking when no pi toggle and no override is present", () => {
     const payload = {
       model: "glm-5.1",
@@ -111,6 +122,25 @@ describe("glm-zhipu extension", () => {
     expect(next.tool_stream).toBe(true);
   });
 
+  test("applyZhipuPayloadPatches enables tool streaming when toolStream=auto", () => {
+    const payload = {
+      model: "glm-5.1",
+      stream: true,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "demo",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+    };
+
+    const next = applyZhipuPayloadPatches(payload, { toolStream: "auto" }) as any;
+    expect(next.tool_stream).toBe(true);
+  });
+
   test("applyZhipuPayloadPatches drops tool_stream when stream=false (even if forced)", () => {
     const payload = {
       model: "glm-5.1",
@@ -128,6 +158,26 @@ describe("glm-zhipu extension", () => {
     };
 
     const next = applyZhipuPayloadPatches(payload, { toolStream: "on" }) as any;
+    expect(next).not.toHaveProperty("tool_stream");
+  });
+
+  test("applyZhipuPayloadPatches drops tool_stream when stream=false (even if auto)", () => {
+    const payload = {
+      model: "glm-5.1",
+      stream: false,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "demo",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+      tool_stream: true,
+    };
+
+    const next = applyZhipuPayloadPatches(payload, { toolStream: "auto" }) as any;
     expect(next).not.toHaveProperty("tool_stream");
   });
 
