@@ -62,6 +62,36 @@ describe("glm-zhipu extension", () => {
     expect(next).not.toHaveProperty("reasoning_effort");
   });
 
+  test("applyZhipuPayloadPatches does not inject thinking when no pi toggle and no override is present", () => {
+    const payload = {
+      model: "glm-5.1",
+      messages: [{ role: "user", content: "hi" }],
+    };
+
+    const next = applyZhipuPayloadPatches(payload, {}) as any;
+    expect(next).not.toHaveProperty("thinking");
+  });
+
+  test("applyZhipuPayloadPatches drops thinking when the resolved model does not support thinking", () => {
+    const payload = {
+      model: "glm-unknown",
+      thinking: { type: "enabled", clear_thinking: false },
+      messages: [{ role: "user", content: "hi" }],
+    };
+
+    const next = applyZhipuPayloadPatches(
+      payload,
+      { clearThinking: false },
+      {
+        provider: "glm",
+        id: "glm-unknown",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
+      },
+    ) as any;
+
+    expect(next).not.toHaveProperty("thinking");
+  });
+
   test("applyZhipuPayloadPatches enables tool streaming when configured", () => {
     const payload = {
       model: "glm-5.1",
@@ -79,6 +109,57 @@ describe("glm-zhipu extension", () => {
 
     const next = applyZhipuPayloadPatches(payload, { toolStream: "on" }) as any;
     expect(next.tool_stream).toBe(true);
+  });
+
+  test("applyZhipuPayloadPatches drops tool_stream when stream=false (even if forced)", () => {
+    const payload = {
+      model: "glm-5.1",
+      stream: false,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "demo",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+      tool_stream: true,
+    };
+
+    const next = applyZhipuPayloadPatches(payload, { toolStream: "on" }) as any;
+    expect(next).not.toHaveProperty("tool_stream");
+  });
+
+  test("applyZhipuPayloadPatches drops tool_stream when tools are missing", () => {
+    const payload = {
+      model: "glm-5.1",
+      stream: true,
+      tool_stream: true,
+    };
+
+    const next = applyZhipuPayloadPatches(payload, { toolStream: "on" }) as any;
+    expect(next).not.toHaveProperty("tool_stream");
+  });
+
+  test("applyZhipuPayloadPatches drops tool_stream when explicitly disabled", () => {
+    const payload = {
+      model: "glm-5.1",
+      stream: true,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "demo",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+      tool_stream: true,
+    };
+
+    const next = applyZhipuPayloadPatches(payload, { toolStream: "off" }) as any;
+    expect(next).not.toHaveProperty("tool_stream");
   });
 
   test("applyZhipuPayloadPatches avoids tool_stream when the resolved model profile does not support it", () => {
