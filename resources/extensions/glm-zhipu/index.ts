@@ -138,9 +138,24 @@ function hasToolDefinitions(tools: unknown): boolean {
 export function applyZhipuPayloadPatches(
   payload: unknown,
   overrides: ZhipuPayloadOverrides,
+  model?: {
+    provider?: string;
+    id?: string;
+    baseUrl?: string;
+  },
 ): unknown {
   if (!payload || typeof payload !== "object") return payload;
   const next = { ...(payload as Record<string, unknown>) };
+  const profile =
+    model && typeof model.id === "string"
+      ? resolveGlmProfileV2({
+          provider: model.provider,
+          modelId: model.id,
+          baseUrl: model.baseUrl,
+          overrides: modelProfileOverrides,
+        })
+      : undefined;
+  const caps = profile?.effectiveCaps;
 
   // BigModel docs use `max_tokens`. Some OpenAI-oriented clients send `max_completion_tokens`.
   if (
@@ -161,9 +176,12 @@ export function applyZhipuPayloadPatches(
   }
 
   // `tool_stream` is only meaningful for streaming tool calls.
+  const supportsToolStream = caps ? caps.supportsToolStream : true;
   const hasTools = hasToolDefinitions(next.tools);
   const shouldStreamTools = next.stream === true && hasTools;
   if (!shouldStreamTools) {
+    delete next.tool_stream;
+  } else if (!supportsToolStream) {
     delete next.tool_stream;
   } else if (overrides.toolStream === "off") {
     delete next.tool_stream;
@@ -172,6 +190,7 @@ export function applyZhipuPayloadPatches(
   }
 
   // Map pi-ai's `enable_thinking` / `reasoning_effort` into BigModel's `thinking` object.
+  const supportsThinking = caps ? caps.supportsThinking : true;
   const hasEnableThinking = Object.prototype.hasOwnProperty.call(next, "enable_thinking");
   const hasReasoningEffort = Object.prototype.hasOwnProperty.call(next, "reasoning_effort");
   const hasExistingThinking =
@@ -183,7 +202,13 @@ export function applyZhipuPayloadPatches(
       ? overrides.thinkingMode
       : undefined;
 
-  if (forcedThinkingMode || hasEnableThinking || hasReasoningEffort || (hasExistingThinking && overrides.clearThinking !== undefined)) {
+  if (
+    supportsThinking &&
+    (forcedThinkingMode ||
+      hasEnableThinking ||
+      hasReasoningEffort ||
+      (hasExistingThinking && overrides.clearThinking !== undefined))
+  ) {
     const enabled = forcedThinkingMode
       ? forcedThinkingMode === "enabled"
       : hasEnableThinking
@@ -207,7 +232,16 @@ export function applyZhipuPayloadPatches(
   delete next.enable_thinking;
   delete next.reasoning_effort;
 
-  if (overrides.responseFormatType && !Object.prototype.hasOwnProperty.call(next, "response_format")) {
+  const supportsStructuredOutput = caps ? caps.supportsStructuredOutput : true;
+  if (!supportsStructuredOutput && Object.prototype.hasOwnProperty.call(next, "response_format")) {
+    delete next.response_format;
+  }
+
+  if (
+    supportsStructuredOutput &&
+    overrides.responseFormatType &&
+    !Object.prototype.hasOwnProperty.call(next, "response_format")
+  ) {
     next.response_format = { type: overrides.responseFormatType };
   }
 
@@ -221,6 +255,6 @@ export default function (pi: ExtensionAPI) {
     const model = ctx.model;
     if (!model) return;
     if (!shouldApplyGlmNativePayloadPatches(model)) return;
-    return applyZhipuPayloadPatches(event.payload, overrides);
+    return applyZhipuPayloadPatches(event.payload, overrides, model);
   });
 }
