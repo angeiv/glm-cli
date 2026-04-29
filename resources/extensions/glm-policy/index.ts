@@ -119,6 +119,13 @@ function getApprovalPolicyCompletions(prefix: string) {
   return filtered.length > 0 ? filtered.map((policy) => ({ value: policy.value, label: policy.label })) : null;
 }
 
+function isNonInteractive(ctx: unknown): boolean {
+  if (process.env.GLM_NON_INTERACTIVE === "1") return true;
+  if (!ctx || typeof ctx !== "object") return false;
+  const maybe = ctx as { hasUI?: boolean };
+  return maybe.hasUI === false;
+}
+
 function getApprovalPolicyNotification(policy: ApprovalPolicy): {
   message: string;
   level: "info" | "warning";
@@ -526,6 +533,7 @@ export default function (pi: ExtensionAPI) {
     if (event.toolName !== "bash") return;
     const command = String(event.input.command ?? "").trim();
     if (!command) return;
+    const nonInteractive = isNonInteractive(ctx);
 
     if (isDangerousCommand(command)) {
       const hookDecision = await runPermissionRequestHooks(pi, ctx, {
@@ -541,6 +549,18 @@ export default function (pi: ExtensionAPI) {
           summary: hookDecision.reason ?? command,
         });
         return { block: true, reason: hookDecision.reason ?? "Denied by hook" };
+      }
+
+      if (nonInteractive) {
+        appendRuntimeEvent({
+          type: "approval.dangerous_command_blocked",
+          level: "warn",
+          summary: command,
+        });
+        return {
+          block: true,
+          reason: "Non-interactive mode requires manual approval for dangerous commands",
+        };
       }
 
       let ok = false;
@@ -590,7 +610,21 @@ export default function (pi: ExtensionAPI) {
       return { block: true, reason: hookDecision.reason ?? "Denied by hook" };
     }
 
-    const ok = await ctx.ui.confirm("Allow command?", command);
+    if (nonInteractive) {
+      appendRuntimeEvent({
+        type: "approval.command_blocked",
+        level: "warn",
+        summary: command,
+      });
+      return { block: true, reason: "Non-interactive mode requires approval for this command" };
+    }
+
+    let ok = false;
+    try {
+      ok = await ctx.ui.confirm("Allow command?", command);
+    } catch {
+      ok = false;
+    }
     if (!ok) {
       appendRuntimeEvent({
         type: "approval.command_denied",

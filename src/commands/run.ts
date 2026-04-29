@@ -91,6 +91,7 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
   );
 
   const outputFormat = resolveOutputFormat(input);
+  const nonInteractive = outputFormat !== "human" || !process.stdin.isTTY;
 
   return withPreservedProcessCwd(async () =>
     withScopedEnvironment(
@@ -103,7 +104,7 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
         PI_SKIP_VERSION_CHECK: process.env.PI_SKIP_VERSION_CHECK ?? "1",
         // Protocol output is intended for orchestration systems. Make it deterministic even
         // when a pseudo-TTY is allocated.
-        ...(outputFormat === "human" ? {} : { GLM_NON_INTERACTIVE: "1" }),
+        ...(nonInteractive ? { GLM_NON_INTERACTIVE: "1" } : {}),
       },
       async () => {
         const configuredLane = fileConfig.taskLaneDefault ?? "auto";
