@@ -26,6 +26,27 @@ describe("GLM catalog", () => {
     });
   });
 
+  test("returns official glm-5 chat capabilities from the catalog", () => {
+    const model = getStandardGlmModel("glm-5");
+
+    expect(model).toMatchObject({
+      id: "glm-5",
+      displayName: "GLM 5",
+      source: "official",
+      family: "glm-5",
+      tier: "flagship",
+      contextWindow: 204_800,
+      maxOutputTokens: 131_072,
+      defaultThinkingMode: "enabled",
+      supportsThinking: true,
+      supportsPreservedThinking: true,
+      supportsToolCall: true,
+      supportsToolStream: true,
+      supportsCache: true,
+      supportsStructuredOutput: true,
+    });
+  });
+
   test("returns compat metadata for broader GLM family entries", () => {
     const model = getStandardGlmModel("glm-4.5-airx");
 
