@@ -38,7 +38,8 @@ Options:
   --max-tool-calls <n>  Maximum tool calls allowed during a loop run
   --max-verify-runs <n> Maximum verification runs allowed during a loop run
   --fail-mode <mode>    Loop failure mode: handoff or fail
-  --json                Print inspect/verify output as JSON
+  --json                Print inspect/verify output as JSON (or glm run --json final result)
+  --jsonl               Emit glm run progress as JSONL events to stdout
   --help, -h            Show help
   --version, -v         Show version
 
@@ -83,7 +84,7 @@ type BaseCliArgs = {
 
 export type ParsedCliArgs =
   | (BaseCliArgs & { command: "chat" })
-  | (BaseCliArgs & { command: "run"; task: string })
+  | (BaseCliArgs & { command: "run"; task: string; json: boolean; jsonl: boolean })
   | (BaseCliArgs & { command: "verify"; json: boolean; scenario?: VerifyScenarioName })
   | (BaseCliArgs & { command: "inspect"; json: boolean })
   | (BaseCliArgs & { command: "doctor" })
@@ -224,6 +225,7 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     flags.failMode = normalized;
   }
   const jsonFlag = extractFlagPresence(args, "--json");
+  const jsonlFlag = extractFlagPresence(args, "--jsonl");
 
   const command = args.shift();
   const cwd = flags.cwd ?? process.cwd();
@@ -249,7 +251,10 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     if (args.length > 0) {
       throw new Error('The run command accepts at most one positional path: glm run "<task>" [path]');
     }
-    return { command: "run", task, cwd: pathArg ?? cwd, ...flags };
+    if (jsonFlag && jsonlFlag) {
+      throw new Error("Use either --json or --jsonl, not both");
+    }
+    return { command: "run", task, cwd: pathArg ?? cwd, json: jsonFlag, jsonl: jsonlFlag, ...flags };
   }
 
   if (command === "doctor") {
@@ -364,6 +369,8 @@ export async function runCli(argv: string[], handlers?: Partial<CliHandlers>): P
         maxToolCalls: parsed.maxToolCalls,
         maxVerifyRuns: parsed.maxVerifyRuns,
         failMode: parsed.failMode,
+        json: parsed.json,
+        jsonl: parsed.jsonl,
       });
     case "verify":
       return mergedHandlers.verify({

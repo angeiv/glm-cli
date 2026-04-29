@@ -392,7 +392,11 @@ test("runRunCommand restores cwd and approval env after runtime execution", asyn
   const runSingleTask = vi.fn(async () => {
     expect(process.cwd()).toBe(resolvedTargetDir);
     expect(process.env.GLM_APPROVAL_POLICY).toBe("never");
-    return 0;
+    return {
+      kind: "single",
+      exitCode: 0,
+      assistantText: "ok",
+    };
   });
 
   vi.doMock("../../src/app/config-store.js", () => ({
@@ -418,6 +422,13 @@ test("runRunCommand restores cwd and approval env after runtime execution", asyn
   });
   vi.doMock("../../src/runtime/run-runtime.js", () => ({
     runSingleTask,
+    runTaskLoop: vi.fn(async () => ({
+      kind: "loop",
+      exitCode: 1,
+      status: "failed",
+      summary: "not used in this test",
+      rounds: [],
+    })),
   }));
 
   const { runRunCommand } = await import("../../src/commands/run.js");

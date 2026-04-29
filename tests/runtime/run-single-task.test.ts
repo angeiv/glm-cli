@@ -64,9 +64,9 @@ describe("runSingleTask", () => {
     const runtime = createFakeRuntime(dir);
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-    const exitCode = await runSingleTask(runtime, "fix tests", "direct");
+    const result = await runSingleTask(runtime, "fix tests", "direct");
 
-    expect(exitCode).toBe(0);
+    expect(result.exitCode).toBe(0);
     expect(runtime.session.prompt).toHaveBeenCalledTimes(1);
     expect(runtime.session.prompt).toHaveBeenCalledWith(
       expect.stringContaining("Task overlay (direct):"),
@@ -75,4 +75,3 @@ describe("runSingleTask", () => {
     expect(runtime.dispose).toHaveBeenCalledTimes(1);
   });
 });
-

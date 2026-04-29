@@ -58,6 +58,21 @@ describe("parseCliArgs", () => {
     });
   });
 
+  test("parses run --jsonl protocol flag", () => {
+    expect(parseCliArgs(["run", "fix tests", "--jsonl"])).toMatchObject({
+      command: "run",
+      task: "fix tests",
+      jsonl: true,
+      json: false,
+    });
+  });
+
+  test("rejects run --json combined with --jsonl", () => {
+    expect(() => parseCliArgs(["run", "fix tests", "--json", "--jsonl"])).toThrow(
+      "Use either --json or --jsonl, not both",
+    );
+  });
+
 
   test("parses openai-responses provider", () => {
     expect(parseCliArgs(["run", "fix tests", "--provider", "openai-responses"])).toMatchObject({
