@@ -72,6 +72,92 @@ test("dangerous bash commands always require explicit confirmation even when app
   }
 });
 
+test("non-interactive mode blocks dangerous bash commands without prompting", async () => {
+  const previousApproval = process.env.GLM_APPROVAL_POLICY;
+  const previousNonInteractive = process.env.GLM_NON_INTERACTIVE;
+  process.env.GLM_APPROVAL_POLICY = "never";
+  process.env.GLM_NON_INTERACTIVE = "1";
+
+  try {
+    const handlers: Record<string, (event: unknown, ctx: unknown) => Promise<unknown>> = {};
+    glmPolicyExtension({
+      on: (name: string, handler: (event: unknown, ctx: unknown) => Promise<unknown>) => {
+        handlers[name] = handler;
+      },
+      registerCommand: () => {},
+    } as unknown as Parameters<typeof glmPolicyExtension>[0]);
+
+    const handler = handlers.tool_call;
+    expect(handler).toBeTypeOf("function");
+
+    const confirm = vi.fn(async () => true);
+    const result = await handler(
+      { toolName: "bash", input: { command: "rm -rf /tmp/demo" } },
+      { hasUI: false, ui: { confirm } },
+    );
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ block: true });
+    expect(getRuntimeEvents().at(-1)).toMatchObject({
+      type: "approval.dangerous_command_blocked",
+    });
+  } finally {
+    if (previousApproval === undefined) {
+      delete process.env.GLM_APPROVAL_POLICY;
+    } else {
+      process.env.GLM_APPROVAL_POLICY = previousApproval;
+    }
+    if (previousNonInteractive === undefined) {
+      delete process.env.GLM_NON_INTERACTIVE;
+    } else {
+      process.env.GLM_NON_INTERACTIVE = previousNonInteractive;
+    }
+  }
+});
+
+test("non-interactive mode blocks ask-policy commands without prompting", async () => {
+  const previousApproval = process.env.GLM_APPROVAL_POLICY;
+  const previousNonInteractive = process.env.GLM_NON_INTERACTIVE;
+  process.env.GLM_APPROVAL_POLICY = "ask";
+  process.env.GLM_NON_INTERACTIVE = "1";
+
+  try {
+    const handlers: Record<string, (event: unknown, ctx: unknown) => Promise<unknown>> = {};
+    glmPolicyExtension({
+      on: (name: string, handler: (event: unknown, ctx: unknown) => Promise<unknown>) => {
+        handlers[name] = handler;
+      },
+      registerCommand: () => {},
+    } as unknown as Parameters<typeof glmPolicyExtension>[0]);
+
+    const handler = handlers.tool_call;
+    expect(handler).toBeTypeOf("function");
+
+    const confirm = vi.fn(async () => true);
+    const result = await handler(
+      { toolName: "bash", input: { command: "echo hi" } },
+      { hasUI: false, ui: { confirm } },
+    );
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ block: true });
+    expect(getRuntimeEvents().at(-1)).toMatchObject({
+      type: "approval.command_blocked",
+    });
+  } finally {
+    if (previousApproval === undefined) {
+      delete process.env.GLM_APPROVAL_POLICY;
+    } else {
+      process.env.GLM_APPROVAL_POLICY = previousApproval;
+    }
+    if (previousNonInteractive === undefined) {
+      delete process.env.GLM_NON_INTERACTIVE;
+    } else {
+      process.env.GLM_NON_INTERACTIVE = previousNonInteractive;
+    }
+  }
+});
+
 test("approval command offers three policy completions", async () => {
   const commands = new Map<string, { handler: unknown; getArgumentCompletions?: (prefix: string) => Array<{ value: string; label: string }> | null }>();
 

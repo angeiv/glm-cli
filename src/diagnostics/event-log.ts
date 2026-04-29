@@ -1,9 +1,12 @@
 import type { RuntimeEvent, RuntimeEventLevel } from "./types.js";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 
 type RuntimeEventLogState = {
   limit: number;
   nextId: number;
   events: RuntimeEvent[];
+  persistPath?: string;
 };
 
 const GLM_EVENT_LOG_STATE = Symbol.for("glm.eventLog");
@@ -31,11 +34,47 @@ function getRuntimeEventLogState(): RuntimeEventLogState {
   return state;
 }
 
-export function configureRuntimeEventLog(args: { limit: number }): void {
+export function configureRuntimeEventLog(args: {
+  limit: number;
+  persistPath?: string;
+}): void;
+export function configureRuntimeEventLog(args: {
+  limit: number;
+  persistPath?: string;
+}): void {
   const state = getRuntimeEventLogState();
   state.limit = Number.isInteger(args.limit) && args.limit > 0 ? args.limit : 200;
+  state.persistPath = args.persistPath?.trim() || undefined;
   if (state.events.length > state.limit) {
     state.events = state.events.slice(state.events.length - state.limit);
+  }
+}
+
+function toPersistedRuntimeEvent(event: RuntimeEvent): Omit<RuntimeEvent, "details"> {
+  const summaryLimit = 500;
+  const summary =
+    event.summary.length > summaryLimit
+      ? `${event.summary.slice(0, summaryLimit)}...`
+      : event.summary;
+
+  return {
+    id: event.id,
+    at: event.at,
+    type: event.type,
+    level: event.level,
+    summary,
+  };
+}
+
+function persistRuntimeEvent(state: RuntimeEventLogState, event: RuntimeEvent): void {
+  const target = state.persistPath?.trim();
+  if (!target) return;
+
+  try {
+    mkdirSync(dirname(target), { recursive: true });
+    appendFileSync(target, `${JSON.stringify(toPersistedRuntimeEvent(event))}\n`, "utf8");
+  } catch {
+    // Best-effort: runtime events must never crash the session.
   }
 }
 
@@ -60,6 +99,7 @@ export function appendRuntimeEvent(args: {
     state.events = state.events.slice(state.events.length - state.limit);
   }
 
+  persistRuntimeEvent(state, event);
   return event;
 }
 

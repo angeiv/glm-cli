@@ -6,6 +6,7 @@ import {
   type CreateAgentSessionRuntimeFactory,
   type ModelRegistry,
 } from "@mariozechner/pi-coding-agent";
+import { join } from "node:path";
 import { syncPackagedResources } from "../app/resource-sync.js";
 import type { ApprovalPolicy } from "../app/config-store.js";
 import { readConfigFile } from "../app/config-store.js";
@@ -407,7 +408,10 @@ async function prepareGlmSession(
   const config = await readConfigFile();
   const diagnostics = resolveDiagnosticsRuntimeOptions(config);
   const notifications = resolveNotificationRuntimeOptions(process.env, config);
-  configureRuntimeEventLog({ limit: diagnostics.eventLogLimit });
+  configureRuntimeEventLog({
+    limit: diagnostics.eventLogLimit,
+    persistPath: join(options.sessionDir, "artifacts", "events.jsonl"),
+  });
   await loadHooks({
     enabled: config.hooksEnabled ?? true,
     hooksPath: process.env.GLM_HOOKS_PATH?.trim() || DEFAULT_HOOKS_PATH,

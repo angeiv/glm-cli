@@ -90,7 +90,7 @@ describe("runTaskLoop", () => {
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
 
-    const exitCode = await runTaskLoop(runtime, "fix tests", {
+    const result = await runTaskLoop(runtime, "fix tests", {
       enabled: true,
       profile: "code",
       maxRounds: 2,
@@ -99,7 +99,7 @@ describe("runTaskLoop", () => {
       verifyCommand: `node "${flagPath}"`,
     });
 
-    expect(exitCode).toBe(0);
+    expect(result.exitCode).toBe(0);
     expect(runtime.session.prompt).toHaveBeenCalledTimes(2);
     expect(runtime.dispose).toHaveBeenCalledTimes(1);
     expect(stdout).toHaveBeenCalledWith(expect.stringContaining("Loop succeeded after 2 rounds."));
@@ -117,7 +117,7 @@ describe("runTaskLoop", () => {
     const runtime = createFakeRuntime(dir, ["first attempt"]);
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-    const exitCode = await runTaskLoop(runtime, "fix tests", {
+    const result = await runTaskLoop(runtime, "fix tests", {
       enabled: true,
       profile: "code",
       maxRounds: 3,
@@ -127,7 +127,7 @@ describe("runTaskLoop", () => {
       verifyCommand: `node "${failPath}"`,
     });
 
-    expect(exitCode).toBe(1);
+    expect(result.exitCode).toBe(1);
     expect(runtime.session.prompt).toHaveBeenCalledTimes(1);
     expect(stdout).toHaveBeenCalledWith(expect.stringContaining("Verification budget exceeded"));
   });
@@ -146,7 +146,7 @@ describe("runTaskLoop", () => {
     });
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-    const exitCode = await runTaskLoop(runtime, "fix tests", {
+    const result = await runTaskLoop(runtime, "fix tests", {
       enabled: true,
       profile: "code",
       maxRounds: 3,
@@ -156,7 +156,7 @@ describe("runTaskLoop", () => {
       verifyCommand: `node "${failPath}"`,
     });
 
-    expect(exitCode).toBe(1);
+    expect(result.exitCode).toBe(1);
     expect(runtime.session.prompt).toHaveBeenCalledTimes(2);
     expect(stdout).toHaveBeenCalledWith(expect.stringContaining("Tool call budget exceeded"));
   });
@@ -168,7 +168,7 @@ describe("runTaskLoop", () => {
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
 
-    const exitCode = await runTaskLoop(runtime, "fix tests", {
+    const result = await runTaskLoop(runtime, "fix tests", {
       enabled: true,
       profile: "code",
       maxRounds: 3,
@@ -176,7 +176,7 @@ describe("runTaskLoop", () => {
       autoVerify: false,
     });
 
-    expect(exitCode).toBe(1);
+    expect(result.exitCode).toBe(1);
     expect(runtime.session.prompt).toHaveBeenCalledTimes(1);
     expect(runtime.dispose).toHaveBeenCalledTimes(1);
     expect(stdout).toHaveBeenCalledWith(

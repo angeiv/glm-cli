@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "vitest";
 import {
   appendRuntimeEvent,
@@ -33,5 +36,29 @@ describe("runtime event log", () => {
 
     clearRuntimeEvents();
     expect(getRuntimeEvents()).toHaveLength(0);
+  });
+
+  test("optionally persists events as JSONL without details", () => {
+    const dir = mkdtempSync(join(tmpdir(), "glm-eventlog-"));
+    const path = join(dir, "events.jsonl");
+    configureRuntimeEventLog({ limit: 200, persistPath: path });
+
+    const summary = "x".repeat(800);
+    appendRuntimeEvent({
+      type: "hooks.run",
+      summary,
+      details: { shouldNotPersist: true },
+    });
+
+    const lines = readFileSync(path, "utf8").trim().split("\n");
+    expect(lines).toHaveLength(1);
+
+    const persisted = JSON.parse(lines[0]);
+    expect(persisted).toMatchObject({
+      type: "hooks.run",
+      level: "info",
+    });
+    expect(persisted.summary).toHaveLength(503);
+    expect(persisted).not.toHaveProperty("details");
   });
 });
