@@ -7,6 +7,7 @@ import { runVerificationCommand } from "../loop/verify-runner.js";
 import type { VerificationCommandResolution, VerificationResult } from "../loop/types.js";
 import { composeTaskPrompt } from "./prompt.js";
 import type { PromptMode } from "../prompt/mode-overlays.js";
+import { patchRuntimeLoopStatus } from "../diagnostics/runtime-status.js";
 
 function writeStdout(text: string): void {
   process.stdout.write(text);
@@ -208,6 +209,15 @@ export async function runTaskLoop(
   const maxVerifyRuns = options.maxVerifyRuns;
   let toolCallsUsed = 0;
   let verifyRunsUsed = 0;
+  let contractSent = false;
+
+  patchRuntimeLoopStatus({
+    mode: "auto",
+    phase: "run",
+    roundsUsed: 0,
+    toolCallsUsed: 0,
+    verifyRunsUsed: 0,
+  });
 
   try {
     await bindRuntimeSession(runtime);
@@ -218,7 +228,16 @@ export async function runTaskLoop(
       ...(maxVerifyRuns === undefined ? {} : { maxVerifyRuns }),
       failureMode: options.failureMode,
       profile,
-      executeTurn: async (message) => {
+      executeTurn: async (message, round) => {
+        patchRuntimeLoopStatus({
+          mode: "auto",
+          phase: contractSent ? "repair" : "run",
+          roundsUsed: round,
+          toolCallsUsed,
+          verifyRunsUsed,
+        });
+        contractSent = true;
+
         const beforeCount = runtime.session.state.messages.length;
         const exitCode = await promptOnce(runtime, message);
         if (exitCode !== 0) {
@@ -229,8 +248,17 @@ export async function runTaskLoop(
         // Pi stores tool executions as `toolResult` messages.
         const toolDelta = nextMessages.filter((msg) => msg.role === "toolResult").length;
         toolCallsUsed += toolDelta;
+        patchRuntimeLoopStatus({ toolCallsUsed });
       },
-      runVerification: async () => {
+      runVerification: async (round) => {
+        patchRuntimeLoopStatus({
+          mode: "auto",
+          phase: "verify",
+          roundsUsed: round,
+          toolCallsUsed,
+          verifyRunsUsed,
+        });
+
         if (maxToolCalls !== undefined && toolCallsUsed > maxToolCalls) {
           return {
             kind: "unavailable",
@@ -250,6 +278,7 @@ export async function runTaskLoop(
         }
 
         verifyRunsUsed += 1;
+        patchRuntimeLoopStatus({ verifyRunsUsed });
         return runVerificationCommand({
           cwd: runtime.cwd,
           command: verifier.command,
