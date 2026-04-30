@@ -36,6 +36,28 @@ describe("glm-dashscope extension", () => {
     expect(next.thinking_budget).toBe(31999);
   });
 
+  test("uses maxOutputTokensOverride when payload lacks max token fields", () => {
+    const payload = {
+      model: "glm-5.1",
+      reasoning_effort: "xhigh",
+    };
+
+    const next = applyDashscopePayloadPatches(payload, { maxOutputTokensOverride: 32000 }) as any;
+    expect(next.thinking_budget).toBe(31999);
+  });
+
+  test("clamps thinking_budget against the smallest max token candidate", () => {
+    const payload = {
+      model: "glm-5.1",
+      // Some providers accept both, and downstream layers may override to a smaller max.
+      max_completion_tokens: 131072,
+      reasoning_effort: "xhigh",
+    };
+
+    const next = applyDashscopePayloadPatches(payload, { maxOutputTokensOverride: 32000 }) as any;
+    expect(next.thinking_budget).toBe(31999);
+  });
+
   test("does not modify payload when thinking is disabled", () => {
     const payload = {
       model: "glm-5.1",
@@ -58,4 +80,3 @@ describe("glm-dashscope extension", () => {
     expect(next).toBe(payload);
   });
 });
-
