@@ -106,6 +106,7 @@ type McpRegistrationPlan = {
 
 const MCP_CACHE_VERSION = 1;
 const DEFAULT_MCP_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const MCP_STATUS_KEY = "mcp";
 
 function safeId(input: string): string {
   const normalized = input.trim().toLowerCase();
@@ -119,6 +120,18 @@ export function buildMcpToolName(serverName: string, toolName: string): string {
 
 export function buildMcpProxyToolName(serverName: string): string {
   return `mcp__${safeId(serverName)}__proxy`;
+}
+
+function setUiStatus(
+  ctx: { hasUI: boolean; ui: { setStatus(key: string, text: string | undefined): void } } | undefined,
+  text: string | undefined,
+): void {
+  if (!ctx?.hasUI) return;
+  try {
+    ctx.ui.setStatus(MCP_STATUS_KEY, text);
+  } catch {
+    // Never allow UI status updates to crash tool execution.
+  }
 }
 
 function normalizeMcpConfig(value: unknown): McpConfigFile {
@@ -426,9 +439,9 @@ export function resolveMcpRegistrationPlan(
   }
 
   return {
-    eagerConnect: true,
-    registerDirectTools: true,
-    registerProxyTool: false,
+    eagerConnect: false,
+    registerDirectTools: cachedToolCount > 0,
+    registerProxyTool: cachedToolCount === 0,
   };
 }
 
@@ -531,6 +544,13 @@ export default async function (pi: ExtensionAPI) {
     servers: {},
   };
 
+  type RegisteredSummary = {
+    name: string;
+    mode: McpToolMode;
+    toolCount: number;
+    source: "live" | "cache" | "proxy";
+  };
+
   const resolvedServers = new Map<string, ResolvedMcpServerConfig>();
   for (const [name, rawServer] of serverEntries) {
     try {
@@ -548,9 +568,58 @@ export default async function (pi: ExtensionAPI) {
   }
 
   const connectionPromises = new Map<string, Promise<LoadedServer>>();
+  const registeredSummaries = new Map<string, RegisteredSummary>();
+  const directToolNamesByServer = new Map<string, Set<string>>();
+  const connectionStates = new Map<string, "connecting" | "connected" | "failed">();
+  let uiCtx:
+    | { hasUI: boolean; ui: { setStatus(key: string, text: string | undefined): void } }
+    | undefined;
 
-  async function connectServer(serverName: string): Promise<LoadedServer> {
+  function buildStatusLine(): string | undefined {
+    const total = resolvedServers.size;
+    if (total === 0) {
+      return undefined;
+    }
+
+    const counts = { live: 0, cache: 0, proxy: 0 };
+    for (const summary of registeredSummaries.values()) {
+      counts[summary.source] += 1;
+    }
+
+    return `MCP: ${total} server${total === 1 ? "" : "s"} | live ${counts.live} | cached ${counts.cache} | proxy ${counts.proxy}`;
+  }
+
+  function refreshStatus(): void {
+    setUiStatus(uiCtx, buildStatusLine());
+  }
+
+  function connectingStatus(serverName: string, config: ResolvedMcpServerConfig): string {
+    const transport =
+      config.type === "stdio"
+        ? "stdio"
+        : config.type === "streamable-http"
+          ? "http"
+          : "sse";
+    return `MCP: connecting ${serverName} (${transport})...`;
+  }
+
+  async function connectServer(
+    serverName: string,
+    ctx?: { hasUI: boolean; ui: { setStatus(key: string, text: string | undefined): void } },
+  ): Promise<LoadedServer> {
     const existing = connectionPromises.get(serverName);
+    const state = connectionStates.get(serverName);
+    if (ctx?.hasUI) {
+      uiCtx = ctx;
+    }
+    if (state === "connecting") {
+      const config = resolvedServers.get(serverName);
+      if (config) {
+        setUiStatus(uiCtx, connectingStatus(serverName, config));
+      }
+    } else if (state === "connected") {
+      refreshStatus();
+    }
     if (existing) {
       return existing;
     }
@@ -559,6 +628,13 @@ export default async function (pi: ExtensionAPI) {
     if (!config) {
       throw new Error(`Unknown MCP server: ${serverName}`);
     }
+
+    connectionStates.set(serverName, "connecting");
+    setUiStatus(uiCtx, connectingStatus(serverName, config));
+    appendRuntimeEvent({
+      type: "mcp.connecting",
+      summary: `${serverName}: connecting`,
+    });
 
     const promise = (async () => {
       const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
@@ -642,6 +718,20 @@ export default async function (pi: ExtensionAPI) {
           summary: `${serverName}: ${loaded.tools.length} tool${loaded.tools.length === 1 ? "" : "s"}`,
         });
 
+        // If this server is configured for direct/hybrid tools, register the freshly
+        // discovered tools now so users don't have to reload the session.
+        if (config.toolMode !== "proxy") {
+          registerDirectTools(serverName, loaded.tools);
+        }
+        registeredSummaries.set(serverName, {
+          name: serverName,
+          mode: config.toolMode,
+          toolCount: loaded.tools.length,
+          source: "live",
+        });
+        connectionStates.set(serverName, "connected");
+        refreshStatus();
+
         return loaded;
       } catch (error) {
         appendRuntimeEvent({
@@ -649,6 +739,8 @@ export default async function (pi: ExtensionAPI) {
           level: "error",
           summary: `${serverName}: ${error instanceof Error ? error.message : String(error)}`,
         });
+        connectionStates.set(serverName, "failed");
+        refreshStatus();
         try {
           await client.close();
         } catch {
@@ -677,12 +769,13 @@ export default async function (pi: ExtensionAPI) {
     toolName: string,
     params: Record<string, unknown>,
     signal?: AbortSignal,
+    ctx?: { hasUI: boolean; ui: { setStatus(key: string, text: string | undefined): void } },
   ) {
     if (signal?.aborted) {
       throw new Error("Tool execution aborted");
     }
 
-    const server = await connectServer(serverName);
+    const server = await connectServer(serverName, ctx);
     const result = (await server.client.callTool({
       name: toolName,
       arguments: params,
@@ -707,6 +800,20 @@ export default async function (pi: ExtensionAPI) {
     };
   }
 
+  function registerDirectTools(serverName: string, tools: LoadedMcpTool[]) {
+    if (tools.length === 0) return;
+    const registered = directToolNamesByServer.get(serverName) ?? new Set<string>();
+    if (!directToolNamesByServer.has(serverName)) {
+      directToolNamesByServer.set(serverName, registered);
+    }
+
+    for (const tool of tools) {
+      if (registered.has(tool.toolName)) continue;
+      registerDirectTool(serverName, tool);
+      registered.add(tool.toolName);
+    }
+  }
+
   function registerDirectTool(serverName: string, tool: LoadedMcpTool) {
     const name = buildMcpToolName(serverName, tool.toolName);
     pi.registerTool(
@@ -715,12 +822,13 @@ export default async function (pi: ExtensionAPI) {
         label: `MCP ${serverName}:${tool.toolName}`,
         description: `${tool.tool.description ?? tool.toolName}\n\nMCP server: ${serverName}`,
         parameters: (tool.tool.inputSchema ?? { type: "object" }) as any,
-        execute: async (_toolCallId, params, signal) =>
+        execute: async (_toolCallId, params, signal, _onUpdate, ctx) =>
           executeToolCall(
             serverName,
             tool.toolName,
             (params as Record<string, unknown>) ?? {},
             signal,
+            ctx,
           ),
       }),
     );
@@ -751,13 +859,16 @@ export default async function (pi: ExtensionAPI) {
           },
           required: ["action"],
         } as any,
-        execute: async (_toolCallId, params, signal) => {
+        execute: async (_toolCallId, params, signal, _onUpdate, ctx) => {
           const action = typeof (params as Record<string, unknown>)?.action === "string"
             ? String((params as Record<string, unknown>).action)
             : "";
 
           if (action === "list") {
-            const tools = cachedTools.length > 0 ? cachedTools : (await connectServer(serverName)).tools;
+            const tools =
+              cachedTools.length > 0
+                ? cachedTools
+                : (await connectServer(serverName, ctx)).tools;
             return {
               content: [{ type: "text" as const, text: formatProxyToolList(serverName, tools) }],
               details: {
@@ -781,7 +892,7 @@ export default async function (pi: ExtensionAPI) {
                 ? (rawArgs as Record<string, unknown>)
                 : {};
 
-            return executeToolCall(serverName, toolName, toolArgs, signal);
+            return executeToolCall(serverName, toolName, toolArgs, signal, ctx);
           }
 
           throw new Error("action must be one of: list, call");
@@ -790,35 +901,13 @@ export default async function (pi: ExtensionAPI) {
     );
   }
 
-  const registeredSummaries: Array<{ name: string; mode: McpToolMode; toolCount: number; source: "live" | "cache" | "proxy" }> = [];
-
   for (const [serverName, config] of resolvedServers) {
     const cachedTools = getValidCachedTools(metadataCache, serverName, config);
     const plan = resolveMcpRegistrationPlan(config, cachedTools.length);
 
-    if (plan.eagerConnect) {
-      try {
-        const server = await connectServer(serverName);
-        for (const tool of server.tools) {
-          registerDirectTool(serverName, tool);
-        }
-        registeredSummaries.push({
-          name: serverName,
-          mode: config.toolMode,
-          toolCount: server.tools.length,
-          source: "live",
-        });
-      } catch {
-        // Connection failure already recorded as a runtime event.
-      }
-      continue;
-    }
-
     if (plan.registerDirectTools) {
-      for (const tool of cachedTools) {
-        registerDirectTool(serverName, tool);
-      }
-      registeredSummaries.push({
+      registerDirectTools(serverName, cachedTools);
+      registeredSummaries.set(serverName, {
         name: serverName,
         mode: config.toolMode,
         toolCount: cachedTools.length,
@@ -829,7 +918,7 @@ export default async function (pi: ExtensionAPI) {
 
     if (plan.registerProxyTool) {
       registerProxyTool(serverName, cachedTools);
-      registeredSummaries.push({
+      registeredSummaries.set(serverName, {
         name: serverName,
         mode: config.toolMode,
         toolCount: cachedTools.length,
@@ -837,6 +926,13 @@ export default async function (pi: ExtensionAPI) {
       });
     }
   }
+
+  pi.on("session_start", (_event, ctx) => {
+    if (ctx.hasUI) {
+      uiCtx = ctx;
+      refreshStatus();
+    }
+  });
 
   pi.registerCommand("mcp", {
     description: "Show MCP server/tool status, or reload extensions.",
@@ -851,10 +947,13 @@ export default async function (pi: ExtensionAPI) {
         return;
       }
 
+      const summaries = [...registeredSummaries.values()].sort((left, right) =>
+        left.name.localeCompare(right.name),
+      );
       const summary =
-        registeredSummaries.length === 0
+        summaries.length === 0
           ? "No MCP servers loaded. Create ~/.glm/mcp.json (or set GLM_MCP_CONFIG) to enable."
-          : registeredSummaries
+          : summaries
               .map((server) => {
                 const sourceLabel =
                   server.source === "live"
@@ -877,7 +976,12 @@ export default async function (pi: ExtensionAPI) {
     },
   });
 
-  pi.on("session_shutdown", async () => {
+  pi.on("session_shutdown", async (_event, ctx) => {
+    if (ctx.hasUI) {
+      setUiStatus(ctx, undefined);
+    }
+    uiCtx = undefined;
+
     for (const promise of connectionPromises.values()) {
       try {
         const server = await promise;

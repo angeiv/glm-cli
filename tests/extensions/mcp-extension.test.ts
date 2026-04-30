@@ -234,15 +234,15 @@ describe("glm-mcp extension helpers", () => {
     expect(isMcpMetadataCacheEntryValid(cache?.servers.vision, changed)).toBe(false);
   });
 
-  test("resolveMcpRegistrationPlan chooses eager direct, proxy, and cached hybrid modes", () => {
-    const direct = resolveMcpServerConfig({ command: "npx" });
+  test("resolveMcpRegistrationPlan chooses lazy direct, proxy, and cached hybrid modes", () => {
+    const direct = resolveMcpServerConfig({ command: "npx", toolMode: "direct" });
     const proxy = resolveMcpServerConfig({ command: "npx", toolMode: "proxy" });
     const hybrid = resolveMcpServerConfig({ command: "npx", toolMode: "hybrid" });
 
     expect(resolveMcpRegistrationPlan(direct, 0)).toMatchObject({
-      eagerConnect: true,
-      registerDirectTools: true,
-      registerProxyTool: false,
+      eagerConnect: false,
+      registerDirectTools: false,
+      registerProxyTool: true,
     });
     expect(resolveMcpRegistrationPlan(proxy, 0)).toMatchObject({
       eagerConnect: false,

@@ -26,7 +26,7 @@ export function resolveMcpToolMode(
   options?: { strict?: boolean },
 ): McpToolMode {
   if (typeof value !== "string" || !value.trim()) {
-    return "direct";
+    return "hybrid";
   }
 
   const normalized = value.trim().toLowerCase();
@@ -38,5 +38,5 @@ export function resolveMcpToolMode(
     throw new Error(`Unsupported MCP tool mode: ${value}`);
   }
 
-  return "direct";
+  return "hybrid";
 }

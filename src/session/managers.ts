@@ -123,6 +123,12 @@ export async function createGlmServices(
     managers.authStorage.setRuntimeApiKey("anthropic", anthropicApiKey);
   }
 
+  const registerMcpExtension = (
+    await import(
+      new URL("../../resources/extensions/glm-mcp/index.js", import.meta.url).href
+    )
+  ).default;
+
   const services = await createAgentSessionServices({
     cwd: input.cwd,
     agentDir: input.agentDir,
@@ -132,6 +138,7 @@ export async function createGlmServices(
     resourceLoaderOptions: {
       systemPromptOverride: () => promptStack.systemPrompt,
       appendSystemPromptOverride: () => [...promptStack.appendSystemPrompt],
+      extensionFactories: [registerMcpExtension],
     },
   });
 
