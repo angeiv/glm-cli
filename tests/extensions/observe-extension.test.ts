@@ -138,8 +138,11 @@ describe("glm-zz-observe extension", () => {
           tools: [{ type: "function", function: { name: "demo", parameters: {} } }],
           tool_stream: true,
           thinking: { type: "enabled", clear_thinking: true },
+          thinking_budget: "31999",
+          reasoning_effort: "xhigh",
           response_format: { type: "json_object" },
           max_tokens: 16,
+          max_completion_tokens: "32000",
           temperature: 0.1,
         },
       },
@@ -159,6 +162,12 @@ describe("glm-zz-observe extension", () => {
     expect(events[0].summary).toContain("glm/glm-5.1");
     expect(events[0].summary).toContain("tool_stream=on");
     expect(events[0].summary).toContain("thinking=enabled");
+    expect(events[0].summary).toContain("thinking_budget=31999");
+    expect(events[0].summary).toContain("max_completion_tokens=32000");
+    expect((events[0].details as any).request).toMatchObject({
+      thinking_budget: 31999,
+      reasoning_effort: "xhigh",
+      max_completion_tokens: 32000,
+    });
   });
 });
-

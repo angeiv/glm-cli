@@ -27,6 +27,34 @@ test("createGlmServices injects the prompt stack through resource loader overrid
     expect(options.resourceLoaderOptions.appendSystemPromptOverride([]).join("\n\n")).toContain(
       "Use pnpm",
     );
+    expect(options.resourceLoaderOptions.extensionFactories).toEqual([
+      expect.any(Function),
+      expect.any(Function),
+    ]);
+    const [, registerDashscopeExtension] = options.resourceLoaderOptions.extensionFactories;
+    const handlers = new Map<string, (...args: any[]) => unknown>();
+    registerDashscopeExtension({
+      on: (event: string, handler: (...args: any[]) => unknown) => {
+        handlers.set(event, handler);
+      },
+    });
+    const patchedPayload = handlers.get("before_provider_request")?.(
+      {
+        payload: {
+          model: "glm-5.1",
+          max_completion_tokens: 32000,
+          reasoning_effort: "xhigh",
+        },
+      },
+      {
+        model: {
+          baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/",
+          maxTokens: 32000,
+        },
+      },
+    ) as Record<string, unknown>;
+    expect(patchedPayload.thinking_budget).toBe(31999);
+    expect(patchedPayload).not.toHaveProperty("reasoning_effort");
 
     return {
       cwd: options.cwd,
