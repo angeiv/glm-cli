@@ -131,6 +131,19 @@ function shouldEnableThinkingFromReasoningEffort(value: unknown): boolean {
   return normalized !== "" && normalized !== "none" && normalized !== "disabled" && normalized !== "off";
 }
 
+function resolveThinkingEnabledFromReasoningObject(value: unknown): boolean | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (!Object.prototype.hasOwnProperty.call(record, "effort")) {
+    return undefined;
+  }
+
+  return shouldEnableThinkingFromReasoningEffort(record.effort);
+}
+
 function hasToolDefinitions(tools: unknown): boolean {
   return Array.isArray(tools) && tools.length > 0;
 }
@@ -193,6 +206,8 @@ export function applyZhipuPayloadPatches(
   const supportsThinking = caps ? caps.supportsThinking : true;
   const hasEnableThinking = Object.prototype.hasOwnProperty.call(next, "enable_thinking");
   const hasReasoningEffort = Object.prototype.hasOwnProperty.call(next, "reasoning_effort");
+  const reasoningEnabledFromObject = resolveThinkingEnabledFromReasoningObject(next.reasoning);
+  const hasReasoningObject = reasoningEnabledFromObject !== undefined;
   const hasExistingThinking =
     Object.prototype.hasOwnProperty.call(next, "thinking") &&
     next.thinking &&
@@ -211,13 +226,16 @@ export function applyZhipuPayloadPatches(
     (forcedThinkingMode ||
       hasEnableThinking ||
       hasReasoningEffort ||
+      hasReasoningObject ||
       (hasExistingThinking && overrides.clearThinking !== undefined))
   ) {
     const enabled = forcedThinkingMode
       ? forcedThinkingMode === "enabled"
       : hasEnableThinking
         ? !!next.enable_thinking
-        : shouldEnableThinkingFromReasoningEffort(next.reasoning_effort);
+        : hasReasoningEffort
+          ? shouldEnableThinkingFromReasoningEffort(next.reasoning_effort)
+          : reasoningEnabledFromObject ?? false;
 
     const existingThinking =
       next.thinking && typeof next.thinking === "object"
@@ -235,6 +253,7 @@ export function applyZhipuPayloadPatches(
 
   delete next.enable_thinking;
   delete next.reasoning_effort;
+  delete next.reasoning;
 
   const supportsStructuredOutput = caps ? caps.supportsStructuredOutput : true;
   if (!supportsStructuredOutput && Object.prototype.hasOwnProperty.call(next, "response_format")) {

@@ -62,6 +62,28 @@ describe("glm-zhipu extension", () => {
     expect(next).not.toHaveProperty("reasoning_effort");
   });
 
+  test("applyZhipuPayloadPatches treats xhigh reasoning_effort as enabled thinking", () => {
+    const payload = {
+      model: "glm-5.1",
+      reasoning_effort: "xhigh",
+    };
+
+    const next = applyZhipuPayloadPatches(payload, {}) as any;
+    expect(next.thinking).toEqual({ type: "enabled" });
+    expect(next).not.toHaveProperty("reasoning_effort");
+  });
+
+  test("applyZhipuPayloadPatches maps OpenAI/OpenRouter reasoning object to thinking", () => {
+    const payload = {
+      model: "glm-5.1",
+      reasoning: { effort: "high" },
+    };
+
+    const next = applyZhipuPayloadPatches(payload, {}) as any;
+    expect(next.thinking).toEqual({ type: "enabled" });
+    expect(next).not.toHaveProperty("reasoning");
+  });
+
   test("applyZhipuPayloadPatches does not inject clear_thinking unless configured", () => {
     const payload = {
       model: "glm-5.1",
