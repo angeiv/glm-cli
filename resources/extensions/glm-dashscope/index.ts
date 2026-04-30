@@ -18,14 +18,23 @@ function getObject(value: unknown): Record<string, unknown> | undefined {
 }
 
 export function isDashscopeBaseUrl(baseUrl: string): boolean {
-  const normalized = baseUrl.trim().toLowerCase();
-  if (!normalized) return false;
+  const trimmed = baseUrl.trim();
+  if (!trimmed) return false;
 
-  // DashScope / Bailian OpenAI-compatible endpoints.
-  return (
-    normalized.includes("dashscope.aliyuncs.com") ||
-    (normalized.includes("bailian") && normalized.includes("aliyun"))
-  );
+  const parse = (value: string): URL | null => {
+    try {
+      return new URL(value);
+    } catch {
+      return null;
+    }
+  };
+
+  const url = parse(trimmed) ?? parse(`https://${trimmed}`);
+  if (!url) return false;
+
+  const host = url.hostname.trim().toLowerCase();
+  // Match on hostname (not substring) to avoid accepting attacker-controlled domains.
+  return host === "dashscope.aliyuncs.com" || host === "bailian.aliyuncs.com";
 }
 
 const DEFAULT_THINKING_BUDGETS: Record<string, number> = {
@@ -126,4 +135,3 @@ export default function (pi: ExtensionAPI) {
     return applyDashscopePayloadPatches(event.payload);
   });
 }
-
