@@ -136,9 +136,9 @@ describe("buildRuntimeStatus", () => {
       enabled: true,
       configuredServerCount: 3,
       modeCounts: {
-        direct: 1,
+        direct: 0,
         proxy: 1,
-        hybrid: 1,
+        hybrid: 2,
       },
     });
     expect(status.toolSignature).toMatchObject({
