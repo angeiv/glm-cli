@@ -615,7 +615,12 @@ export async function createGlmRuntime(
   runtime.switchSession = async (sessionPath, cwdOverride) => {
     preferredSelection =
       getGlmModelSelection(runtime.session.model) ?? preferredSelection;
-    return originalSwitchSession(sessionPath, cwdOverride);
+    const result = await originalSwitchSession(sessionPath, cwdOverride);
+    const session = runtime.session as unknown as { init?: () => Promise<void> };
+    if (typeof session.init === "function") {
+      await session.init();
+    }
+    return result;
   };
 
   const originalFork = runtime.fork.bind(runtime);
