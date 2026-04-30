@@ -1,9 +1,18 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 function toFiniteNumber(value: unknown): number | undefined {
-  if (typeof value !== "number") return undefined;
-  if (!Number.isFinite(value)) return undefined;
-  return value;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
 }
 
 function toStringValue(value: unknown): string | undefined {
@@ -69,6 +78,11 @@ function isThinkingEnabled(payload: Record<string, unknown>): boolean {
     return true;
   }
 
+  // Some providers implicitly enable thinking when a budget is provided.
+  if (toFiniteNumber(payload.thinking_budget) !== undefined) {
+    return true;
+  }
+
   if (payload.enable_thinking === true) {
     return true;
   }
@@ -95,11 +109,47 @@ function resolveMaxCompletionTokens(payload: Record<string, unknown>): number | 
   );
 }
 
-export function applyDashscopePayloadPatches(payload: unknown): unknown {
+type DashscopePatchContext = {
+  /**
+   * Max tokens override from the GLM config surface (GLM_MAX_OUTPUT_TOKENS).
+   * Useful when a later extension overwrites the max token field after this patch runs.
+   */
+  maxOutputTokensOverride?: number;
+  /**
+   * Model-level maxTokens cap from Pi's model registry.
+   * Used as a fallback when no max token field is present in the request payload.
+   */
+  modelMaxTokens?: number;
+};
+
+function resolveEffectiveMaxCompletionTokens(
+  payload: Record<string, unknown>,
+  context?: DashscopePatchContext,
+): number | undefined {
+  const candidates = [
+    resolveMaxCompletionTokens(payload),
+    context?.maxOutputTokensOverride,
+    context?.modelMaxTokens,
+  ]
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
+    .map((value) => Math.floor(value))
+    .filter((value) => value > 0);
+
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  return Math.min(...candidates);
+}
+
+export function applyDashscopePayloadPatches(
+  payload: unknown,
+  context?: DashscopePatchContext,
+): unknown {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
   const next = { ...(payload as Record<string, unknown>) };
 
-  const maxCompletionTokens = resolveMaxCompletionTokens(next);
+  const maxCompletionTokens = resolveEffectiveMaxCompletionTokens(next, context);
   if (maxCompletionTokens === undefined) return payload;
   if (maxCompletionTokens <= 0) return payload;
 
@@ -125,13 +175,19 @@ export function applyDashscopePayloadPatches(payload: unknown): unknown {
 
 export default function (pi: ExtensionAPI) {
   pi.on("before_provider_request", (event, ctx) => {
-    const model = (ctx.model ?? {}) as { baseUrl?: string };
+    const model = (ctx.model ?? {}) as { baseUrl?: string; maxTokens?: number };
     const baseUrl = typeof model.baseUrl === "string" ? model.baseUrl : "";
 
     if (!baseUrl || !isDashscopeBaseUrl(baseUrl)) {
       return;
     }
 
-    return applyDashscopePayloadPatches(event.payload);
+    const maxOutputTokensOverride = toFiniteNumber(process.env.GLM_MAX_OUTPUT_TOKENS);
+    const modelMaxTokens = toFiniteNumber(model.maxTokens);
+
+    return applyDashscopePayloadPatches(event.payload, {
+      ...(maxOutputTokensOverride === undefined ? {} : { maxOutputTokensOverride }),
+      ...(modelMaxTokens === undefined ? {} : { modelMaxTokens }),
+    });
   });
 }
