@@ -33,6 +33,11 @@
     "sync:agent-resources": "pnpm run build:resources && node scripts/copy-resources.mjs",
     "test": "pnpm run build:resources && vitest --run"
   },
+  "pnpm": {
+    "overrides": {
+      "@anthropic-ai/sdk": "^0.91.1"
+    }
+  },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.70.0",
     "@mariozechner/pi-coding-agent": "^0.70.0",
