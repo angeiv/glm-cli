@@ -34,6 +34,7 @@ describe("glm-dashscope extension", () => {
 
     const next = applyDashscopePayloadPatches(payload) as any;
     expect(next.thinking_budget).toBe(31999);
+    expect(next).not.toHaveProperty("reasoning_effort");
   });
 
   test("uses maxOutputTokensOverride when payload lacks max token fields", () => {
@@ -76,7 +77,23 @@ describe("glm-dashscope extension", () => {
       thinking_budget: 1000,
     };
 
-    const next = applyDashscopePayloadPatches(payload);
-    expect(next).toBe(payload);
+    const next = applyDashscopePayloadPatches(payload) as any;
+    expect(next.thinking_budget).toBe(1000);
+    expect(next).not.toHaveProperty("reasoning_effort");
+  });
+
+  test("strips reasoning_effort after deriving an explicit Dashscope thinking_budget", () => {
+    const payload = {
+      model: "glm-5.1",
+      max_completion_tokens: 32000,
+      reasoning_effort: "xhigh",
+    };
+
+    const next = applyDashscopePayloadPatches(payload) as any;
+    expect(next).toMatchObject({
+      max_completion_tokens: 32000,
+      thinking_budget: 31999,
+    });
+    expect(next).not.toHaveProperty("reasoning_effort");
   });
 });

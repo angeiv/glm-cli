@@ -129,6 +129,15 @@ export async function createGlmServices(
     )
   ).default;
 
+  // Load the Dashscope/Bailian request patch inline as well so it runs after all
+  // on-disk extensions. This ensures the final payload respects gateway constraints
+  // even when other extensions override max token fields.
+  const registerDashscopeExtension = (
+    await import(
+      new URL("../../resources/extensions/glm-dashscope/index.js", import.meta.url).href
+    )
+  ).default;
+
   const services = await createAgentSessionServices({
     cwd: input.cwd,
     agentDir: input.agentDir,
@@ -138,7 +147,7 @@ export async function createGlmServices(
     resourceLoaderOptions: {
       systemPromptOverride: () => promptStack.systemPrompt,
       appendSystemPromptOverride: () => [...promptStack.appendSystemPrompt],
-      extensionFactories: [registerMcpExtension],
+      extensionFactories: [registerMcpExtension, registerDashscopeExtension],
     },
   });
 

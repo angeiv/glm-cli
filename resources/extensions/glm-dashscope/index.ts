@@ -101,6 +101,10 @@ function isThinkingEnabled(payload: Record<string, unknown>): boolean {
   return false;
 }
 
+function hasReasoningEffort(payload: Record<string, unknown>): boolean {
+  return Object.prototype.hasOwnProperty.call(payload, "reasoning_effort");
+}
+
 function resolveMaxCompletionTokens(payload: Record<string, unknown>): number | undefined {
   return (
     toFiniteNumber(payload.max_completion_tokens) ??
@@ -165,11 +169,15 @@ export function applyDashscopePayloadPatches(
     DEFAULT_THINKING_BUDGETS.medium;
 
   const clampedBudget = Math.min(Math.max(0, Math.floor(derivedBudget)), maxBudget);
-  if (existingBudget === clampedBudget) {
+  const shouldStripReasoningEffort = hasReasoningEffort(next);
+  if (existingBudget === clampedBudget && !shouldStripReasoningEffort) {
     return payload;
   }
 
   next.thinking_budget = clampedBudget;
+  if (shouldStripReasoningEffort) {
+    delete next.reasoning_effort;
+  }
   return next;
 }
 

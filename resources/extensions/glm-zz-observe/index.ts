@@ -16,9 +16,16 @@ function toBoolean(value: unknown): boolean | undefined {
 }
 
 function toNumber(value: unknown): number | undefined {
-  if (typeof value !== "number") return undefined;
-  if (!Number.isFinite(value)) return undefined;
-  return value;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 function toStringValue(value: unknown): string | undefined {
@@ -53,6 +60,7 @@ function pickResponseFormatType(payload: Record<string, unknown>): string | unde
 function pickThinking(payload: Record<string, unknown>): {
   type?: string;
   clearThinking?: boolean;
+  budget?: number;
 } {
   const thinking = getObject(payload.thinking);
   return {
@@ -60,6 +68,9 @@ function pickThinking(payload: Record<string, unknown>): {
     ...(toBoolean(thinking?.clear_thinking) === undefined
       ? {}
       : { clearThinking: toBoolean(thinking?.clear_thinking)! }),
+    ...(toNumber(payload.thinking_budget) === undefined
+      ? {}
+      : { budget: toNumber(payload.thinking_budget)! }),
   };
 }
 
@@ -84,7 +95,7 @@ function renderRequestSummary(args: {
   payload: Record<string, unknown>;
   toolCount: number;
   toolStream: boolean | undefined;
-  thinking: { type?: string; clearThinking?: boolean };
+  thinking: { type?: string; clearThinking?: boolean; budget?: number };
   responseFormatType: string | undefined;
   maxTokens: { maxTokens?: number; maxOutputTokens?: number; maxCompletionTokens?: number };
 }): string {
@@ -103,6 +114,7 @@ function renderRequestSummary(args: {
     args.thinking.clearThinking === undefined
       ? undefined
       : `clear_thinking=${args.thinking.clearThinking ? "on" : "off"}`,
+    args.thinking.budget === undefined ? undefined : `thinking_budget=${args.thinking.budget}`,
     args.responseFormatType ? `response_format=${args.responseFormatType}` : undefined,
     args.maxTokens.maxTokens !== undefined ? `max_tokens=${args.maxTokens.maxTokens}` : undefined,
     args.maxTokens.maxOutputTokens !== undefined ? `max_output_tokens=${args.maxTokens.maxOutputTokens}` : undefined,
@@ -133,6 +145,7 @@ export default function (pi: ExtensionAPI) {
     const maxTokens = pickMaxTokens(payloadObj);
     const temperature = toNumber(payloadObj.temperature);
     const topP = toNumber(payloadObj.top_p);
+    const reasoningEffort = toStringValue(payloadObj.reasoning_effort);
 
     appendRuntimeEvent({
       type: "provider.request",
@@ -169,6 +182,8 @@ export default function (pi: ExtensionAPI) {
           ...(thinking.clearThinking === undefined
             ? {}
             : { clear_thinking: thinking.clearThinking }),
+          ...(thinking.budget === undefined ? {} : { thinking_budget: thinking.budget }),
+          ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
           ...(responseFormatType ? { response_format: responseFormatType } : {}),
           ...(maxTokens.maxTokens === undefined ? {} : { max_tokens: maxTokens.maxTokens }),
           ...(maxTokens.maxOutputTokens === undefined
@@ -189,4 +204,3 @@ export default function (pi: ExtensionAPI) {
     });
   });
 }
-
