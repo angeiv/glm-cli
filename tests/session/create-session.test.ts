@@ -530,6 +530,81 @@ test("createGlmRuntime scopes approval policy for direct runtime session usage a
   expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
 });
 
+test("createGlmRuntime does not print resume model mismatch warnings to console during interactive use", async () => {
+  vi.doUnmock("../../src/session/create-session.js");
+
+  const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const runtimeDir = mkdtempSync(join(tmpdir(), "glm-runtime-"));
+
+  const syncPackagedResources = vi.fn(async () => {
+    throw new Error("stop-after-resume-warning");
+  });
+
+  vi.doMock("../../src/app/resource-sync.js", () => ({
+    syncPackagedResources,
+  }));
+
+  const runtimeHost = {
+    session: {
+      model: { provider: "openai-compatible", id: "glm-openai-test" },
+      prompt: vi.fn(async () => {}),
+      getActiveToolNames: vi.fn(() => ["bash"]),
+      setActiveToolsByName: vi.fn(),
+    },
+    newSession: vi.fn(async () => ({ cancelled: false })),
+    switchSession: vi.fn(async () => ({ cancelled: false })),
+    fork: vi.fn(async () => ({ cancelled: false })),
+    importFromJsonl: vi.fn(async () => ({ cancelled: false })),
+  };
+
+  vi.doMock("@mariozechner/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
+      "@mariozechner/pi-coding-agent",
+    );
+
+    return {
+      ...actual,
+      createAgentSessionRuntime: vi.fn(async (createRuntime: any) => {
+        try {
+          await createRuntime({
+            cwd: runtimeDir,
+            sessionManager: {
+              buildSessionContext: () => ({
+                messages: [{ role: "user", content: "hi" }],
+                thinkingLevel: "medium",
+                model: {
+                  provider: "openai-compatible",
+                  modelId: "saved-session-model",
+                },
+              }),
+            },
+            sessionStartEvent: { type: "session_start", reason: "resume" },
+          });
+        } catch {
+          // The test aborts session creation after the resume warning is evaluated.
+        }
+
+        return runtimeHost;
+      }),
+    };
+  });
+
+  const { createGlmRuntime } = await import("../../src/session/create-session.js");
+  await createGlmRuntime({
+    cwd: runtimeDir,
+    model: "glm-openai-test",
+    provider: "openai-compatible",
+    approvalPolicy: "ask",
+  });
+
+  expect(syncPackagedResources).toHaveBeenCalledTimes(1);
+  expect(
+    warnSpy.mock.calls.some((call) =>
+      String(call[0]).includes("Resuming session created with"),
+    ),
+  ).toBe(false);
+});
+
 test("approval policy can be changed at runtime via shared global state", async () => {
   vi.doUnmock("../../src/session/create-session.js");
 

@@ -149,7 +149,7 @@ function maybeWarnOnStoredSessionModelMismatch(args: {
   });
 
   // Only print at process startup; avoid disrupting the interactive UI during in-session reloads.
-  if (reason === "startup" || reason === "resume") {
+  if (reason === "startup") {
     console.warn(
       `Resuming session created with ${savedProvider}/${savedModelId}; using ${current.provider}/${current.model}.`,
     );
