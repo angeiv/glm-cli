@@ -8,13 +8,7 @@ import { resolveGlmProfileV2 as resolveRuntimeGlmProfileV2 } from "../../resourc
 
 describe("GLM runtime shared resource", () => {
   test("is generated from the source-of-truth core module", () => {
-    const resourcePath = join(
-      process.cwd(),
-      "resources",
-      "extensions",
-      "shared",
-      "glm-profile.js",
-    );
+    const resourcePath = join(process.cwd(), "resources", "extensions", "shared", "glm-profile.js");
     const contents = readFileSync(resourcePath, "utf8");
 
     expect(contents).toContain("GENERATED FROM src/models/glm-profile-runtime.ts");
@@ -52,6 +46,8 @@ describe("GLM runtime shared resource", () => {
       ],
     };
 
-    expect(resolveRuntimeGlmProfileV2(overrideInput)).toEqual(resolveSourceGlmProfileV2(overrideInput));
+    expect(resolveRuntimeGlmProfileV2(overrideInput)).toEqual(
+      resolveSourceGlmProfileV2(overrideInput),
+    );
   });
 });

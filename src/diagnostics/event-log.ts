@@ -34,14 +34,8 @@ function getRuntimeEventLogState(): RuntimeEventLogState {
   return state;
 }
 
-export function configureRuntimeEventLog(args: {
-  limit: number;
-  persistPath?: string;
-}): void;
-export function configureRuntimeEventLog(args: {
-  limit: number;
-  persistPath?: string;
-}): void {
+export function configureRuntimeEventLog(args: { limit: number; persistPath?: string }): void;
+export function configureRuntimeEventLog(args: { limit: number; persistPath?: string }): void {
   const state = getRuntimeEventLogState();
   state.limit = Number.isInteger(args.limit) && args.limit > 0 ? args.limit : 200;
   state.persistPath = args.persistPath?.trim() || undefined;

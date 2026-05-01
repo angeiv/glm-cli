@@ -5,10 +5,7 @@ import { dirname, resolve } from "node:path";
 
 const projectRoot = process.cwd();
 const entryPoint = resolve(projectRoot, "src/models/glm-profile-runtime.ts");
-const outputFile = resolve(
-  projectRoot,
-  "resources/extensions/shared/glm-profile.js",
-);
+const outputFile = resolve(projectRoot, "resources/extensions/shared/glm-profile.js");
 
 mkdirSync(dirname(outputFile), { recursive: true });
 

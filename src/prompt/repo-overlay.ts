@@ -42,17 +42,16 @@ export async function buildRepoOverlay(cwd: string): Promise<string | undefined>
   const tsconfig = await readJsonFile<TsConfigJson>(join(cwd, "tsconfig.json"));
   const moduleValue = tsconfig?.compilerOptions?.module;
   const moduleResolutionValue = tsconfig?.compilerOptions?.moduleResolution;
-  const isNodeNext =
-    moduleValue === "NodeNext" || moduleResolutionValue === "NodeNext";
+  const isNodeNext = moduleValue === "NodeNext" || moduleResolutionValue === "NodeNext";
 
-  if ((packageJson?.type === "module" || isNodeNext) && !hints.includes("Keep NodeNext/ESM import semantics consistent with existing files.")) {
+  if (
+    (packageJson?.type === "module" || isNodeNext) &&
+    !hints.includes("Keep NodeNext/ESM import semantics consistent with existing files.")
+  ) {
     hints.push("Keep NodeNext/ESM import semantics consistent with existing files.");
   }
 
   if (hints.length === 0) return undefined;
 
-  return [
-    "Repository overlay:",
-    ...hints.map((hint) => `- ${hint}`),
-  ].join("\n");
+  return ["Repository overlay:", ...hints.map((hint) => `- ${hint}`)].join("\n");
 }

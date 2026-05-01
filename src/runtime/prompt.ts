@@ -1,7 +1,4 @@
-import {
-  getBaseContractPath,
-  loadBaseContractPrompt,
-} from "../prompt/base-contract.js";
+import { getBaseContractPath, loadBaseContractPrompt } from "../prompt/base-contract.js";
 import { buildModeOverlay, type PromptMode } from "../prompt/mode-overlays.js";
 import { buildRepoOverlay } from "../prompt/repo-overlay.js";
 import { buildTaskOverlay } from "../prompt/task-overlay.js";
@@ -44,9 +41,6 @@ export function composeTaskPrompt(task: string, mode: PromptMode): string {
   return buildTaskOverlay(task, mode);
 }
 
-export function composeRepairPrompt(
-  result: VerificationResult,
-  nextRound: number,
-): string {
+export function composeRepairPrompt(result: VerificationResult, nextRound: number): string {
   return buildVerificationOverlay(result, nextRound);
 }

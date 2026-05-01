@@ -21,11 +21,7 @@ export function buildTaskOverlay(task: string, mode: PromptMode): string {
             "- Verify before claiming success when the repo offers a practical check.",
           ];
 
-  return [
-    `Task overlay (${mode}):`,
-    trimmedTask,
-    "",
-    "Round instructions:",
-    ...instructions,
-  ].join("\n");
+  return [`Task overlay (${mode}):`, trimmedTask, "", "Round instructions:", ...instructions].join(
+    "\n",
+  );
 }

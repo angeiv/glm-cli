@@ -140,7 +140,8 @@ function matchesOverride(rule: GlmProfileOverrideRule, context: GlmResolutionCon
   }
 
   if (match.modelId) {
-    if (!matchesAnyCandidate(extractModelIdCandidates(context.modelId), match.modelId)) return false;
+    if (!matchesAnyCandidate(extractModelIdCandidates(context.modelId), match.modelId))
+      return false;
   }
 
   if (match.platform) {
@@ -171,10 +172,7 @@ function resolveConfidence(
   canonicalModelId: string | undefined,
   platform: GlmPlatformRoute,
 ): ResolutionConfidence {
-  if (
-    canonicalModelId &&
-    (platform === "native-bigmodel" || platform === "native-zai")
-  ) {
+  if (canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")) {
     return "high";
   }
 
@@ -185,7 +183,10 @@ function resolveConfidence(
   return "low";
 }
 
-function applyOverrides(context: GlmResolutionContext, rules: GlmProfileOverrideRule[] | undefined): {
+function applyOverrides(
+  context: GlmResolutionContext,
+  rules: GlmProfileOverrideRule[] | undefined,
+): {
   canonicalModelId?: string;
   payloadPatchPolicy?: PayloadPatchPolicy;
   caps?: Partial<EffectiveModelCaps>;
@@ -229,8 +230,7 @@ export function resolveGlmProfileV2(input: ResolveGlmProfileV2Input): ResolvedGl
   const effectiveCaps = mergeCaps(mergeCaps(baseCaps, variant.caps), overrides.caps);
 
   const defaultPayloadPolicy: PayloadPatchPolicy =
-    canonicalModelId &&
-    (platform === "native-bigmodel" || platform === "native-zai")
+    canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")
       ? "glm-native"
       : "safe-openai-compatible";
   const payloadPatchPolicy = overrides.payloadPatchPolicy ?? defaultPayloadPolicy;
@@ -248,4 +248,3 @@ export function resolveGlmProfileV2(input: ResolveGlmProfileV2Input): ResolvedGl
     effectiveCaps,
   };
 }
-

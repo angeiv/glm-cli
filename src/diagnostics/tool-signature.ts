@@ -49,9 +49,7 @@ function stableStringify(value: unknown): string {
       const keys = Object.keys(obj)
         .filter((key) => obj[key] !== undefined)
         .sort();
-      const body = keys
-        .map((key) => `${JSON.stringify(key)}:${encode(obj[key])}`)
-        .join(",");
+      const body = keys.map((key) => `${JSON.stringify(key)}:${encode(obj[key])}`).join(",");
       return `{${body}}`;
     }
 
@@ -79,7 +77,7 @@ function summarizeTools(tools: Array<unknown>): ToolSummary[] {
     summaries.push({
       name,
       ...(typeof maybe.description === "string" ? { description: maybe.description } : {}),
-      ...(Object.prototype.hasOwnProperty.call(maybe, "parameters") ? { parameters: maybe.parameters } : {}),
+      ...(Object.hasOwn(maybe, "parameters") ? { parameters: maybe.parameters } : {}),
     });
   }
 
@@ -125,7 +123,9 @@ export async function computeRuntimeToolSignature(args: {
   const [{ hash: configHash, mtimeMs: configMtimeMs }, { hash: cacheHash, mtimeMs: cacheMtimeMs }] =
     await Promise.all([readStableJsonHash(mcpConfigPath), readStableJsonHash(mcpCachePath)]);
 
-  const lastChangeMs = [configMtimeMs, cacheMtimeMs].filter((v): v is number => typeof v === "number").reduce((acc, next) => Math.max(acc, next), 0);
+  const lastChangeMs = [configMtimeMs, cacheMtimeMs]
+    .filter((v): v is number => typeof v === "number")
+    .reduce((acc, next) => Math.max(acc, next), 0);
 
   const signatureInput = {
     builtinTools: builtinSummaries,
@@ -153,4 +153,3 @@ export async function computeRuntimeToolSignature(args: {
     ...(lastChangeMs > 0 ? { lastChangeMs } : {}),
   };
 }
-

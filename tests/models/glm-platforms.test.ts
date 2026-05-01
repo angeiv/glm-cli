@@ -6,14 +6,8 @@ describe("GLM platform routing", () => {
     expect(resolveGlmPlatformRoute("https://open.bigmodel.cn/api/paas/v4/")).toBe(
       "native-bigmodel",
     );
-    expect(resolveGlmPlatformRoute("https://api.z.ai/api/paas/v4/")).toBe(
-      "native-zai",
-    );
-    expect(resolveGlmPlatformRoute("https://openrouter.ai/api/v1")).toBe(
-      "gateway-openrouter",
-    );
-    expect(resolveGlmPlatformRoute("https://gateway.example.com/v1")).toBe(
-      "gateway-other",
-    );
+    expect(resolveGlmPlatformRoute("https://api.z.ai/api/paas/v4/")).toBe("native-zai");
+    expect(resolveGlmPlatformRoute("https://openrouter.ai/api/v1")).toBe("gateway-openrouter");
+    expect(resolveGlmPlatformRoute("https://gateway.example.com/v1")).toBe("gateway-other");
   });
 });

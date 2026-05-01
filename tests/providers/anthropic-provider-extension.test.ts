@@ -28,8 +28,6 @@ function withEnv(overrides: Partial<Record<(typeof trackedEnvKeys)[number], stri
   }
 }
 
-
-
 function registerProviderByName(
   name: string,
   overrides: Partial<Record<(typeof trackedEnvKeys)[number], string>>,
@@ -46,7 +44,9 @@ function registerProviderByName(
   return registrations.find((registration) => registration.name === name);
 }
 
-function registerAnthropicProvider(overrides: Partial<Record<(typeof trackedEnvKeys)[number], string>>) {
+function registerAnthropicProvider(
+  overrides: Partial<Record<(typeof trackedEnvKeys)[number], string>>,
+) {
   withEnv(overrides);
 
   const registrations: Array<{ name: string; config: Record<string, unknown> }> = [];
@@ -161,4 +161,3 @@ describe("openai-responses provider extension registration", () => {
     expect(models).toEqual([expect.objectContaining({ id: "glm-5.1" })]);
   });
 });
-

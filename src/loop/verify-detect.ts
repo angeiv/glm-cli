@@ -42,7 +42,9 @@ function isNonEmptyScript(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-async function detectFromPackageJson(cwd: string): Promise<VerificationCommandResolution | undefined> {
+async function detectFromPackageJson(
+  cwd: string,
+): Promise<VerificationCommandResolution | undefined> {
   const pkg = await readPackageJson(cwd);
   if (!pkg) return undefined;
 
@@ -117,15 +119,8 @@ async function detectFromCargo(cwd: string): Promise<VerificationCommandResoluti
   return undefined;
 }
 
-export async function detectCodeVerifier(
-  cwd: string,
-): Promise<VerificationCommandResolution> {
-  const detectors = [
-    detectFromPackageJson,
-    detectFromPython,
-    detectFromGo,
-    detectFromCargo,
-  ];
+export async function detectCodeVerifier(cwd: string): Promise<VerificationCommandResolution> {
+  const detectors = [detectFromPackageJson, detectFromPython, detectFromGo, detectFromCargo];
 
   for (const detect of detectors) {
     const result = await detect(cwd);
@@ -136,14 +131,11 @@ export async function detectCodeVerifier(
 
   return {
     kind: "unavailable",
-    summary:
-      "No supported high-confidence verifier could be detected for this project.",
+    summary: "No supported high-confidence verifier could be detected for this project.",
   };
 }
 
-export async function detectBuildVerifier(
-  cwd: string,
-): Promise<VerificationCommandResolution> {
+export async function detectBuildVerifier(cwd: string): Promise<VerificationCommandResolution> {
   const pkg = await readPackageJson(cwd);
   if (pkg && isNonEmptyScript(pkg.scripts?.build)) {
     const packageManager = detectNodePackageManager(pkg);

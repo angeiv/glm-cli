@@ -77,7 +77,6 @@ describe("session memory", () => {
     expect(memory?.compactions.map((record) => record.entryId)).toEqual(["c2", "c3"]);
 
     const payload = readFileSync(getSessionMemoryPath(sessionDir, sessionId), "utf8");
-    expect(payload).toContain("\"entryId\": \"c3\"");
+    expect(payload).toContain('"entryId": "c3"');
   });
 });
-

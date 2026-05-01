@@ -70,8 +70,6 @@ describe("runDoctor", () => {
     expect(credentialsCheck?.details).toContain("missing OPENAI_API_KEY");
   });
 
-
-
   test("treats whitespace-only OPENAI_API_KEY as missing for openai-responses", async () => {
     const result = await runDoctor({
       ...baseOptions,

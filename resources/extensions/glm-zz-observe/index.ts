@@ -44,7 +44,7 @@ function hasStrictToolDefinitions(tools: unknown): boolean {
   for (const tool of tools) {
     const toolObj = getObject(tool);
     const fn = getObject(toolObj?.function);
-    if (fn && Object.prototype.hasOwnProperty.call(fn, "strict")) {
+    if (fn && Object.hasOwn(fn, "strict")) {
       return true;
     }
   }
@@ -117,8 +117,12 @@ function renderRequestSummary(args: {
     args.thinking.budget === undefined ? undefined : `thinking_budget=${args.thinking.budget}`,
     args.responseFormatType ? `response_format=${args.responseFormatType}` : undefined,
     args.maxTokens.maxTokens !== undefined ? `max_tokens=${args.maxTokens.maxTokens}` : undefined,
-    args.maxTokens.maxOutputTokens !== undefined ? `max_output_tokens=${args.maxTokens.maxOutputTokens}` : undefined,
-    args.maxTokens.maxCompletionTokens !== undefined ? `max_completion_tokens=${args.maxTokens.maxCompletionTokens}` : undefined,
+    args.maxTokens.maxOutputTokens !== undefined
+      ? `max_output_tokens=${args.maxTokens.maxOutputTokens}`
+      : undefined,
+    args.maxTokens.maxCompletionTokens !== undefined
+      ? `max_completion_tokens=${args.maxTokens.maxCompletionTokens}`
+      : undefined,
   ].filter(Boolean);
 
   return parts.join(" | ");
@@ -195,10 +199,10 @@ export default function (pi: ExtensionAPI) {
           ...(temperature === undefined ? {} : { temperature }),
           ...(topP === undefined ? {} : { top_p: topP }),
           has_strict_tools: hasStrictToolDefinitions(payloadObj.tools),
-          has_store: Object.prototype.hasOwnProperty.call(payloadObj, "store"),
-          has_stream_options: Object.prototype.hasOwnProperty.call(payloadObj, "stream_options"),
-          has_reasoning_effort: Object.prototype.hasOwnProperty.call(payloadObj, "reasoning_effort"),
-          has_enable_thinking: Object.prototype.hasOwnProperty.call(payloadObj, "enable_thinking"),
+          has_store: Object.hasOwn(payloadObj, "store"),
+          has_stream_options: Object.hasOwn(payloadObj, "stream_options"),
+          has_reasoning_effort: Object.hasOwn(payloadObj, "reasoning_effort"),
+          has_enable_thinking: Object.hasOwn(payloadObj, "enable_thinking"),
         },
       },
     });

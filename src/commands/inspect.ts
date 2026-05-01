@@ -6,10 +6,7 @@ import {
   resolveRuntimeConfig,
   type RuntimeCliFlags,
 } from "../app/env.js";
-import {
-  buildRuntimeStatus,
-  formatRuntimeStatusLines,
-} from "../diagnostics/runtime-status.js";
+import { buildRuntimeStatus, formatRuntimeStatusLines } from "../diagnostics/runtime-status.js";
 import type { RuntimeStatus } from "../diagnostics/types.js";
 import { resolveGlmSessionPaths } from "../session/session-paths.js";
 

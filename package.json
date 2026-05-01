@@ -28,7 +28,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && pnpm run build:resources",
     "build:resources": "node scripts/build-resource-extensions.mjs",
+    "biome:check": "biome check .",
+    "biome:fix": "biome check --write .",
     "dev": "pnpm run build:resources && tsx src/loader.ts",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
     "prepack": "pnpm run build",
     "sync:agent-resources": "pnpm run build:resources && node scripts/copy-resources.mjs",
     "test": "pnpm run build:resources && vitest --run"
@@ -49,6 +55,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.13",
     "@types/node": "^24.3.0",
     "esbuild": "^0.28.0",
     "tsx": "^4.20.3",

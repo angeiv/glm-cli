@@ -27,15 +27,12 @@ describe("HookRunner", () => {
       killed: false,
     }));
 
-    const result = await runner.run(
-      { exec } as any,
-      {
-        name: "beforeTool",
-        provider: "glm",
-        model: "glm-5.1",
-        tool: { name: "bash", input: { command: "rm -rf /tmp" } },
-      },
-    );
+    const result = await runner.run({ exec } as any, {
+      name: "beforeTool",
+      provider: "glm",
+      model: "glm-5.1",
+      tool: { name: "bash", input: { command: "rm -rf /tmp" } },
+    });
 
     expect(exec).toHaveBeenCalled();
     expect(result.decision).toMatchObject({ type: "deny", reason: "nope" });
@@ -59,18 +56,14 @@ describe("HookRunner", () => {
       killed: false,
     }));
 
-    const result = await runner.run(
-      { exec } as any,
-      {
-        name: "beforeTool",
-        provider: "glm",
-        model: "glm-5.1",
-        tool: { name: "read", input: { path: "/tmp" } },
-      },
-    );
+    const result = await runner.run({ exec } as any, {
+      name: "beforeTool",
+      provider: "glm",
+      model: "glm-5.1",
+      tool: { name: "read", input: { path: "/tmp" } },
+    });
 
     expect(exec).not.toHaveBeenCalled();
     expect(result.decision).toEqual({ type: "allow" });
   });
 });
-

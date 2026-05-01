@@ -24,14 +24,15 @@ describe("glm-runtime extension", () => {
   });
 
   test("/inspect renders the current runtime snapshot", async () => {
-    let inspectHandler:
-      | ((args: string, ctx: any) => Promise<void>)
-      | undefined;
+    let inspectHandler: ((args: string, ctx: any) => Promise<void>) | undefined;
     const setWidget = vi.fn();
     const notify = vi.fn();
 
     registerRuntimeExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         if (name === "inspect") {
           inspectHandler = options.handler;
         }
@@ -110,14 +111,15 @@ describe("glm-runtime extension", () => {
   });
 
   test("/events shows recent events and clears them on request", async () => {
-    let eventsHandler:
-      | ((args: string, ctx: any) => Promise<void>)
-      | undefined;
+    let eventsHandler: ((args: string, ctx: any) => Promise<void>) | undefined;
     const setWidget = vi.fn();
     const notify = vi.fn();
 
     registerRuntimeExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         if (name === "events") {
           eventsHandler = options.handler;
         }

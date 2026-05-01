@@ -1,10 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { join } from "node:path";
-import {
-  detectCodeVerifier,
-  detectBuildVerifier,
-} from "../loop/verify-detect.js";
+import { detectCodeVerifier, detectBuildVerifier } from "../loop/verify-detect.js";
 import type { VerificationCommandResolution } from "../loop/types.js";
 
 export type VerifyScenarioName = "smoke" | "test" | "build";

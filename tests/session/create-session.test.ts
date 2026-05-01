@@ -68,10 +68,7 @@ test("createGlmSession resolves the requested model explicitly and restores mode
 
   const modelRegistry = {
     find: vi.fn((provider: string, modelId: string) => {
-      if (
-        provider === requestedModel.provider &&
-        modelId === requestedModel.id
-      ) {
+      if (provider === requestedModel.provider && modelId === requestedModel.id) {
         return requestedModel;
       }
       return undefined;
@@ -233,7 +230,9 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
 });
 
 test("runtime model strategy keeps preferred selection across resumes", async () => {
-  const { getGlmModelSelection, resolveRuntimeModelStrategy } = await import("../../src/session/create-session.js");
+  const { getGlmModelSelection, resolveRuntimeModelStrategy } = await import(
+    "../../src/session/create-session.js"
+  );
 
   const initial = resolveRuntimeModelStrategy(
     {
@@ -400,16 +399,16 @@ test("runRunCommand restores cwd and approval env after runtime execution", asyn
   });
 
   vi.doMock("../../src/app/config-store.js", () => ({
-      readConfigFile: vi.fn().mockResolvedValue({
-        defaultProvider: "glm",
-        defaultModel: "glm-5",
-        approvalPolicy: "ask",
-        providers: {
-          glm: { apiKey: "", baseURL: "" },
-          "openai-compatible": { apiKey: "", baseURL: "" },
-        },
-      }),
-    }));
+    readConfigFile: vi.fn().mockResolvedValue({
+      defaultProvider: "glm",
+      defaultModel: "glm-5",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+    }),
+  }));
   vi.doMock("../../src/session/create-session.js", async () => {
     const actual = await vi.importActual<typeof import("../../src/session/create-session.js")>(
       "../../src/session/create-session.js",
@@ -599,9 +598,7 @@ test("createGlmRuntime does not print resume model mismatch warnings to console 
 
   expect(syncPackagedResources).toHaveBeenCalledTimes(1);
   expect(
-    warnSpy.mock.calls.some((call) =>
-      String(call[0]).includes("Resuming session created with"),
-    ),
+    warnSpy.mock.calls.some((call) => String(call[0]).includes("Resuming session created with")),
   ).toBe(false);
 });
 
@@ -717,9 +714,7 @@ test("resolveRequestedModel keeps model-not-found errors when the provider is av
     resolveRequestedModel(
       {
         find: vi.fn(() => undefined),
-        getAvailable: vi.fn(() => [
-          { provider: "glm", id: "glm-4-flash-250414" },
-        ]),
+        getAvailable: vi.fn(() => [{ provider: "glm", id: "glm-4-flash-250414" }]),
       },
       "glm",
       "glm-5.1",

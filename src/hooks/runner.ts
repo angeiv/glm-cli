@@ -130,10 +130,7 @@ function isRuleMatch(rule: HookRule, event: HookEventContext): boolean {
   if (match.tool && match.tool !== event.tool?.name) return false;
   if (
     match.commandPrefix &&
-    !matchCommandPrefix(
-      match.commandPrefix,
-      normalizeString(event.tool?.input?.command),
-    )
+    !matchCommandPrefix(match.commandPrefix, normalizeString(event.tool?.input?.command))
   ) {
     return false;
   }
@@ -151,7 +148,7 @@ function createHookEnv(payload: Record<string, unknown>): Record<string, string>
 
 function shellEscapeSingleQuoted(value: string): string {
   // POSIX-safe single-quote escaping: close, escape, reopen.
-  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
 async function execCommandWithEnv(
@@ -183,12 +180,7 @@ async function runRuleHandler(
 ): Promise<HookDecision | null> {
   if (rule.handler.backend === "command") {
     const env = createHookEnv(payload);
-    const result = await execCommandWithEnv(
-      pi,
-      rule.handler.command,
-      options,
-      env,
-    );
+    const result = await execCommandWithEnv(pi, rule.handler.command, options, env);
 
     const combined = `${result.stdout}\n${result.stderr}`.trim();
     return parseDecisionFromText(combined);

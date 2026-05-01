@@ -13,11 +13,7 @@ export function updatePlan(state: PlanState, items: PlanItem[]) {
   state.items = items;
 }
 
-export function markPlanTaskDone(
-  state: PlanState,
-  step: string,
-  status: string = "done",
-) {
+export function markPlanTaskDone(state: PlanState, step: string, status: string = "done") {
   const existing = state.items.find((item) => item.step === step);
   if (existing) {
     existing.status = status;
@@ -97,7 +93,9 @@ export function createPlanTools() {
       const listing =
         state.items.length === 0
           ? "No plan items yet."
-          : state.items.map((item, index) => `${index + 1}. ${item.step} (${item.status})`).join("\n");
+          : state.items
+              .map((item, index) => `${index + 1}. ${item.step} (${item.status})`)
+              .join("\n");
       return {
         content: [{ type: "text", text: listing }],
         details: {},

@@ -46,7 +46,10 @@ function parseHookRule(value: unknown): HookRule {
         ? undefined
         : (timeoutMsRaw as number);
 
-  if (timeoutMsRaw !== undefined && (typeof timeoutMs !== "number" || !Number.isInteger(timeoutMs) || timeoutMs <= 0)) {
+  if (
+    timeoutMsRaw !== undefined &&
+    (typeof timeoutMs !== "number" || !Number.isInteger(timeoutMs) || timeoutMs <= 0)
+  ) {
     throw new Error(`Invalid hook timeoutMs: ${String(timeoutMsRaw)}`);
   }
 
@@ -97,7 +100,8 @@ function parseHookRule(value: unknown): HookRule {
   }
 
   const methodRaw = normalizeString(handlerRecord.method)?.toUpperCase();
-  const method = methodRaw === "GET" || methodRaw === "POST" ? (methodRaw as "GET" | "POST") : undefined;
+  const method =
+    methodRaw === "GET" || methodRaw === "POST" ? (methodRaw as "GET" | "POST") : undefined;
   if (methodRaw !== undefined && method === undefined) {
     throw new Error(`Invalid hook http method: ${String(handlerRecord.method)}`);
   }
@@ -109,9 +113,7 @@ function parseHookRule(value: unknown): HookRule {
   }
 
   const headers: Record<string, string> | undefined = headersRecord
-    ? Object.fromEntries(
-        Object.entries(headersRecord).map(([key, value]) => [key, String(value)]),
-      )
+    ? Object.fromEntries(Object.entries(headersRecord).map(([key, value]) => [key, String(value)]))
     : undefined;
 
   return {

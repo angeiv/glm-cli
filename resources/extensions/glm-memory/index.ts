@@ -1,7 +1,4 @@
-import type {
-  ExtensionAPI,
-  ExtensionCommandContext,
-} from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { appendRuntimeEvent } from "../shared/runtime-state.js";
 import {
   getSessionMemoryPath,
@@ -25,10 +22,7 @@ function emitMemoryMessage(pi: ExtensionAPI, lines: string[]): void {
   );
 }
 
-function formatMemoryLines(args: {
-  memoryPath: string;
-  memory?: SessionMemory;
-}): string[] {
+function formatMemoryLines(args: { memoryPath: string; memory?: SessionMemory }): string[] {
   if (!args.memory) {
     return [
       "Session memory: none",
@@ -197,4 +191,3 @@ export default function (pi: ExtensionAPI) {
     });
   });
 }
-

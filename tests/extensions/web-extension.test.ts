@@ -23,12 +23,23 @@ describe("glm-web extension", () => {
     const tools = new Map<
       string,
       {
-        execute: (toolCallId: string, params: { url: string }, signal?: AbortSignal) => Promise<any>;
+        execute: (
+          toolCallId: string,
+          params: { url: string },
+          signal?: AbortSignal,
+        ) => Promise<any>;
       }
     >();
 
     registerGlmWeb({
-      registerTool: (tool: { name: string; execute: (toolCallId: string, params: { url: string }, signal?: AbortSignal) => Promise<any> }) => {
+      registerTool: (tool: {
+        name: string;
+        execute: (
+          toolCallId: string,
+          params: { url: string },
+          signal?: AbortSignal,
+        ) => Promise<any>;
+      }) => {
         tools.set(tool.name, tool);
       },
     } as unknown as ExtensionAPI);

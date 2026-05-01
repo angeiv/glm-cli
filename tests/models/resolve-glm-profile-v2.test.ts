@@ -54,4 +54,3 @@ describe("GLM profile resolution v2", () => {
     expect(profile.effectiveCaps.supportsToolStream).toBe(false);
   });
 });
-

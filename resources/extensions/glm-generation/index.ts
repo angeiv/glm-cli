@@ -73,4 +73,3 @@ export default function (pi: ExtensionAPI) {
     return applyGenerationOverrides(event.payload, overrides, ctx.model as any);
   });
 }
-

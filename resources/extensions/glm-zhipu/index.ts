@@ -50,9 +50,7 @@ function normalizeThinkingMode(
   return undefined;
 }
 
-function normalizeToolStreamMode(
-  value: string | undefined,
-): "auto" | "on" | "off" | undefined {
+function normalizeToolStreamMode(value: string | undefined): "auto" | "on" | "off" | undefined {
   if (!value) return undefined;
   const normalized = value.trim().toLowerCase();
   if (!normalized) return undefined;
@@ -112,7 +110,7 @@ function stripStrictFromTools(tools: unknown): unknown {
     const maybeTool = tool as Record<string, unknown>;
     const fn = maybeTool.function;
     if (!fn || typeof fn !== "object") return tool;
-    if (!Object.prototype.hasOwnProperty.call(fn, "strict")) return tool;
+    if (!Object.hasOwn(fn, "strict")) return tool;
 
     const nextFn = { ...(fn as Record<string, unknown>) };
     delete nextFn.strict;
@@ -128,7 +126,9 @@ function shouldEnableThinkingFromReasoningEffort(value: unknown): boolean {
     return !!value;
   }
   const normalized = value.trim().toLowerCase();
-  return normalized !== "" && normalized !== "none" && normalized !== "disabled" && normalized !== "off";
+  return (
+    normalized !== "" && normalized !== "none" && normalized !== "disabled" && normalized !== "off"
+  );
 }
 
 function resolveThinkingEnabledFromReasoningObject(value: unknown): boolean | undefined {
@@ -137,7 +137,7 @@ function resolveThinkingEnabledFromReasoningObject(value: unknown): boolean | un
   }
 
   const record = value as Record<string, unknown>;
-  if (!Object.prototype.hasOwnProperty.call(record, "effort")) {
+  if (!Object.hasOwn(record, "effort")) {
     return undefined;
   }
 
@@ -171,10 +171,7 @@ export function applyZhipuPayloadPatches(
   const caps = profile?.effectiveCaps;
 
   // BigModel docs use `max_tokens`. Some OpenAI-oriented clients send `max_completion_tokens`.
-  if (
-    Object.prototype.hasOwnProperty.call(next, "max_completion_tokens") &&
-    !Object.prototype.hasOwnProperty.call(next, "max_tokens")
-  ) {
+  if (Object.hasOwn(next, "max_completion_tokens") && !Object.hasOwn(next, "max_tokens")) {
     next.max_tokens = next.max_completion_tokens;
     delete next.max_completion_tokens;
   }
@@ -184,7 +181,7 @@ export function applyZhipuPayloadPatches(
   delete next.stream_options;
 
   // Some providers reject `strict` in tool definitions.
-  if (Object.prototype.hasOwnProperty.call(next, "tools")) {
+  if (Object.hasOwn(next, "tools")) {
     next.tools = stripStrictFromTools(next.tools);
   }
 
@@ -204,20 +201,18 @@ export function applyZhipuPayloadPatches(
 
   // Map pi-ai's `enable_thinking` / `reasoning_effort` into BigModel's `thinking` object.
   const supportsThinking = caps ? caps.supportsThinking : true;
-  const hasEnableThinking = Object.prototype.hasOwnProperty.call(next, "enable_thinking");
-  const hasReasoningEffort = Object.prototype.hasOwnProperty.call(next, "reasoning_effort");
+  const hasEnableThinking = Object.hasOwn(next, "enable_thinking");
+  const hasReasoningEffort = Object.hasOwn(next, "reasoning_effort");
   const reasoningEnabledFromObject = resolveThinkingEnabledFromReasoningObject(next.reasoning);
   const hasReasoningObject = reasoningEnabledFromObject !== undefined;
   const hasExistingThinking =
-    Object.prototype.hasOwnProperty.call(next, "thinking") &&
-    next.thinking &&
-    typeof next.thinking === "object";
+    Object.hasOwn(next, "thinking") && next.thinking && typeof next.thinking === "object";
   const forcedThinkingMode =
     overrides.thinkingMode && overrides.thinkingMode !== "auto"
       ? overrides.thinkingMode
       : undefined;
 
-  if (!supportsThinking && Object.prototype.hasOwnProperty.call(next, "thinking")) {
+  if (!supportsThinking && Object.hasOwn(next, "thinking")) {
     delete next.thinking;
   }
 
@@ -235,7 +230,7 @@ export function applyZhipuPayloadPatches(
         ? !!next.enable_thinking
         : hasReasoningEffort
           ? shouldEnableThinkingFromReasoningEffort(next.reasoning_effort)
-          : reasoningEnabledFromObject ?? false;
+          : (reasoningEnabledFromObject ?? false);
 
     const existingThinking =
       next.thinking && typeof next.thinking === "object"
@@ -256,14 +251,14 @@ export function applyZhipuPayloadPatches(
   delete next.reasoning;
 
   const supportsStructuredOutput = caps ? caps.supportsStructuredOutput : true;
-  if (!supportsStructuredOutput && Object.prototype.hasOwnProperty.call(next, "response_format")) {
+  if (!supportsStructuredOutput && Object.hasOwn(next, "response_format")) {
     delete next.response_format;
   }
 
   if (
     supportsStructuredOutput &&
     overrides.responseFormatType &&
-    !Object.prototype.hasOwnProperty.call(next, "response_format")
+    !Object.hasOwn(next, "response_format")
   ) {
     next.response_format = { type: overrides.responseFormatType };
   }

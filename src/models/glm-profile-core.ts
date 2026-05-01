@@ -1,18 +1,7 @@
 export type GlmThinkingMode = "auto" | "enabled" | "disabled";
 export type GlmModelSource = "official" | "compat";
-export type GlmModelTier =
-  | "flagship"
-  | "base"
-  | "turbo"
-  | "flash"
-  | "air"
-  | "vision";
-export type GlmModelFamily =
-  | "glm-5"
-  | "glm-4.7"
-  | "glm-4.6"
-  | "glm-4.5"
-  | "glm-4";
+export type GlmModelTier = "flagship" | "base" | "turbo" | "flash" | "air" | "vision";
+export type GlmModelFamily = "glm-5" | "glm-4.7" | "glm-4.6" | "glm-4.5" | "glm-4";
 
 export type EffectiveModelCaps = {
   contextWindow: number;
@@ -388,10 +377,7 @@ function resolveConfidence(
   canonicalModelId: string | undefined,
   platform: GlmPlatformRoute,
 ): ResolutionConfidence {
-  if (
-    canonicalModelId &&
-    (platform === "native-bigmodel" || platform === "native-zai")
-  ) {
+  if (canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")) {
     return "high";
   }
 
@@ -526,22 +512,17 @@ export function resolveVariantOverlay(
   };
 }
 
-export function resolveGlmProfile(
-  input: ResolveGlmProfileInput,
-): ResolvedGlmProfile {
+export function resolveGlmProfile(input: ResolveGlmProfileInput): ResolvedGlmProfile {
   const platform = resolveGlmPlatformRoute(input.baseUrl);
   const canonicalModelId = resolveCanonicalGlmModelId(input.modelId);
-  const canonicalModel = canonicalModelId
-    ? getStandardGlmModel(canonicalModelId)
-    : undefined;
+  const canonicalModel = canonicalModelId ? getStandardGlmModel(canonicalModelId) : undefined;
 
   const baseCaps = canonicalModel ?? getGenericOpenAiCompatibleCaps();
   const variant = resolveVariantOverlay(platform, input.modelId, canonicalModelId);
   const effectiveCaps = mergeCaps(baseCaps, variant.caps);
 
   const payloadPatchPolicy: PayloadPatchPolicy =
-    canonicalModelId &&
-    (platform === "native-bigmodel" || platform === "native-zai")
+    canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")
       ? "glm-native"
       : "safe-openai-compatible";
 

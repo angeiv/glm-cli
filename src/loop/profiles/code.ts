@@ -1,9 +1,6 @@
 import type { LoopRoundRecord, VerificationResult } from "../types.js";
 import type { LoopProfile } from "./types.js";
-import {
-  composeRepairPrompt,
-  composeTaskPrompt,
-} from "../../runtime/prompt.js";
+import { composeRepairPrompt, composeTaskPrompt } from "../../runtime/prompt.js";
 import type { PromptMode } from "../../prompt/mode-overlays.js";
 
 export function createCodeLoopProfile(promptMode: PromptMode = "intensive"): LoopProfile {

@@ -1,6 +1,6 @@
 import { runChatCommand } from "./commands/chat.js";
 import { runRunCommand } from "./commands/run.js";
-import { runDoctorCommand, DoctorCommandArgs } from "./commands/doctor.js";
+import { runDoctorCommand, type DoctorCommandArgs } from "./commands/doctor.js";
 import { configGet, configSet } from "./commands/config.js";
 import { runInspectCommand, type InspectCommandArgs } from "./commands/inspect.js";
 import { runVerifyCommand, type VerifyCommandArgs } from "./commands/verify.js";
@@ -249,12 +249,21 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     }
     const pathArg = args.shift();
     if (args.length > 0) {
-      throw new Error('The run command accepts at most one positional path: glm run "<task>" [path]');
+      throw new Error(
+        'The run command accepts at most one positional path: glm run "<task>" [path]',
+      );
     }
     if (jsonFlag && jsonlFlag) {
       throw new Error("Use either --json or --jsonl, not both");
     }
-    return { command: "run", task, cwd: pathArg ?? cwd, json: jsonFlag, jsonl: jsonlFlag, ...flags };
+    return {
+      command: "run",
+      task,
+      cwd: pathArg ?? cwd,
+      json: jsonFlag,
+      jsonl: jsonlFlag,
+      ...flags,
+    };
   }
 
   if (command === "doctor") {

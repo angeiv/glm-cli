@@ -38,7 +38,10 @@ async function runPermissionRequestHooks(
   return result?.decision ?? null;
 }
 
-function maybeInjectHookContext(pi: ExtensionAPI, decision: { type: string; content?: string; reason?: string } | null) {
+function maybeInjectHookContext(
+  pi: ExtensionAPI,
+  decision: { type: string; content?: string; reason?: string } | null,
+) {
   if (!decision || decision.type !== "injectContext") return;
   const content = String(decision.content ?? "").trim();
   if (!content) return;
@@ -96,7 +99,11 @@ function getCurrentApprovalPolicy(): ApprovalPolicy {
   // Source of truth: global state shared with the glm CLI runtime.
   // Env var remains supported as a fallback, but we prefer state so `/approval`
   // changes persist even when callers temporarily scope GLM_APPROVAL_POLICY.
-  return getGlmApprovalPolicyState().policy ?? normalizeApprovalPolicy(process.env.GLM_APPROVAL_POLICY) ?? "ask";
+  return (
+    getGlmApprovalPolicyState().policy ??
+    normalizeApprovalPolicy(process.env.GLM_APPROVAL_POLICY) ??
+    "ask"
+  );
 }
 
 function setCurrentApprovalPolicy(policy: ApprovalPolicy): void {
@@ -116,7 +123,9 @@ function formatApprovalPolicyHelp(current: ApprovalPolicy): string {
 function getApprovalPolicyCompletions(prefix: string) {
   const normalized = prefix.trim().toLowerCase();
   const filtered = APPROVAL_POLICIES.filter((policy) => policy.value.startsWith(normalized));
-  return filtered.length > 0 ? filtered.map((policy) => ({ value: policy.value, label: policy.label })) : null;
+  return filtered.length > 0
+    ? filtered.map((policy) => ({ value: policy.value, label: policy.label }))
+    : null;
 }
 
 function isNonInteractive(ctx: unknown): boolean {
@@ -147,7 +156,8 @@ function getApprovalPolicyNotification(policy: ApprovalPolicy): {
   }
 
   return {
-    message: "approvalPolicy set to ask. Non-dangerous bash commands now require confirmation again.",
+    message:
+      "approvalPolicy set to ask. Non-dangerous bash commands now require confirmation again.",
     level: "info",
   };
 }
@@ -408,7 +418,14 @@ function isDangerousXargsCommand(tokens: string[], commandIndex: number): boolea
     }
     if (!tok.startsWith("-")) break;
     // Skip option arg for a small subset that commonly takes values.
-    if (tok === "-I" || tok === "-n" || tok === "-L" || tok === "-P" || tok === "-s" || tok === "-E") {
+    if (
+      tok === "-I" ||
+      tok === "-n" ||
+      tok === "-L" ||
+      tok === "-P" ||
+      tok === "-s" ||
+      tok === "-E"
+    ) {
       i += 2;
       continue;
     }
@@ -480,7 +497,10 @@ export function isDangerousCommand(command: string): boolean {
 }
 
 export default function (pi: ExtensionAPI) {
-  const updateApprovalStatus = (policy: ApprovalPolicy, ctx: { ui: { setStatus: (key: string, text: string | undefined) => void } }) => {
+  const updateApprovalStatus = (
+    policy: ApprovalPolicy,
+    ctx: { ui: { setStatus: (key: string, text: string | undefined) => void } },
+  ) => {
     try {
       ctx.ui.setStatus("glm.approvalPolicy", `approval: ${policy}`);
     } catch {
@@ -565,10 +585,7 @@ export default function (pi: ExtensionAPI) {
 
       let ok = false;
       try {
-        ok = await ctx.ui.confirm(
-          "Dangerous command requires explicit approval",
-          command,
-        );
+        ok = await ctx.ui.confirm("Dangerous command requires explicit approval", command);
       } catch {
         ok = false;
       }

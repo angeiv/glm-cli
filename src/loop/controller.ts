@@ -74,13 +74,9 @@ export async function runLoopController(
       });
     }
 
-    const canRepairAgain =
-      verification.kind === "fail" && round < input.maxRounds;
+    const canRepairAgain = verification.kind === "fail" && round < input.maxRounds;
     if (canRepairAgain) {
-      await input.executeTurn(
-        input.profile.buildRepairPrompt(verification, round + 1),
-        round + 1,
-      );
+      await input.executeTurn(input.profile.buildRepairPrompt(verification, round + 1), round + 1);
       continue;
     }
 

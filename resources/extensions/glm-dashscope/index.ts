@@ -107,7 +107,12 @@ function isThinkingEnabled(payload: Record<string, unknown>): boolean {
 
   const thinking = getObject(payload.thinking);
   const thinkingType = toStringValue(thinking?.type)?.toLowerCase();
-  if (thinkingType && thinkingType !== "disabled" && thinkingType !== "none" && thinkingType !== "off") {
+  if (
+    thinkingType &&
+    thinkingType !== "disabled" &&
+    thinkingType !== "none" &&
+    thinkingType !== "off"
+  ) {
     return true;
   }
 
@@ -115,7 +120,7 @@ function isThinkingEnabled(payload: Record<string, unknown>): boolean {
 }
 
 function hasReasoningEffort(payload: Record<string, unknown>): boolean {
-  return Object.prototype.hasOwnProperty.call(payload, "reasoning_effort");
+  return Object.hasOwn(payload, "reasoning_effort");
 }
 
 function resolveMaxCompletionTokens(payload: Record<string, unknown>): number | undefined {
@@ -206,7 +211,7 @@ function hasCacheControl(value: unknown): boolean {
   }
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
-  if (Object.prototype.hasOwnProperty.call(record, "cache_control")) {
+  if (Object.hasOwn(record, "cache_control")) {
     return true;
   }
   return Object.values(record).some((item) => hasCacheControl(item));
@@ -240,7 +245,11 @@ function addCacheControlToTextContent(message: Record<string, unknown>): boolean
   return false;
 }
 
-function isReusableCacheMessage(message: Record<string, unknown>, index: number, lastIndex: number): boolean {
+function isReusableCacheMessage(
+  message: Record<string, unknown>,
+  index: number,
+  lastIndex: number,
+): boolean {
   const role = typeof message.role === "string" ? message.role : "";
   if (role === "system" || role === "developer") return true;
   // Avoid caching the current user prompt when there is no stable prefix message.

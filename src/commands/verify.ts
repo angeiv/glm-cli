@@ -1,18 +1,9 @@
 import { readConfigFile, type GlmConfigFile } from "../app/config-store.js";
 import { detectCodeVerifier } from "../loop/verify-detect.js";
 import { runVerificationCommand } from "../loop/verify-runner.js";
-import type {
-  VerificationCommandResolution,
-  VerificationResult,
-} from "../loop/types.js";
-import {
-  writeVerificationArtifact,
-  type VerificationArtifact,
-} from "../harness/artifacts.js";
-import {
-  resolveVerifyScenario,
-  type VerifyScenarioName,
-} from "../harness/scenarios.js";
+import type { VerificationCommandResolution, VerificationResult } from "../loop/types.js";
+import { writeVerificationArtifact, type VerificationArtifact } from "../harness/artifacts.js";
+import { resolveVerifyScenario, type VerifyScenarioName } from "../harness/scenarios.js";
 
 export type VerifyCommandArgs = {
   cwd: string;

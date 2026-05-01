@@ -2,20 +2,17 @@ import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import {
-  RuntimeCliFlags,
-  RuntimeConfig,
+  type RuntimeCliFlags,
+  type RuntimeConfig,
   resolveNotificationRuntimeOptions,
   resolveDiagnosticsRuntimeOptions,
   resolveLoopRuntimeOptions,
   resolveRuntimeConfig,
 } from "../app/env.js";
 import { getGlmAgentDir } from "../app/dirs.js";
-import { readConfigFile, GlmConfigFile } from "../app/config-store.js";
+import { readConfigFile, type GlmConfigFile } from "../app/config-store.js";
 import type { ProviderName } from "../providers/types.js";
-import {
-  buildRuntimeStatus,
-  formatRuntimeStatusLines,
-} from "../diagnostics/runtime-status.js";
+import { buildRuntimeStatus, formatRuntimeStatusLines } from "../diagnostics/runtime-status.js";
 import type { RuntimeStatus } from "../diagnostics/types.js";
 import { resolveGlmSessionPaths } from "../session/session-paths.js";
 
@@ -56,7 +53,10 @@ async function defaultPathExists(path: string): Promise<boolean> {
   }
 }
 
-async function checkCwd(cwd: string, pathExists: (path: string) => Promise<boolean>): Promise<DoctorCheck> {
+async function checkCwd(
+  cwd: string,
+  pathExists: (path: string) => Promise<boolean>,
+): Promise<DoctorCheck> {
   const ok = Boolean(cwd) && (await pathExists(cwd));
   return {
     id: "cwd",
@@ -74,13 +74,19 @@ function hasEnvCredential(env: NodeJS.ProcessEnv, key: string): boolean {
   return Boolean(env[key]?.trim());
 }
 
-function credentialDetails(provider: ProviderName, env: NodeJS.ProcessEnv, config: GlmConfigFile): DoctorCheck {
+function credentialDetails(
+  provider: ProviderName,
+  env: NodeJS.ProcessEnv,
+  config: GlmConfigFile,
+): DoctorCheck {
   let ok = false;
   let details = "";
 
   if (provider === "anthropic") {
     ok = hasEnvCredential(env, "ANTHROPIC_AUTH_TOKEN");
-    details = ok ? "anthropic auth token detected" : "missing ANTHROPIC_AUTH_TOKEN for anthropic compatibility";
+    details = ok
+      ? "anthropic auth token detected"
+      : "missing ANTHROPIC_AUTH_TOKEN for anthropic compatibility";
   } else if (provider === "openai-compatible" || provider === "openai-responses") {
     ok = hasEnvCredential(env, "OPENAI_API_KEY");
     if (!ok && hasConfigCredential(config, "openai-compatible")) {
@@ -110,7 +116,10 @@ function credentialDetails(provider: ProviderName, env: NodeJS.ProcessEnv, confi
   };
 }
 
-async function checkResources(agentDir: string, pathExists: (path: string) => Promise<boolean>): Promise<DoctorCheck> {
+async function checkResources(
+  agentDir: string,
+  pathExists: (path: string) => Promise<boolean>,
+): Promise<DoctorCheck> {
   const promptPath = join(agentDir, "prompts", "system.md");
   const exists = await pathExists(promptPath);
   return {

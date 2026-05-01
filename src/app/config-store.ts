@@ -76,7 +76,11 @@ export type LoopConfig = {
 };
 
 type PersistedProviderName = StorageProviderKey | "openai-responses";
-const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = ["glm", "openai-compatible", "openai-responses"];
+const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = [
+  "glm",
+  "openai-compatible",
+  "openai-responses",
+];
 
 const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
 const VALID_THINKING_MODES: ThinkingMode[] = ["auto", "enabled", "disabled"];
@@ -188,8 +192,7 @@ function cloneProviderConfig(config?: ProviderConfig): ProviderConfig {
 function cloneGenerationConfig(config?: GenerationConfig): GenerationConfig {
   const maxOutputTokens =
     typeof config?.maxOutputTokens === "number" ? config.maxOutputTokens : undefined;
-  const temperature =
-    typeof config?.temperature === "number" ? config.temperature : undefined;
+  const temperature = typeof config?.temperature === "number" ? config.temperature : undefined;
   const topP = typeof config?.topP === "number" ? config.topP : undefined;
 
   return {
@@ -232,9 +235,7 @@ function cloneGlmCapabilitiesConfig(config?: GlmCapabilitiesConfig): GlmCapabili
       rawThinkingMode === undefined
         ? BASE_DEFAULT_CONFIG_FILE.glmCapabilities.thinkingMode
         : (rawThinkingMode as ThinkingMode),
-    ...(rawClearThinking === undefined
-      ? {}
-      : { clearThinking: rawClearThinking as boolean }),
+    ...(rawClearThinking === undefined ? {} : { clearThinking: rawClearThinking as boolean }),
     toolStream:
       rawToolStream === undefined
         ? BASE_DEFAULT_CONFIG_FILE.glmCapabilities.toolStream
@@ -250,8 +251,8 @@ function cloneGlmCapabilitiesConfig(config?: GlmCapabilitiesConfig): GlmCapabili
 }
 
 function cloneLoopConfig(config?: LoopConfig): LoopConfig {
-  const rawEnabledByDefault =
-    (config as unknown as { enabledByDefault?: unknown })?.enabledByDefault;
+  const rawEnabledByDefault = (config as unknown as { enabledByDefault?: unknown })
+    ?.enabledByDefault;
   const rawProfile = (config as unknown as { profile?: unknown })?.profile;
   const rawMaxRounds = (config as unknown as { maxRounds?: unknown })?.maxRounds;
   const rawMaxToolCalls = (config as unknown as { maxToolCalls?: unknown })?.maxToolCalls;
@@ -283,15 +284,11 @@ function cloneLoopConfig(config?: LoopConfig): LoopConfig {
       rawAutoVerify === undefined
         ? BASE_DEFAULT_CONFIG_FILE.loop.autoVerify
         : (rawAutoVerify as boolean),
-    ...(rawVerifyCommand === undefined
-      ? {}
-      : { verifyCommand: rawVerifyCommand as string }),
+    ...(rawVerifyCommand === undefined ? {} : { verifyCommand: rawVerifyCommand as string }),
   };
 }
 
-function cloneModelProfilesConfig(
-  config?: ModelProfilesConfig,
-): ModelProfilesConfig | undefined {
+function cloneModelProfilesConfig(config?: ModelProfilesConfig): ModelProfilesConfig | undefined {
   const rawOverrides = (config as unknown as { overrides?: unknown })?.overrides;
   if (rawOverrides === undefined) {
     return undefined;
@@ -317,8 +314,12 @@ function cloneModelProfilesConfig(
 
     return {
       ...record,
-      ...(match && typeof match === "object" ? { match: { ...(match as Record<string, unknown>) } } : { match }),
-      ...(caps && typeof caps === "object" ? { caps: { ...(caps as Record<string, unknown>) } } : { caps }),
+      ...(match && typeof match === "object"
+        ? { match: { ...(match as Record<string, unknown>) } }
+        : { match }),
+      ...(caps && typeof caps === "object"
+        ? { caps: { ...(caps as Record<string, unknown>) } }
+        : { caps }),
     } as GlmProfileOverrideRule;
   });
 
@@ -377,16 +378,14 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
         BASE_DEFAULT_CONFIG_FILE.glmCapabilities,
     ),
     loop: cloneLoopConfig(
-      (config as unknown as { loop?: LoopConfig })?.loop ??
-        BASE_DEFAULT_CONFIG_FILE.loop,
+      (config as unknown as { loop?: LoopConfig })?.loop ?? BASE_DEFAULT_CONFIG_FILE.loop,
     ),
     ...(modelProfiles ? { modelProfiles } : {}),
     providers: {
-      glm: cloneProviderConfig(
-        config?.providers?.glm ?? BASE_DEFAULT_CONFIG_FILE.providers.glm,
-      ),
+      glm: cloneProviderConfig(config?.providers?.glm ?? BASE_DEFAULT_CONFIG_FILE.providers.glm),
       "openai-compatible": cloneProviderConfig(
-        config?.providers?.["openai-compatible"] ?? BASE_DEFAULT_CONFIG_FILE.providers["openai-compatible"],
+        config?.providers?.["openai-compatible"] ??
+          BASE_DEFAULT_CONFIG_FILE.providers["openai-compatible"],
       ),
     },
   };
@@ -482,7 +481,9 @@ function validateNotificationsConfig(config: NotificationsConfig): void {
   }
 
   if (typeof config.onLoopResult !== "boolean") {
-    throw new Error(`Invalid notifications.onLoopResult in config file: ${typeof config.onLoopResult}`);
+    throw new Error(
+      `Invalid notifications.onLoopResult in config file: ${typeof config.onLoopResult}`,
+    );
   }
 }
 
@@ -522,10 +523,7 @@ function validateGlmCapabilitiesConfig(config: GlmCapabilitiesConfig): void {
     throw new Error(`Invalid toolStream in config file: ${config.toolStream}`);
   }
 
-  if (
-    config.responseFormat !== undefined &&
-    !isResponseFormatType(config.responseFormat)
-  ) {
+  if (config.responseFormat !== undefined && !isResponseFormatType(config.responseFormat)) {
     throw new Error(`Invalid responseFormat in config file: ${config.responseFormat}`);
   }
 
@@ -536,7 +534,9 @@ function validateGlmCapabilitiesConfig(config: GlmCapabilitiesConfig): void {
 
 function validateLoopConfig(config: LoopConfig): void {
   if (typeof config.enabledByDefault !== "boolean") {
-    throw new Error(`Invalid loop.enabledByDefault in config file: ${typeof config.enabledByDefault}`);
+    throw new Error(
+      `Invalid loop.enabledByDefault in config file: ${typeof config.enabledByDefault}`,
+    );
   }
 
   if (!isLoopProfileName(config.profile)) {
@@ -611,7 +611,9 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     const record = rule as Record<string, unknown>;
     const match = record.match;
     if (typeof match !== "object" || match === null) {
-      throw new Error(`Invalid modelProfiles.overrides[${index}].match in config file: ${typeof match}`);
+      throw new Error(
+        `Invalid modelProfiles.overrides[${index}].match in config file: ${typeof match}`,
+      );
     }
 
     const matchRecord = match as Record<string, unknown>;
@@ -674,7 +676,9 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     }
 
     if (typeof caps !== "object" || caps === null) {
-      throw new Error(`Invalid modelProfiles.overrides[${index}].caps in config file: ${typeof caps}`);
+      throw new Error(
+        `Invalid modelProfiles.overrides[${index}].caps in config file: ${typeof caps}`,
+      );
     }
 
     for (const [key, value] of Object.entries(caps)) {

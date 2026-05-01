@@ -13,21 +13,33 @@ describe("runtime prompt stack", () => {
     const cwd = mkdtempSync(join(tmpdir(), "glm-prompt-cwd-"));
     const agentDir = mkdtempSync(join(tmpdir(), "glm-prompt-agent-"));
 
-    writeFileSync(join(cwd, "package.json"), JSON.stringify({
-      packageManager: "pnpm@10.33.0",
-      type: "module",
-    }), "utf8");
-    writeFileSync(join(cwd, "tsconfig.json"), JSON.stringify({
-      compilerOptions: {
-        module: "NodeNext",
-      },
-    }), "utf8");
+    writeFileSync(
+      join(cwd, "package.json"),
+      JSON.stringify({
+        packageManager: "pnpm@10.33.0",
+        type: "module",
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      join(cwd, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: {
+          module: "NodeNext",
+        },
+      }),
+      "utf8",
+    );
 
     mkdirSync(join(agentDir, "prompts"), { recursive: true });
-    writeFileSync(join(agentDir, "prompts", "system.md"), [
-      "You are glm, a GLM-native local repository agent.",
-      "Keep the base prompt stable and concise.",
-    ].join("\n"), "utf8");
+    writeFileSync(
+      join(agentDir, "prompts", "system.md"),
+      [
+        "You are glm, a GLM-native local repository agent.",
+        "Keep the base prompt stable and concise.",
+      ].join("\n"),
+      "utf8",
+    );
 
     const stack = await buildRuntimePromptStack({
       agentDir,
@@ -47,12 +59,15 @@ describe("runtime prompt stack", () => {
     expect(taskPrompt).toContain("fix failing tests");
     expect(taskPrompt).not.toContain("Respect the approval policy");
 
-    const repairPrompt = composeRepairPrompt({
-      kind: "fail",
-      command: "pnpm test",
-      exitCode: 1,
-      summary: "1 test failed",
-    }, 2);
+    const repairPrompt = composeRepairPrompt(
+      {
+        kind: "fail",
+        command: "pnpm test",
+        exitCode: 1,
+        summary: "1 test failed",
+      },
+      2,
+    );
 
     expect(repairPrompt).toContain("Verification overlay: repair round 2.");
     expect(repairPrompt).toContain("pnpm test");

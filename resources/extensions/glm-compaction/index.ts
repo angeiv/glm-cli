@@ -1,8 +1,4 @@
-import type {
-  CompactionResult,
-  ExtensionAPI,
-  SessionEntry,
-} from "@mariozechner/pi-coding-agent";
+import type { CompactionResult, ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
 import { compact } from "@mariozechner/pi-coding-agent";
 import { appendRuntimeEvent, getRuntimeStatus } from "../shared/runtime-state.js";
 
@@ -97,7 +93,7 @@ function formatCompactionFocus(): string {
   const lines: string[] = [
     "Preserve handoff-critical state even if it only appears in session metadata (not the chat transcript).",
     "Make sure the summary remains actionable after compaction (a human should be able to take over).",
-    "Include these facts under \"Critical Context\" or \"Progress\" (do not invent missing values):",
+    'Include these facts under "Critical Context" or "Progress" (do not invent missing values):',
   ];
 
   if (runtime) {
@@ -206,9 +202,10 @@ function mergeFileOps(
   };
 }
 
-function extractFileOpsFromCompactionResult(
-  result: CompactionResult,
-): { readFiles: string[]; modifiedFiles: string[] } {
+function extractFileOpsFromCompactionResult(result: CompactionResult): {
+  readFiles: string[];
+  modifiedFiles: string[];
+} {
   const details = result.details;
   if (!isRecord(details)) {
     return { readFiles: [], modifiedFiles: [] };
@@ -247,9 +244,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    const loopState = formatLoopState(
-      readLatestCustomEntry(event.branchEntries, LOOP_STATE_ENTRY),
-    );
+    const loopState = formatLoopState(readLatestCustomEntry(event.branchEntries, LOOP_STATE_ENTRY));
     const loopResult = formatLoopResult(
       readLatestCustomEntry(event.branchEntries, LOOP_RESULT_ENTRY),
     );
@@ -285,7 +280,8 @@ export default function (pi: ExtensionAPI) {
       let summary = base.summary;
       summary = stripXmlTagBlocks(summary, "read-files");
       summary = stripXmlTagBlocks(summary, "modified-files");
-      summary = summary.trimEnd() + formatFileOperations(mergedOps.readFiles, mergedOps.modifiedFiles);
+      summary =
+        summary.trimEnd() + formatFileOperations(mergedOps.readFiles, mergedOps.modifiedFiles);
 
       appendRuntimeEvent({
         type: "compaction.summary_generated",
@@ -326,4 +322,3 @@ export default function (pi: ExtensionAPI) {
     });
   });
 }
-

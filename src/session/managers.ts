@@ -54,7 +54,7 @@ function readGlobalSettingsJson(agentDir: string): SettingsJson | undefined {
 }
 
 function hasOwnSetting(settings: SettingsJson | undefined, key: string): boolean {
-  return Boolean(settings && Object.prototype.hasOwnProperty.call(settings, key));
+  return Boolean(settings && Object.hasOwn(settings, key));
 }
 
 function applyGlmSettingsDefaults(settingsManager: SettingsManager, agentDir: string): void {
@@ -72,10 +72,7 @@ function applyGlmSettingsDefaults(settingsManager: SettingsManager, agentDir: st
   }
 }
 
-export function createGlmSessionManager(
-  cwd: string,
-  sessionDir: string,
-): SessionManager {
+export function createGlmSessionManager(cwd: string, sessionDir: string): SessionManager {
   return SessionManager.create(cwd, sessionDir);
 }
 
@@ -96,9 +93,7 @@ export function createGlmManagers(input: CreateGlmManagersInput): GlmManagers {
   };
 }
 
-export async function createGlmServices(
-  input: CreateGlmManagersInput,
-): Promise<GlmServices> {
+export async function createGlmServices(input: CreateGlmManagersInput): Promise<GlmServices> {
   const managers = createGlmManagers(input);
   const promptStack = await buildRuntimePromptStack({
     agentDir: input.agentDir,
@@ -107,7 +102,11 @@ export async function createGlmServices(
   });
   const config = await readConfigFile();
   const glmApiKey = (process.env.GLM_API_KEY ?? config.providers.glm.apiKey ?? "").trim();
-  const openAiCompatApiKey = (process.env.OPENAI_API_KEY ?? config.providers["openai-compatible"].apiKey ?? "").trim();
+  const openAiCompatApiKey = (
+    process.env.OPENAI_API_KEY ??
+    config.providers["openai-compatible"].apiKey ??
+    ""
+  ).trim();
   const anthropicApiKey = (process.env.ANTHROPIC_AUTH_TOKEN ?? "").trim();
 
   // Make env/config credentials take precedence over any stale ~/.glm/agent/auth.json entries.
@@ -124,18 +123,14 @@ export async function createGlmServices(
   }
 
   const registerMcpExtension = (
-    await import(
-      new URL("../../resources/extensions/glm-mcp/index.js", import.meta.url).href
-    )
+    await import(new URL("../../resources/extensions/glm-mcp/index.js", import.meta.url).href)
   ).default;
 
   // Load the Dashscope/Bailian request patch inline as well so it runs after all
   // on-disk extensions. This ensures the final payload respects gateway constraints
   // even when other extensions override max token fields.
   const registerDashscopeExtension = (
-    await import(
-      new URL("../../resources/extensions/glm-dashscope/index.js", import.meta.url).href
-    )
+    await import(new URL("../../resources/extensions/glm-dashscope/index.js", import.meta.url).href)
   ).default;
 
   const services = await createAgentSessionServices({

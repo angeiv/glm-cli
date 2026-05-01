@@ -16,4 +16,3 @@ describe("glm-stats extension", () => {
     expect(commands).toContain("usage");
   });
 });
-

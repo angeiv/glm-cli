@@ -1,5 +1,11 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { AssistantMessageEventStream, streamSimple, type Context, type Model, type SimpleStreamOptions } from "@mariozechner/pi-ai";
+import {
+  AssistantMessageEventStream,
+  streamSimple,
+  type Context,
+  type Model,
+  type SimpleStreamOptions,
+} from "@mariozechner/pi-ai";
 import {
   getStandardGlmModel,
   getStandardGlmModels,
@@ -57,15 +63,12 @@ function normalizeGlmBaseUrlPreset(value?: string): GlmBaseUrlPreset | undefined
   const mapped = aliases[normalized];
   if (mapped) return mapped;
 
-  return Object.prototype.hasOwnProperty.call(GLM_BASE_URL_PRESETS, normalized)
+  return Object.hasOwn(GLM_BASE_URL_PRESETS, normalized)
     ? (normalized as GlmBaseUrlPreset)
     : undefined;
 }
 
-function resolveGlmBaseUrlPreset(
-  envPreset?: string,
-  persistedPreset?: string,
-): string | undefined {
+function resolveGlmBaseUrlPreset(envPreset?: string, persistedPreset?: string): string | undefined {
   const preset = normalizeGlmBaseUrlPreset(envPreset) ?? normalizeGlmBaseUrlPreset(persistedPreset);
   if (!preset) return undefined;
   return GLM_BASE_URL_PRESETS[preset];
@@ -119,15 +122,6 @@ function isModelscopeAnthropicBaseUrl(baseUrl: string): boolean {
   return normalized.includes("api-inference.modelscope.cn");
 }
 
-function asTextBlocks(
-  content: string | Array<{ type: "text"; text: string }>,
-): Array<{ type: "text"; text: string }> {
-  if (typeof content === "string") {
-    return [{ type: "text", text: content }];
-  }
-  return content;
-}
-
 function toAnthropicUserContent(
   content: string | Array<{ type: string; text?: string; data?: string; mimeType?: string }>,
 ): string | AnthropicContentBlock[] {
@@ -151,7 +145,6 @@ function toAnthropicUserContent(
           data: String(item.data ?? ""),
         },
       });
-      continue;
     }
   }
 
@@ -167,7 +160,14 @@ function toAnthropicUserContent(
 }
 
 function toAnthropicAssistantContent(
-  content: Array<{ type: string; text?: string; thinking?: string; id?: string; name?: string; arguments?: Record<string, unknown> }>,
+  content: Array<{
+    type: string;
+    text?: string;
+    thinking?: string;
+    id?: string;
+    name?: string;
+    arguments?: Record<string, unknown>;
+  }>,
 ): string | AnthropicContentBlock[] {
   if (!Array.isArray(content) || content.length === 0) return "";
 
@@ -185,7 +185,6 @@ function toAnthropicAssistantContent(
         name: String(item.name ?? ""),
         input: (item.arguments ?? {}) as Record<string, unknown>,
       });
-      continue;
     }
 
     // Skip thinking blocks when sending context back to the model.
@@ -207,9 +206,7 @@ function toAnthropicToolResultContent(
 ): string | Array<{ type: "text"; text: string }> {
   if (!Array.isArray(content) || content.length === 0) return "";
 
-  const texts = content
-    .filter((c) => c.type === "text")
-    .map((c) => String(c.text ?? ""));
+  const texts = content.filter((c) => c.type === "text").map((c) => String(c.text ?? ""));
 
   // Tool results should be plain text for broad compatibility.
   return texts.join("\n");
@@ -313,7 +310,10 @@ function createNonStreamingModelscopeAnthropicApi() {
         };
 
         const nextPayload = await options?.onPayload?.(payload, model);
-        const finalPayload = (nextPayload === undefined ? payload : nextPayload) as Record<string, unknown>;
+        const finalPayload = (nextPayload === undefined ? payload : nextPayload) as Record<
+          string,
+          unknown
+        >;
 
         const res = await fetch(url, {
           method: "POST",
@@ -335,7 +335,8 @@ function createNonStreamingModelscopeAnthropicApi() {
         }
 
         if (!res.ok) {
-          const detail = parsed?.error?.message || parsed?.detail || rawText || `HTTP ${res.status}`;
+          const detail =
+            parsed?.error?.message || parsed?.detail || rawText || `HTTP ${res.status}`;
           throw new Error(`${res.status} ${detail}`.trim());
         }
 
@@ -363,9 +364,19 @@ function createNonStreamingModelscopeAnthropicApi() {
             const idx = output.content.length - 1;
             stream.push({ type: "thinking_start", contentIndex: idx, partial: output });
             if (thinking) {
-              stream.push({ type: "thinking_delta", contentIndex: idx, delta: thinking, partial: output });
+              stream.push({
+                type: "thinking_delta",
+                contentIndex: idx,
+                delta: thinking,
+                partial: output,
+              });
             }
-            stream.push({ type: "thinking_end", contentIndex: idx, content: thinking, partial: output });
+            stream.push({
+              type: "thinking_end",
+              contentIndex: idx,
+              content: thinking,
+              partial: output,
+            });
             continue;
           }
 
@@ -380,8 +391,18 @@ function createNonStreamingModelscopeAnthropicApi() {
             });
             const idx = output.content.length - 1;
             stream.push({ type: "thinking_start", contentIndex: idx, partial: output });
-            stream.push({ type: "thinking_delta", contentIndex: idx, delta: thinking, partial: output });
-            stream.push({ type: "thinking_end", contentIndex: idx, content: thinking, partial: output });
+            stream.push({
+              type: "thinking_delta",
+              contentIndex: idx,
+              delta: thinking,
+              partial: output,
+            });
+            stream.push({
+              type: "thinking_end",
+              contentIndex: idx,
+              content: thinking,
+              partial: output,
+            });
             continue;
           }
 
@@ -396,7 +417,6 @@ function createNonStreamingModelscopeAnthropicApi() {
             const idx = output.content.length - 1;
             stream.push({ type: "toolcall_start", contentIndex: idx, partial: output });
             stream.push({ type: "toolcall_end", contentIndex: idx, toolCall, partial: output });
-            continue;
           }
         }
 
@@ -455,7 +475,10 @@ function createStreamFirstModelscopeAnthropicApi() {
         const primary = streamSimple({ ...model, api: "anthropic-messages" }, context, options);
 
         for await (const event of primary) {
-          if (event.type === "error" && isModelscopeTerminatedErrorMessage(event.error?.errorMessage)) {
+          if (
+            event.type === "error" &&
+            isModelscopeTerminatedErrorMessage(event.error?.errorMessage)
+          ) {
             if (options?.signal?.aborted) {
               stream.push(event as any);
               stream.end(event.error as any);
@@ -600,9 +623,10 @@ function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string
   const canonical = profile.canonicalModelId
     ? getStandardGlmModel(profile.canonicalModelId)
     : undefined;
-  const compat = profile.payloadPatchPolicy === "glm-native"
-    ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
-    : OPENAI_COMPAT;
+  const compat =
+    profile.payloadPatchPolicy === "glm-native"
+      ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
+      : OPENAI_COMPAT;
 
   return {
     id: modelId,
@@ -718,9 +742,10 @@ function readPersistedConfig(): PersistedConfig {
     }
     const providers = (parsed as { providers?: Record<string, unknown> }).providers;
     return {
-      defaultModel: typeof (parsed as { defaultModel?: string }).defaultModel === "string"
-        ? (parsed as { defaultModel?: string }).defaultModel
-        : undefined,
+      defaultModel:
+        typeof (parsed as { defaultModel?: string }).defaultModel === "string"
+          ? (parsed as { defaultModel?: string }).defaultModel
+          : undefined,
       providers: {
         glm: normalizeProvider(providers?.glm),
         "openai-compatible": normalizeProvider(providers?.["openai-compatible"]),
@@ -778,9 +803,10 @@ export default function (pi: ExtensionAPI) {
           baseUrl: glmSettings.baseUrl,
           overrides: modelProfileOverrides,
         });
-        const compat = profile.payloadPatchPolicy === "glm-native"
-          ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
-          : OPENAI_COMPAT;
+        const compat =
+          profile.payloadPatchPolicy === "glm-native"
+            ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
+            : OPENAI_COMPAT;
 
         return {
           id: model.id,
@@ -804,36 +830,38 @@ export default function (pi: ExtensionAPI) {
   });
 
   if (openaiSettings.apiKey) {
-    const openaiModelId = resolveModelId(
-      process.env.OPENAI_MODEL,
-      process.env.GLM_MODEL,
-      resolveConfigDefaultModel(),
-    ) ?? "glm-5.1";
+    const openaiModelId =
+      resolveModelId(
+        process.env.OPENAI_MODEL,
+        process.env.GLM_MODEL,
+        resolveConfigDefaultModel(),
+      ) ?? "glm-5.1";
     pi.registerProvider("openai-compatible", {
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-completions",
-      models: [
-        resolveOpenAiCompatibleModelDefinition(openaiModelId, openaiSettings.baseUrl),
-      ],
+      models: [resolveOpenAiCompatibleModelDefinition(openaiModelId, openaiSettings.baseUrl)],
     });
 
     pi.registerProvider("openai-responses", {
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-responses",
-      models: [
-        resolveOpenAiResponsesModelDefinition(openaiModelId, openaiSettings.baseUrl),
-      ],
+      models: [resolveOpenAiResponsesModelDefinition(openaiModelId, openaiSettings.baseUrl)],
     });
   }
 
-  if (process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_MODEL || process.env.ANTHROPIC_BASE_URL) {
-    const anthropicModelId = resolveModelId(
-      process.env.ANTHROPIC_MODEL,
-      process.env.GLM_MODEL,
-      resolveConfigDefaultModel(),
-    ) ?? "glm-5.1";
+  if (
+    process.env.ANTHROPIC_AUTH_TOKEN ||
+    process.env.ANTHROPIC_MODEL ||
+    process.env.ANTHROPIC_BASE_URL
+  ) {
+    const anthropicModelId =
+      resolveModelId(
+        process.env.ANTHROPIC_MODEL,
+        process.env.GLM_MODEL,
+        resolveConfigDefaultModel(),
+      ) ?? "glm-5.1";
 
     const baseUrl = process.env.ANTHROPIC_BASE_URL ?? "https://open.bigmodel.cn/api/anthropic";
     const isModelscope = isModelscopeAnthropicBaseUrl(baseUrl);

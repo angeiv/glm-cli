@@ -3,4 +3,3 @@
 
 export * from "./glm-profile-core.js";
 export { resolveGlmProfileV2 } from "./resolve-glm-profile-v2.js";
-

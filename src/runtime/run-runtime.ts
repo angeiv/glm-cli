@@ -87,15 +87,17 @@ function getLatestAssistantMessage(
   runtime: AgentSessionRuntime,
   fromMessageIndex: number,
 ): AgentAssistantMessage | undefined {
-  const nextMessages = runtime.session.state.messages.slice(fromMessageIndex) as AgentAssistantMessage[];
+  const nextMessages = runtime.session.state.messages.slice(
+    fromMessageIndex,
+  ) as AgentAssistantMessage[];
   const assistantMessages = nextMessages.filter((message) => message.role === "assistant");
   if (assistantMessages.length > 0) {
     return assistantMessages[assistantMessages.length - 1];
   }
 
-  const lastMessage = runtime.session.state.messages[
-    runtime.session.state.messages.length - 1
-  ] as AgentAssistantMessage | undefined;
+  const lastMessage = runtime.session.state.messages[runtime.session.state.messages.length - 1] as
+    | AgentAssistantMessage
+    | undefined;
   return lastMessage?.role === "assistant" ? lastMessage : undefined;
 }
 
@@ -117,12 +119,8 @@ async function promptOnce(
     return { exitCode: 0, assistantText: "" };
   }
 
-  if (
-    assistantMessage.stopReason === "error" ||
-    assistantMessage.stopReason === "aborted"
-  ) {
-    const errorMessage =
-      assistantMessage.errorMessage || `Request ${assistantMessage.stopReason}`;
+  if (assistantMessage.stopReason === "error" || assistantMessage.stopReason === "aborted") {
+    const errorMessage = assistantMessage.errorMessage || `Request ${assistantMessage.stopReason}`;
     (hooks?.writeHuman ?? defaultWriteHuman)(`${errorMessage}\n`);
     return {
       exitCode: 1,
@@ -215,8 +213,7 @@ async function resolveVerifier(
     }
     return {
       kind: "unavailable",
-      summary:
-        "Loop auto verification is disabled and no verification command was provided.",
+      summary: "Loop auto verification is disabled and no verification command was provided.",
     };
   }
 
@@ -243,9 +240,7 @@ async function resolveVerifier(
   return detected;
 }
 
-function toVerificationResult(
-  resolution: VerificationCommandResolution,
-): VerificationResult {
+function toVerificationResult(resolution: VerificationCommandResolution): VerificationResult {
   if (resolution.kind === "command") {
     return {
       kind: "unavailable",
@@ -323,7 +318,9 @@ export async function runTaskLoop(
           throw new Error("Loop turn failed before verification could run.");
         }
 
-        const nextMessages = runtime.session.state.messages.slice(beforeCount) as Array<{ role?: string }>;
+        const nextMessages = runtime.session.state.messages.slice(beforeCount) as Array<{
+          role?: string;
+        }>;
         // Pi stores tool executions as `toolResult` messages.
         const toolDelta = nextMessages.filter((msg) => msg.role === "toolResult").length;
         toolCallsUsed += toolDelta;

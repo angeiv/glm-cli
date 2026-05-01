@@ -5,4 +5,3 @@ export type {
   GlmProfileRuleMatch,
   ResolveGlmProfileV2Input,
 } from "./glm-profile-resolver-v2.js";
-

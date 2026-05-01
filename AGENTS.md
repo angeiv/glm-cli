@@ -49,6 +49,10 @@ Short repo guide for contributors and agents working inside `glm-cli`.
 ## Command map
 
 - `pnpm install --frozen-lockfile`: install dependencies in a clean worktree.
+- `pnpm lint`: run Biome lint checks.
+- `pnpm lint:fix`: run Biome lint checks with safe fixes.
+- `pnpm format:check`: check formatting with Biome.
+- `pnpm format`: format supported source files with Biome.
 - `pnpm test`: run the full Vitest suite.
 - `pnpm test <path>`: run a focused Vitest file.
 - `pnpm build`: compile TypeScript and stage packaged resources into `dist/`.
