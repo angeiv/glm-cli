@@ -354,6 +354,7 @@ describe("config store normalization", () => {
         clearThinking: false,
         toolStream: "on",
         responseFormat: "json_object",
+        contextCache: "explicit",
       },
       providers: {
         glm: { apiKey: "", baseURL: "", endpoint: "bigmodel-coding" },
@@ -376,6 +377,7 @@ describe("config store normalization", () => {
       GLM_CLEAR_THINKING: "0",
       GLM_TOOL_STREAM: "on",
       GLM_RESPONSE_FORMAT: "json_object",
+      GLM_CONTEXT_CACHE: "explicit",
       GLM_ENDPOINT: "bigmodel-coding",
     });
   });

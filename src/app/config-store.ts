@@ -24,6 +24,7 @@ export type ApprovalPolicy = "ask" | "auto" | "never";
 export type ThinkingMode = "auto" | "enabled" | "disabled";
 export type ToolStreamMode = "auto" | "on" | "off";
 export type ResponseFormatType = "json_object";
+export type ContextCacheMode = "auto" | "explicit" | "off";
 export type TaskLaneDefault = "auto" | "direct" | "standard" | "intensive";
 export type LoopProfileName = "code";
 export type LoopFailureMode = "handoff" | "fail";
@@ -50,6 +51,7 @@ export type GlmCapabilitiesConfig = {
   clearThinking?: boolean;
   toolStream?: ToolStreamMode;
   responseFormat?: ResponseFormatType;
+  contextCache?: ContextCacheMode;
 };
 export type ModelProfilesConfig = {
   overrides?: GlmProfileOverrideRule[];
@@ -80,6 +82,7 @@ const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
 const VALID_THINKING_MODES: ThinkingMode[] = ["auto", "enabled", "disabled"];
 const VALID_TOOL_STREAM_MODES: ToolStreamMode[] = ["auto", "on", "off"];
 const VALID_RESPONSE_FORMAT_TYPES: ResponseFormatType[] = ["json_object"];
+const VALID_CONTEXT_CACHE_MODES: ContextCacheMode[] = ["auto", "explicit", "off"];
 const VALID_TASK_LANE_DEFAULTS: TaskLaneDefault[] = ["auto", "direct", "standard", "intensive"];
 const VALID_LOOP_PROFILES: LoopProfileName[] = ["code"];
 const VALID_LOOP_FAILURE_MODES: LoopFailureMode[] = ["handoff", "fail"];
@@ -98,6 +101,7 @@ function createDefaultGlmCapabilitiesConfig(): GlmCapabilitiesConfig {
   return {
     thinkingMode: "auto",
     toolStream: "auto",
+    contextCache: "auto",
   };
 }
 
@@ -221,6 +225,7 @@ function cloneGlmCapabilitiesConfig(config?: GlmCapabilitiesConfig): GlmCapabili
   const rawClearThinking = (config as unknown as { clearThinking?: unknown })?.clearThinking;
   const rawToolStream = (config as unknown as { toolStream?: unknown })?.toolStream;
   const rawResponseFormat = (config as unknown as { responseFormat?: unknown })?.responseFormat;
+  const rawContextCache = (config as unknown as { contextCache?: unknown })?.contextCache;
 
   return {
     thinkingMode:
@@ -237,6 +242,10 @@ function cloneGlmCapabilitiesConfig(config?: GlmCapabilitiesConfig): GlmCapabili
     ...(rawResponseFormat === undefined
       ? {}
       : { responseFormat: rawResponseFormat as ResponseFormatType }),
+    contextCache:
+      rawContextCache === undefined
+        ? BASE_DEFAULT_CONFIG_FILE.glmCapabilities.contextCache
+        : (rawContextCache as ContextCacheMode),
   };
 }
 
@@ -407,6 +416,10 @@ function isResponseFormatType(value?: string): value is ResponseFormatType {
   return VALID_RESPONSE_FORMAT_TYPES.includes(value as ResponseFormatType);
 }
 
+function isContextCacheMode(value?: string): value is ContextCacheMode {
+  return VALID_CONTEXT_CACHE_MODES.includes(value as ContextCacheMode);
+}
+
 function isTaskLaneDefault(value?: string): value is TaskLaneDefault {
   return VALID_TASK_LANE_DEFAULTS.includes(value as TaskLaneDefault);
 }
@@ -514,6 +527,10 @@ function validateGlmCapabilitiesConfig(config: GlmCapabilitiesConfig): void {
     !isResponseFormatType(config.responseFormat)
   ) {
     throw new Error(`Invalid responseFormat in config file: ${config.responseFormat}`);
+  }
+
+  if (!isContextCacheMode(config.contextCache)) {
+    throw new Error(`Invalid contextCache in config file: ${config.contextCache}`);
   }
 }
 

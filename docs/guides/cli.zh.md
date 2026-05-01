@@ -222,3 +222,21 @@ BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions 
 
 - `GLM_THINKING_MODE=auto|enabled|disabled`
 - `GLM_CLEAR_THINKING=0|1`：当请求中包含 `thinking` 时，设置 `thinking.clear_thinking`（按 BigModel 文档，`0` 表示 preserved thinking）
+
+## 百炼 / DashScope 上下文缓存
+
+百炼会对支持的模型自动启用隐式上下文缓存。`glm` 默认不会添加显式缓存标记，因为显式缓存创建会产生单独计费。
+
+对于百炼 GLM-5.1，如需确定性复用稳定前缀，可以开启显式缓存标记：
+
+```bash
+GLM_CONTEXT_CACHE=explicit glm --provider openai-compatible --model glm-5.1
+```
+
+对应持久化配置：
+
+```bash
+glm config set contextCache explicit
+```
+
+可选值为 `auto`、`explicit`、`off`。`auto` 依赖百炼的隐式缓存行为；`explicit` 会在 DashScope/百炼 GLM-5.1 请求的首个稳定可复用消息上添加 `cache_control: { "type": "ephemeral" }`。

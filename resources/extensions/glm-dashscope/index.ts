@@ -1,4 +1,8 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { resolveGlmProfileV2 } from "../shared/glm-profile.js";
+import { readGlmModelProfileOverrides } from "../shared/glm-user-config.js";
+
+type ContextCacheMode = "auto" | "explicit" | "off";
 
 function toFiniteNumber(value: unknown): number | undefined {
   if (typeof value === "number") {
@@ -24,6 +28,15 @@ function toStringValue(value: unknown): string | undefined {
 function getObject(value: unknown): Record<string, unknown> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   return value as Record<string, unknown>;
+}
+
+function normalizeContextCacheMode(value: unknown): ContextCacheMode {
+  if (typeof value !== "string") return "auto";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "explicit" || normalized === "off" || normalized === "auto") {
+    return normalized;
+  }
+  return "auto";
 }
 
 export function isDashscopeBaseUrl(baseUrl: string): boolean {
@@ -124,6 +137,13 @@ type DashscopePatchContext = {
    * Used as a fallback when no max token field is present in the request payload.
    */
   modelMaxTokens?: number;
+  /**
+   * Explicit context cache mode for DashScope/Bailian. `auto` relies on Bailian's
+   * implicit cache; `explicit` injects cache_control markers.
+   */
+  contextCache?: ContextCacheMode;
+  modelId?: string;
+  supportsCache?: boolean;
 };
 
 function resolveEffectiveMaxCompletionTokens(
@@ -152,38 +172,126 @@ export function applyDashscopePayloadPatches(
 ): unknown {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
   const next = { ...(payload as Record<string, unknown>) };
+  let changed = false;
 
   const maxCompletionTokens = resolveEffectiveMaxCompletionTokens(next, context);
-  if (maxCompletionTokens === undefined) return payload;
-  if (maxCompletionTokens <= 0) return payload;
+  if (maxCompletionTokens !== undefined && maxCompletionTokens > 0 && isThinkingEnabled(next)) {
+    const maxBudget = Math.max(0, Math.floor(maxCompletionTokens) - 1);
+    const existingBudget = toFiniteNumber(next.thinking_budget);
+    const derivedBudget =
+      existingBudget ??
+      resolveThinkingBudgetFromReasoningEffort(next.reasoning_effort) ??
+      DEFAULT_THINKING_BUDGETS.medium;
 
-  if (!isThinkingEnabled(next)) {
-    return payload;
+    const clampedBudget = Math.min(Math.max(0, Math.floor(derivedBudget)), maxBudget);
+    const shouldStripReasoningEffort = hasReasoningEffort(next);
+    if (existingBudget !== clampedBudget || shouldStripReasoningEffort) {
+      next.thinking_budget = clampedBudget;
+      if (shouldStripReasoningEffort) {
+        delete next.reasoning_effort;
+      }
+      changed = true;
+    }
   }
 
-  const maxBudget = Math.max(0, Math.floor(maxCompletionTokens) - 1);
-  const existingBudget = toFiniteNumber(next.thinking_budget);
-  const derivedBudget =
-    existingBudget ??
-    resolveThinkingBudgetFromReasoningEffort(next.reasoning_effort) ??
-    DEFAULT_THINKING_BUDGETS.medium;
+  const cachePatched = applyDashscopeExplicitCache(next, context);
+  changed = changed || cachePatched;
 
-  const clampedBudget = Math.min(Math.max(0, Math.floor(derivedBudget)), maxBudget);
-  const shouldStripReasoningEffort = hasReasoningEffort(next);
-  if (existingBudget === clampedBudget && !shouldStripReasoningEffort) {
-    return payload;
+  return changed ? next : payload;
+}
+
+function hasCacheControl(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => hasCacheControl(item));
+  }
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(record, "cache_control")) {
+    return true;
+  }
+  return Object.values(record).some((item) => hasCacheControl(item));
+}
+
+function addCacheControlToTextContent(message: Record<string, unknown>): boolean {
+  const content = message.content;
+  if (typeof content === "string") {
+    if (!content.trim()) return false;
+    message.content = [
+      {
+        type: "text",
+        text: content,
+        cache_control: { type: "ephemeral" },
+      },
+    ];
+    return true;
   }
 
-  next.thinking_budget = clampedBudget;
-  if (shouldStripReasoningEffort) {
-    delete next.reasoning_effort;
+  if (!Array.isArray(content)) return false;
+  for (let index = content.length - 1; index >= 0; index--) {
+    const part = content[index];
+    if (!part || typeof part !== "object" || Array.isArray(part)) continue;
+    const record = part as Record<string, unknown>;
+    if (record.type !== "text") continue;
+    if (typeof record.text !== "string" || !record.text.trim()) continue;
+    record.cache_control = { type: "ephemeral" };
+    return true;
   }
-  return next;
+
+  return false;
+}
+
+function isReusableCacheMessage(message: Record<string, unknown>, index: number, lastIndex: number): boolean {
+  const role = typeof message.role === "string" ? message.role : "";
+  if (role === "system" || role === "developer") return true;
+  // Avoid caching the current user prompt when there is no stable prefix message.
+  return index < lastIndex && (role === "user" || role === "assistant" || role === "tool");
+}
+
+function supportsDashscopeExplicitCache(context?: DashscopePatchContext): boolean {
+  if (context?.contextCache !== "explicit") return false;
+  if (context.supportsCache === false) return false;
+  if (!context.modelId) return context.supportsCache === true;
+
+  const normalizedModel = context.modelId.trim().toLowerCase();
+  return normalizedModel === "glm-5.1" || normalizedModel.endsWith("/glm-5.1");
+}
+
+function applyDashscopeExplicitCache(
+  payload: Record<string, unknown>,
+  context?: DashscopePatchContext,
+): boolean {
+  if (!supportsDashscopeExplicitCache(context)) return false;
+  if (hasCacheControl(payload.messages)) return false;
+  if (!Array.isArray(payload.messages)) return false;
+
+  const messages = payload.messages.slice();
+  const lastIndex = messages.length - 1;
+  for (let index = 0; index < messages.length; index++) {
+    const rawMessage = messages[index];
+    if (!rawMessage || typeof rawMessage !== "object" || Array.isArray(rawMessage)) continue;
+    const message = { ...(rawMessage as Record<string, unknown>) };
+    if (!isReusableCacheMessage(message, index, lastIndex)) continue;
+    if (!addCacheControlToTextContent(message)) continue;
+
+    messages[index] = message;
+    payload.messages = messages;
+    return true;
+  }
+
+  return false;
 }
 
 export default function (pi: ExtensionAPI) {
+  const modelProfileOverrides = readGlmModelProfileOverrides();
+  const contextCache = normalizeContextCacheMode(process.env.GLM_CONTEXT_CACHE);
+
   pi.on("before_provider_request", (event, ctx) => {
-    const model = (ctx.model ?? {}) as { baseUrl?: string; maxTokens?: number };
+    const model = (ctx.model ?? {}) as {
+      baseUrl?: string;
+      id?: string;
+      maxTokens?: number;
+      provider?: string;
+    };
     const baseUrl = typeof model.baseUrl === "string" ? model.baseUrl : "";
 
     if (!baseUrl || !isDashscopeBaseUrl(baseUrl)) {
@@ -192,10 +300,22 @@ export default function (pi: ExtensionAPI) {
 
     const maxOutputTokensOverride = toFiniteNumber(process.env.GLM_MAX_OUTPUT_TOKENS);
     const modelMaxTokens = toFiniteNumber(model.maxTokens);
+    const modelId = typeof model.id === "string" ? model.id : undefined;
+    const profile = modelId
+      ? resolveGlmProfileV2({
+          provider: model.provider,
+          modelId,
+          baseUrl,
+          overrides: modelProfileOverrides,
+        })
+      : undefined;
 
     return applyDashscopePayloadPatches(event.payload, {
       ...(maxOutputTokensOverride === undefined ? {} : { maxOutputTokensOverride }),
       ...(modelMaxTokens === undefined ? {} : { modelMaxTokens }),
+      contextCache,
+      ...(modelId === undefined ? {} : { modelId }),
+      ...(profile === undefined ? {} : { supportsCache: profile.effectiveCaps.supportsCache }),
     });
   });
 }

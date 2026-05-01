@@ -55,6 +55,7 @@ Compaction（上下文压缩）配置项（展示默认值）：
 - `glmCapabilities.clearThinking`
 - `glmCapabilities.toolStream`
 - `glmCapabilities.responseFormat`
+- `glmCapabilities.contextCache`
 - `loop.enabledByDefault`
 - `loop.profile`
 - `loop.maxRounds`
@@ -90,6 +91,7 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `clearThinking`
 - `toolStream`
 - `responseFormat`
+- `contextCache`
 - `loopEnabledByDefault`
 - `loopProfile`
 - `loopMaxRounds`
@@ -122,6 +124,7 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `GLM_CLEAR_THINKING`
 - `GLM_TOOL_STREAM`
 - `GLM_RESPONSE_FORMAT`
+- `GLM_CONTEXT_CACHE`
 - `GLM_LOOP_ENABLED`
 - `GLM_LOOP_PROFILE`
 - `GLM_LOOP_MAX_ROUNDS`

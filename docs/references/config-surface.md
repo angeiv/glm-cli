@@ -55,6 +55,7 @@ Supported persisted keys today:
 - `glmCapabilities.clearThinking`
 - `glmCapabilities.toolStream`
 - `glmCapabilities.responseFormat`
+- `glmCapabilities.contextCache`
 - `loop.enabledByDefault`
 - `loop.profile`
 - `loop.maxRounds`
@@ -90,6 +91,7 @@ Anthropic-compatible credentials are env-only today.
 - `clearThinking`
 - `toolStream`
 - `responseFormat`
+- `contextCache`
 - `loopEnabledByDefault`
 - `loopProfile`
 - `loopMaxRounds`
@@ -122,6 +124,7 @@ Capability and loop env inputs currently include:
 - `GLM_CLEAR_THINKING`
 - `GLM_TOOL_STREAM`
 - `GLM_RESPONSE_FORMAT`
+- `GLM_CONTEXT_CACHE`
 - `GLM_LOOP_ENABLED`
 - `GLM_LOOP_PROFILE`
 - `GLM_LOOP_MAX_ROUNDS`

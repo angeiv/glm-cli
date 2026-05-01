@@ -222,3 +222,21 @@ Optional env knobs:
 
 - `GLM_THINKING_MODE=auto|enabled|disabled`
 - `GLM_CLEAR_THINKING=0|1`: sets `thinking.clear_thinking` when the request includes `thinking`. (`0` is preserved thinking, per BigModel docs.)
+
+## Bailian / DashScope context cache
+
+Bailian supports implicit context cache automatically for supported models. `glm` does not add explicit cache markers by default because explicit cache creation has separate billing.
+
+For Bailian GLM-5.1, enable explicit cache markers when you want deterministic prefix reuse:
+
+```bash
+GLM_CONTEXT_CACHE=explicit glm --provider openai-compatible --model glm-5.1
+```
+
+Equivalent persisted config:
+
+```bash
+glm config set contextCache explicit
+```
+
+Supported values are `auto`, `explicit`, and `off`. `auto` relies on Bailian's implicit cache behavior. `explicit` adds `cache_control: { "type": "ephemeral" }` to the first stable reusable message for DashScope/Bailian GLM-5.1 requests.

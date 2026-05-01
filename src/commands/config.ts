@@ -4,6 +4,7 @@ import {
   type LoopProfileName,
   readConfigFile,
   type ApprovalPolicy,
+  type ContextCacheMode,
   type GlmConfigFile,
   type ResponseFormatType,
   type ThinkingMode,
@@ -31,6 +32,7 @@ const CONFIG_KEYS = [
   "clearThinking",
   "toolStream",
   "responseFormat",
+  "contextCache",
   "loopEnabledByDefault",
   "loopProfile",
   "loopMaxRounds",
@@ -47,6 +49,7 @@ const TASK_LANE_DEFAULTS = ["auto", "direct", "standard", "intensive"] as const;
 const THINKING_MODES = ["auto", "enabled", "disabled"] as const;
 const TOOL_STREAM_MODES = ["auto", "on", "off"] as const;
 const RESPONSE_FORMAT_TYPES = ["json_object"] as const;
+const CONTEXT_CACHE_MODES = ["auto", "explicit", "off"] as const;
 const LOOP_PROFILES = ["code"] as const;
 const LOOP_FAILURE_MODES = ["handoff", "fail"] as const;
 const CLEARABLE_VALUE = "unset";
@@ -117,6 +120,9 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   }
   if (key === "responseFormat") {
     return config.glmCapabilities.responseFormat ?? CLEARABLE_VALUE;
+  }
+  if (key === "contextCache") {
+    return config.glmCapabilities.contextCache ?? "auto";
   }
   if (key === "loopEnabledByDefault") {
     return String(config.loop.enabledByDefault ?? false);
@@ -239,6 +245,12 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
       throw new Error(
         `responseFormat must be ${RESPONSE_FORMAT_TYPES.join(", ")}, or ${CLEARABLE_VALUE}`,
       );
+    }
+  }
+
+  if (key === "contextCache") {
+    if (!CONTEXT_CACHE_MODES.includes(trimmed as (typeof CONTEXT_CACHE_MODES)[number])) {
+      throw new Error(`contextCache must be ${CONTEXT_CACHE_MODES.join(", ")}`);
     }
   }
 
@@ -409,6 +421,8 @@ export async function configSet(
     } else {
       config.glmCapabilities.responseFormat = parsedValue as ResponseFormatType;
     }
+  } else if (key === "contextCache") {
+    config.glmCapabilities.contextCache = parsedValue as ContextCacheMode;
   } else if (key === "loopEnabledByDefault") {
     config.loop.enabledByDefault = parsedValue as boolean;
   } else if (key === "loopProfile") {

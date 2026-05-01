@@ -31,6 +31,7 @@ export type RuntimeEnvVars = Partial<{
   GLM_CLEAR_THINKING: string;
   GLM_TOOL_STREAM: string;
   GLM_RESPONSE_FORMAT: string;
+  GLM_CONTEXT_CACHE: string;
   GLM_LOOP_ENABLED: string;
   GLM_LOOP_PROFILE: string;
   GLM_LOOP_MAX_ROUNDS: string;
@@ -210,6 +211,17 @@ export function buildCapabilityEnvironment(
           GLM_RESPONSE_FORMAT: readConfiguredEnvValue(
             env.GLM_RESPONSE_FORMAT,
             fileConfig.glmCapabilities?.responseFormat,
+          )!,
+        }),
+    ...(readConfiguredEnvValue(
+      env.GLM_CONTEXT_CACHE,
+      fileConfig.glmCapabilities?.contextCache,
+    ) === undefined
+      ? {}
+      : {
+          GLM_CONTEXT_CACHE: readConfiguredEnvValue(
+            env.GLM_CONTEXT_CACHE,
+            fileConfig.glmCapabilities?.contextCache,
           )!,
         }),
   };
