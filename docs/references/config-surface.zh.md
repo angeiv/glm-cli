@@ -73,6 +73,14 @@ Compaction（上下文压缩）配置项（展示默认值）：
 
 Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 
+`modelProfiles.overrides[]` 当前支持以下字段：
+
+- `match`
+- `canonicalModelId`
+- `payloadPatchPolicy`
+- `modalities`
+- `caps`
+
 ## `glm config` 命令面
 
 `glm config get|set` 当前暴露以下 key：

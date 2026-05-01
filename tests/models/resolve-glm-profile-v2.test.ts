@@ -53,4 +53,44 @@ describe("GLM profile resolution v2", () => {
     expect(profile.effectiveCaps.contextWindow).toBe(96_000);
     expect(profile.effectiveCaps.supportsToolStream).toBe(false);
   });
+
+  test("resolves built-in qwen multimodal metadata for qwen/qwen3.5-122b-a10b", () => {
+    const profile = resolveGlmProfileV2({
+      provider: "openai-compatible",
+      modelId: "qwen/qwen3.5-122b-a10b",
+      baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    });
+
+    expect(profile.canonicalModelId).toBe("qwen/qwen3.5-122b-a10b");
+    expect(profile.payloadPatchPolicy).toBe("safe-openai-compatible");
+    expect(profile.effectiveModalities).toEqual(["text", "image"]);
+    expect(profile.effectiveCaps).toMatchObject({
+      contextWindow: 262_144,
+      maxOutputTokens: 81_920,
+      supportsThinking: true,
+      defaultThinkingMode: "enabled",
+      supportsStreaming: true,
+      supportsToolCall: true,
+    });
+  });
+
+  test("resolves qwen aliases with case and separator variations", () => {
+    const aliases = [
+      "Qwen/Qwen3.5-122B-A10B",
+      "qwen-3.5-122b-a10b",
+      "QWEN_3_5_122B_A10B",
+      "vendor/Qwen-3.5-122B-A10B",
+    ];
+
+    for (const modelId of aliases) {
+      const profile = resolveGlmProfileV2({
+        provider: "openai-compatible",
+        modelId,
+        baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      });
+
+      expect(profile.canonicalModelId, modelId).toBe("qwen/qwen3.5-122b-a10b");
+      expect(profile.effectiveModalities, modelId).toEqual(["text", "image"]);
+    }
+  });
 });

@@ -1,5 +1,6 @@
 import type {
   EffectiveModelCaps,
+  GlmInputModality,
   GlmPlatformRoute,
   GlmUpstreamVendor,
   PayloadPatchPolicy,
@@ -8,9 +9,11 @@ import type {
   ResolutionConfidence,
 } from "./glm-profile-core.js";
 import {
+  getCatalogModelProfile,
   getGenericOpenAiCompatibleCaps,
+  getGenericOpenAiCompatibleModalities,
   getStandardGlmModel,
-  resolveCanonicalGlmModelId,
+  resolveCanonicalCatalogModelId,
   resolveGlmPlatformRoute,
   resolveGlmUpstreamVendor,
   resolveVariantOverlay,
@@ -29,6 +32,7 @@ export type GlmProfileOverrideRule = {
   match: GlmProfileRuleMatch;
   canonicalModelId?: string;
   payloadPatchPolicy?: PayloadPatchPolicy;
+  modalities?: GlmInputModality[];
   caps?: Partial<EffectiveModelCaps>;
 };
 
@@ -168,6 +172,14 @@ function mergeCaps(
   return { ...base, ...overlay };
 }
 
+function mergeModalities(
+  base: GlmInputModality[],
+  overlay?: GlmInputModality[],
+): GlmInputModality[] {
+  if (!overlay) return [...base];
+  return [...overlay];
+}
+
 function resolveConfidence(
   canonicalModelId: string | undefined,
   platform: GlmPlatformRoute,
@@ -189,6 +201,7 @@ function applyOverrides(
 ): {
   canonicalModelId?: string;
   payloadPatchPolicy?: PayloadPatchPolicy;
+  modalities?: GlmInputModality[];
   caps?: Partial<EffectiveModelCaps>;
 } {
   if (!rules || rules.length === 0) {
@@ -200,6 +213,7 @@ function applyOverrides(
     return {
       canonicalModelId: rule.canonicalModelId,
       payloadPatchPolicy: rule.payloadPatchPolicy,
+      modalities: rule.modalities,
       caps: rule.caps,
     };
   }
@@ -211,7 +225,7 @@ export function resolveGlmProfileV2(input: ResolveGlmProfileV2Input): ResolvedGl
   const platform = resolveGlmPlatformRoute(input.baseUrl);
   const upstreamVendor = resolveGlmUpstreamVendor(platform, input.modelId);
 
-  const baseCanonical = resolveCanonicalGlmModelId(input.modelId);
+  const baseCanonical = resolveCanonicalCatalogModelId(input.modelId);
   const baseContext: GlmResolutionContext = {
     provider: input.provider ? normalize(input.provider) : undefined,
     baseUrl: input.baseUrl,
@@ -223,14 +237,19 @@ export function resolveGlmProfileV2(input: ResolveGlmProfileV2Input): ResolvedGl
 
   const overrides = applyOverrides(baseContext, input.overrides);
   const canonicalModelId = overrides.canonicalModelId ?? baseCanonical;
-  const canonicalModel = canonicalModelId ? getStandardGlmModel(canonicalModelId) : undefined;
+  const canonicalModel = canonicalModelId ? getCatalogModelProfile(canonicalModelId) : undefined;
+  const canonicalGlmModel = canonicalModelId ? getStandardGlmModel(canonicalModelId) : undefined;
 
   const baseCaps = canonicalModel ?? getGenericOpenAiCompatibleCaps();
   const variant = resolveVariantOverlay(platform, input.modelId, canonicalModelId);
   const effectiveCaps = mergeCaps(mergeCaps(baseCaps, variant.caps), overrides.caps);
+  const effectiveModalities = mergeModalities(
+    canonicalModel?.modalities ?? getGenericOpenAiCompatibleModalities(),
+    overrides.modalities,
+  );
 
   const defaultPayloadPolicy: PayloadPatchPolicy =
-    canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")
+    canonicalGlmModel && (platform === "native-bigmodel" || platform === "native-zai")
       ? "glm-native"
       : "safe-openai-compatible";
   const payloadPatchPolicy = overrides.payloadPatchPolicy ?? defaultPayloadPolicy;
@@ -246,5 +265,6 @@ export function resolveGlmProfileV2(input: ResolveGlmProfileV2Input): ResolvedGl
     },
     payloadPatchPolicy,
     effectiveCaps,
+    effectiveModalities,
   };
 }

@@ -222,6 +222,7 @@ describe("config store normalization", () => {
               modelId: "ZhipuAI/GLM-5*",
             },
             canonicalModelId: "glm-5",
+            modalities: ["text", "image"],
             caps: {
               contextWindow: 96000,
               supportsToolStream: false,
@@ -236,6 +237,7 @@ describe("config store normalization", () => {
     expect(config.modelProfiles?.overrides).toHaveLength(1);
     expect(config.modelProfiles?.overrides?.[0]).toMatchObject({
       canonicalModelId: "glm-5",
+      modalities: ["text", "image"],
       match: {
         provider: "anthropic",
         baseUrl: "*modelscope.cn*",
@@ -267,6 +269,31 @@ describe("config store normalization", () => {
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
     await expect(readConfigFile()).rejects.toThrow(/match must specify at least one selector/i);
+  });
+
+  test("readConfigFile rejects invalid model profile override modalities", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+      modelProfiles: {
+        overrides: [
+          {
+            match: {
+              provider: "openai-compatible",
+              modelId: "vendor/*",
+            },
+            modalities: ["text", "audio"],
+          },
+        ],
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/modalities/i);
   });
 
   test("readConfigFile rejects invalid glm capability values", async () => {

@@ -34,6 +34,20 @@ function normalizeOverrideMatch(value) {
   return match;
 }
 
+function normalizeOverrideModalities(value) {
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+
+  const modalities = [];
+  for (const item of value) {
+    const normalized = normalizeNonEmptyString(item)?.toLowerCase();
+    if (normalized !== "text" && normalized !== "image") continue;
+    if (modalities.includes(normalized)) continue;
+    modalities.push(normalized);
+  }
+
+  return modalities.length > 0 ? modalities : undefined;
+}
+
 function normalizeOverrideRule(value) {
   if (!value || typeof value !== "object") return undefined;
   const maybe = value;
@@ -51,6 +65,11 @@ function normalizeOverrideRule(value) {
   const payloadPatchPolicy = normalizeNonEmptyString(maybe.payloadPatchPolicy);
   if (payloadPatchPolicy) {
     rule.payloadPatchPolicy = payloadPatchPolicy;
+  }
+
+  const modalities = normalizeOverrideModalities(maybe.modalities);
+  if (modalities) {
+    rule.modalities = modalities;
   }
 
   const caps = maybe.caps;
@@ -90,4 +109,3 @@ export function readGlmModelProfileOverrides() {
 
   return rules.length > 0 ? rules : undefined;
 }
-

@@ -1,6 +1,7 @@
 import { getGlmConfigPath, getGlmRootDir } from "./dirs.js";
 import * as fsPromises from "node:fs/promises";
 import type { GlmProfileOverrideRule } from "../models/resolve-glm-profile-v2.js";
+import type { GlmInputModality } from "../models/glm-profile-core.js";
 
 export const fileSystem = {
   readFile: fsPromises.readFile,
@@ -90,6 +91,7 @@ const VALID_CONTEXT_CACHE_MODES: ContextCacheMode[] = ["auto", "explicit", "off"
 const VALID_TASK_LANE_DEFAULTS: TaskLaneDefault[] = ["auto", "direct", "standard", "intensive"];
 const VALID_LOOP_PROFILES: LoopProfileName[] = ["code"];
 const VALID_LOOP_FAILURE_MODES: LoopFailureMode[] = ["handoff", "fail"];
+const VALID_GLM_INPUT_MODALITIES: GlmInputModality[] = ["text", "image"];
 
 const BASE_DEFAULT_CONFIG_FILE = buildDefaultConfigFile();
 
@@ -317,6 +319,7 @@ function cloneModelProfilesConfig(config?: ModelProfilesConfig): ModelProfilesCo
       ...(match && typeof match === "object"
         ? { match: { ...(match as Record<string, unknown>) } }
         : { match }),
+      ...(Array.isArray(record.modalities) ? { modalities: [...record.modalities] } : {}),
       ...(caps && typeof caps === "object"
         ? { caps: { ...(caps as Record<string, unknown>) } }
         : { caps }),
@@ -429,6 +432,10 @@ function isLoopProfileName(value?: string): value is LoopProfileName {
 
 function isLoopFailureMode(value?: string): value is LoopFailureMode {
   return VALID_LOOP_FAILURE_MODES.includes(value as LoopFailureMode);
+}
+
+function isGlmInputModality(value: unknown): value is GlmInputModality {
+  return VALID_GLM_INPUT_MODALITIES.includes(value as GlmInputModality);
 }
 
 function validateConfigFile(config: GlmConfigFile): void {
@@ -668,6 +675,23 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
           `Invalid modelProfiles.overrides[${index}].payloadPatchPolicy in config file: ${String(payloadPatchPolicy)}`,
         );
       }
+    }
+
+    const modalities = record.modalities;
+    if (modalities !== undefined) {
+      if (!Array.isArray(modalities) || modalities.length === 0) {
+        throw new Error(
+          `Invalid modelProfiles.overrides[${index}].modalities in config file: ${String(modalities)}`,
+        );
+      }
+
+      modalities.forEach((value, modalityIndex) => {
+        if (!isGlmInputModality(value)) {
+          throw new Error(
+            `Invalid modelProfiles.overrides[${index}].modalities[${modalityIndex}] in config file: ${String(value)}`,
+          );
+        }
+      });
     }
 
     const caps = record.caps;

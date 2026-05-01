@@ -2,6 +2,7 @@ export type GlmThinkingMode = "auto" | "enabled" | "disabled";
 export type GlmModelSource = "official" | "compat";
 export type GlmModelTier = "flagship" | "base" | "turbo" | "flash" | "air" | "vision";
 export type GlmModelFamily = "glm-5" | "glm-4.7" | "glm-4.6" | "glm-4.5" | "glm-4";
+export type GlmInputModality = "text" | "image";
 
 export type EffectiveModelCaps = {
   contextWindow: number;
@@ -22,8 +23,14 @@ export type StandardGlmModel = EffectiveModelCaps & {
   displayName: string;
   family: GlmModelFamily;
   tier: GlmModelTier;
-  modalities: string[];
+  modalities: GlmInputModality[];
   source: GlmModelSource;
+};
+
+export type CatalogModelProfile = EffectiveModelCaps & {
+  id: string;
+  displayName: string;
+  modalities: GlmInputModality[];
 };
 
 export type GlmPlatformRoute =
@@ -58,6 +65,7 @@ export type ResolvedGlmProfile = {
   evidence: ResolutionEvidence;
   payloadPatchPolicy: PayloadPatchPolicy;
   effectiveCaps: EffectiveModelCaps;
+  effectiveModalities: GlmInputModality[];
 };
 
 export type ResolveGlmProfileInput = {
@@ -78,6 +86,8 @@ const GENERIC_OPENAI_COMPATIBLE_CAPS: EffectiveModelCaps = {
   supportsStructuredOutput: false,
   supportsMcp: false,
 };
+
+const GENERIC_OPENAI_COMPATIBLE_MODALITIES: GlmInputModality[] = ["text", "image"];
 
 const STANDARD_GLM_MODELS = [
   {
@@ -308,6 +318,35 @@ const STANDARD_GLM_MODEL_MAP: Map<string, StandardGlmModel> = new Map(
   ]),
 );
 
+const BUILTIN_COMPAT_MODELS: CatalogModelProfile[] = [
+  {
+    id: "qwen/qwen3.5-122b-a10b",
+    displayName: "Qwen 3.5 122B A10B",
+    modalities: ["text", "image"],
+    contextWindow: 262_144,
+    maxOutputTokens: 81_920,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: false,
+    supportsMcp: false,
+  },
+];
+
+const BUILTIN_COMPAT_MODEL_MAP: Map<string, CatalogModelProfile> = new Map(
+  BUILTIN_COMPAT_MODELS.map((model) => [
+    model.id,
+    {
+      ...model,
+      modalities: [...model.modalities],
+    } satisfies CatalogModelProfile,
+  ]),
+);
+
 const EXPLICIT_ALIAS_MAP = new Map<string, string>([
   ["glm5", "glm-5"],
   ["glm51", "glm-5.1"],
@@ -321,6 +360,12 @@ const EXPLICIT_ALIAS_MAP = new Map<string, string>([
   ["z-ai/glm-5", "glm-5"],
   ["z-ai/glm-5-1", "glm-5.1"],
   ["z-ai/glm-5.1", "glm-5.1"],
+]);
+
+const BUILTIN_COMPAT_ALIAS_MAP = new Map<string, string>([
+  ["qwen/qwen3.5-122b-a10b", "qwen/qwen3.5-122b-a10b"],
+  ["qwen3.5-122b-a10b", "qwen/qwen3.5-122b-a10b"],
+  ["qwen3-5-122b-a10b", "qwen/qwen3.5-122b-a10b"],
 ]);
 
 function normalizeModelId(value: string): string {
@@ -365,6 +410,16 @@ function normalizeGlmNumericForms(candidate: string): string {
   return next;
 }
 
+function normalizeBuiltinCompatNumericForms(candidate: string): string {
+  let next = candidate;
+
+  next = next.replace(/^qwen-(\d)\.(\d)(?=$|-)/, "qwen$1.$2");
+  next = next.replace(/^qwen-(\d)-(\d)(?=$|-)/, "qwen$1.$2");
+  next = next.replace(/^qwen(\d)-(\d)(?=$|-)/, "qwen$1.$2");
+
+  return next;
+}
+
 function mergeCaps(
   base: EffectiveModelCaps,
   overlay?: Partial<EffectiveModelCaps>,
@@ -396,8 +451,16 @@ export function getStandardGlmModel(id: string): StandardGlmModel | undefined {
   return STANDARD_GLM_MODEL_MAP.get(id);
 }
 
+export function getCatalogModelProfile(id: string): CatalogModelProfile | undefined {
+  return STANDARD_GLM_MODEL_MAP.get(id) ?? BUILTIN_COMPAT_MODEL_MAP.get(id);
+}
+
 export function getGenericOpenAiCompatibleCaps(): EffectiveModelCaps {
   return { ...GENERIC_OPENAI_COMPATIBLE_CAPS };
+}
+
+export function getGenericOpenAiCompatibleModalities(): GlmInputModality[] {
+  return [...GENERIC_OPENAI_COMPATIBLE_MODALITIES];
 }
 
 export function resolveCanonicalGlmModelId(modelId: string): string | undefined {
@@ -414,6 +477,31 @@ export function resolveCanonicalGlmModelId(modelId: string): string | undefined 
   }
 
   return undefined;
+}
+
+function resolveCanonicalBuiltinCompatModelId(modelId: string): string | undefined {
+  for (const rawCandidate of extractCandidateSegments(modelId)) {
+    const explicit = BUILTIN_COMPAT_ALIAS_MAP.get(rawCandidate);
+    if (explicit) {
+      return explicit;
+    }
+
+    const normalized = normalizeBuiltinCompatNumericForms(rawCandidate);
+    const normalizedExplicit = BUILTIN_COMPAT_ALIAS_MAP.get(normalized);
+    if (normalizedExplicit) {
+      return normalizedExplicit;
+    }
+
+    if (BUILTIN_COMPAT_MODEL_MAP.has(normalized)) {
+      return normalized;
+    }
+  }
+
+  return undefined;
+}
+
+export function resolveCanonicalCatalogModelId(modelId: string): string | undefined {
+  return resolveCanonicalGlmModelId(modelId) ?? resolveCanonicalBuiltinCompatModelId(modelId);
 }
 
 export function resolveGlmPlatformRoute(baseUrl?: string): GlmPlatformRoute {
@@ -514,15 +602,17 @@ export function resolveVariantOverlay(
 
 export function resolveGlmProfile(input: ResolveGlmProfileInput): ResolvedGlmProfile {
   const platform = resolveGlmPlatformRoute(input.baseUrl);
-  const canonicalModelId = resolveCanonicalGlmModelId(input.modelId);
-  const canonicalModel = canonicalModelId ? getStandardGlmModel(canonicalModelId) : undefined;
+  const canonicalModelId = resolveCanonicalCatalogModelId(input.modelId);
+  const canonicalModel = canonicalModelId ? getCatalogModelProfile(canonicalModelId) : undefined;
+  const canonicalGlmModel = canonicalModelId ? getStandardGlmModel(canonicalModelId) : undefined;
 
   const baseCaps = canonicalModel ?? getGenericOpenAiCompatibleCaps();
   const variant = resolveVariantOverlay(platform, input.modelId, canonicalModelId);
   const effectiveCaps = mergeCaps(baseCaps, variant.caps);
+  const effectiveModalities = canonicalModel?.modalities ?? getGenericOpenAiCompatibleModalities();
 
   const payloadPatchPolicy: PayloadPatchPolicy =
-    canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")
+    canonicalGlmModel && (platform === "native-bigmodel" || platform === "native-zai")
       ? "glm-native"
       : "safe-openai-compatible";
 
@@ -537,5 +627,6 @@ export function resolveGlmProfile(input: ResolveGlmProfileInput): ResolvedGlmPro
     },
     payloadPatchPolicy,
     effectiveCaps,
+    effectiveModalities,
   };
 }
