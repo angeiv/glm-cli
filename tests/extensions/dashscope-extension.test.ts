@@ -96,4 +96,44 @@ describe("glm-dashscope extension", () => {
     });
     expect(next).not.toHaveProperty("reasoning_effort");
   });
+
+  test("adds cache_control to the first reusable message when explicit cache is enabled", () => {
+    const payload = {
+      model: "glm-5.1",
+      messages: [
+        { role: "system", content: "stable repo and instruction context" },
+        { role: "user", content: "what should I do next?" },
+      ],
+    };
+
+    const next = applyDashscopePayloadPatches(payload, {
+      contextCache: "explicit",
+      modelId: "glm-5.1",
+      supportsCache: true,
+    }) as any;
+
+    expect(next.messages[0].content).toEqual([
+      {
+        type: "text",
+        text: "stable repo and instruction context",
+        cache_control: { type: "ephemeral" },
+      },
+    ]);
+    expect(next.messages[1].content).toBe("what should I do next?");
+  });
+
+  test("does not add explicit cache markers for unsupported models", () => {
+    const payload = {
+      model: "glm-5",
+      messages: [{ role: "system", content: "stable context" }],
+    };
+
+    const next = applyDashscopePayloadPatches(payload, {
+      contextCache: "explicit",
+      modelId: "glm-5",
+      supportsCache: false,
+    });
+
+    expect(next).toBe(payload);
+  });
 });
