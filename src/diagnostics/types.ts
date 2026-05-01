@@ -1,8 +1,4 @@
-import type {
-  ApprovalPolicy,
-  LoopFailureMode,
-  LoopProfileName,
-} from "../app/config-store.js";
+import type { ApprovalPolicy, LoopFailureMode, LoopProfileName } from "../app/config-store.js";
 import type { RuntimeToolSignature } from "./tool-signature.js";
 
 export type RuntimeDiagnosticsConfig = {

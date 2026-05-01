@@ -57,10 +57,7 @@ function isSessionMemory(value: unknown): value is SessionMemory {
   return true;
 }
 
-function createEmptyMemory(args: {
-  sessionId: string;
-  sessionFile?: string;
-}): SessionMemory {
+function createEmptyMemory(args: { sessionId: string; sessionFile?: string }): SessionMemory {
   return {
     kind: SESSION_MEMORY_KIND,
     version: SESSION_MEMORY_VERSION,
@@ -121,8 +118,7 @@ export async function upsertSessionMemoryOperatorNotes(args: {
   });
 
   const base =
-    existing ??
-    createEmptyMemory({ sessionId: args.sessionId, sessionFile: args.sessionFile });
+    existing ?? createEmptyMemory({ sessionId: args.sessionId, sessionFile: args.sessionFile });
   const next: SessionMemory = {
     ...base,
     ...(args.sessionFile ? { sessionFile: args.sessionFile } : {}),
@@ -155,12 +151,9 @@ export async function upsertSessionMemoryCompaction(args: {
     sessionId: args.sessionId,
   });
   const base =
-    existing ??
-    createEmptyMemory({ sessionId: args.sessionId, sessionFile: args.sessionFile });
+    existing ?? createEmptyMemory({ sessionId: args.sessionId, sessionFile: args.sessionFile });
   const maxHistory = args.maxHistory ?? DEFAULT_MAX_COMPACTION_HISTORY;
-  const nextCompactions = [...base.compactions, args.compaction].slice(
-    -Math.max(1, maxHistory),
-  );
+  const nextCompactions = [...base.compactions, args.compaction].slice(-Math.max(1, maxHistory));
 
   const next: SessionMemory = {
     ...base,
@@ -177,4 +170,3 @@ export async function upsertSessionMemoryCompaction(args: {
 
   return { memory: next, path };
 }
-

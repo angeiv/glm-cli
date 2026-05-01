@@ -16,7 +16,9 @@ type HookState = {
 };
 
 function getHookState(): HookState {
-  const existing = (globalThis as Record<PropertyKey, unknown>)[GLM_HOOKS_STATE] as HookState | undefined;
+  const existing = (globalThis as Record<PropertyKey, unknown>)[GLM_HOOKS_STATE] as
+    | HookState
+    | undefined;
   if (
     existing &&
     typeof existing === "object" &&
@@ -65,4 +67,3 @@ export function getHookRuns(): HookExecutionRecord[] {
 export function clearHookRuns(): void {
   getHookState().runs = [];
 }
-

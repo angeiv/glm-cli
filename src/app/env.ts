@@ -86,7 +86,9 @@ export function resolveRuntimeConfig(
   env: RuntimeEnvVars,
   fileConfig: GlmConfigFile,
 ): RuntimeConfig {
-  const fallbackProvider = isProviderName(fileConfig.defaultProvider) ? fileConfig.defaultProvider : "glm";
+  const fallbackProvider = isProviderName(fileConfig.defaultProvider)
+    ? fileConfig.defaultProvider
+    : "glm";
   const fallbackModel = fileConfig.defaultModel ?? "glm-5.1";
 
   const { provider, model } = resolveProviderSelection(
@@ -96,7 +98,7 @@ export function resolveRuntimeConfig(
     fallbackModel,
   );
 
-  const approvalPolicy = cli.yolo ? "never" : fileConfig.approvalPolicy ?? "ask";
+  const approvalPolicy = cli.yolo ? "never" : (fileConfig.approvalPolicy ?? "ask");
 
   return { provider, model, approvalPolicy };
 }
@@ -117,10 +119,7 @@ export function buildCapabilityEnvironment(
   fileConfig: GlmConfigFile,
 ): Partial<NodeJS.ProcessEnv> {
   return {
-    ...(readConfiguredEnvValue(
-      env.GLM_ENDPOINT,
-      fileConfig.providers?.glm?.endpoint,
-    ) === undefined
+    ...(readConfiguredEnvValue(env.GLM_ENDPOINT, fileConfig.providers?.glm?.endpoint) === undefined
       ? {}
       : {
           GLM_ENDPOINT: readConfiguredEnvValue(
@@ -150,10 +149,7 @@ export function buildCapabilityEnvironment(
             fileConfig.generation?.temperature?.toString(),
           )!,
         }),
-    ...(readConfiguredEnvValue(
-      env.GLM_TOP_P,
-      fileConfig.generation?.topP?.toString(),
-    ) === undefined
+    ...(readConfiguredEnvValue(env.GLM_TOP_P, fileConfig.generation?.topP?.toString()) === undefined
       ? {}
       : {
           GLM_TOP_P: readConfiguredEnvValue(
@@ -161,10 +157,8 @@ export function buildCapabilityEnvironment(
             fileConfig.generation?.topP?.toString(),
           )!,
         }),
-    ...(readConfiguredEnvValue(
-      env.GLM_THINKING_MODE,
-      fileConfig.glmCapabilities?.thinkingMode,
-    ) === undefined
+    ...(readConfiguredEnvValue(env.GLM_THINKING_MODE, fileConfig.glmCapabilities?.thinkingMode) ===
+    undefined
       ? {}
       : {
           GLM_THINKING_MODE: readConfiguredEnvValue(
@@ -191,10 +185,8 @@ export function buildCapabilityEnvironment(
                 : "0",
           )!,
         }),
-    ...(readConfiguredEnvValue(
-      env.GLM_TOOL_STREAM,
-      fileConfig.glmCapabilities?.toolStream,
-    ) === undefined
+    ...(readConfiguredEnvValue(env.GLM_TOOL_STREAM, fileConfig.glmCapabilities?.toolStream) ===
+    undefined
       ? {}
       : {
           GLM_TOOL_STREAM: readConfiguredEnvValue(
@@ -213,10 +205,8 @@ export function buildCapabilityEnvironment(
             fileConfig.glmCapabilities?.responseFormat,
           )!,
         }),
-    ...(readConfiguredEnvValue(
-      env.GLM_CONTEXT_CACHE,
-      fileConfig.glmCapabilities?.contextCache,
-    ) === undefined
+    ...(readConfiguredEnvValue(env.GLM_CONTEXT_CACHE, fileConfig.glmCapabilities?.contextCache) ===
+    undefined
       ? {}
       : {
           GLM_CONTEXT_CACHE: readConfiguredEnvValue(
@@ -299,10 +289,7 @@ export function resolveLoopRuntimeOptions(
   const envMaxVerifyRuns = parsePositiveInteger(env.GLM_LOOP_MAX_VERIFY_RUNS);
   const envFailureMode = parseLoopFailureMode(env.GLM_LOOP_FAILURE_MODE);
   const envAutoVerify = parseBoolean(env.GLM_LOOP_AUTO_VERIFY);
-  const envVerifyCommand = readConfiguredEnvValue(
-    env.GLM_LOOP_VERIFY_COMMAND,
-    undefined,
-  );
+  const envVerifyCommand = readConfiguredEnvValue(env.GLM_LOOP_VERIFY_COMMAND, undefined);
   const envVerifyFallbackCommand = readConfiguredEnvValue(
     env.GLM_LOOP_VERIFY_FALLBACK_COMMAND,
     undefined,
@@ -312,39 +299,19 @@ export function resolveLoopRuntimeOptions(
   const maxVerifyRuns = cli.maxVerifyRuns ?? envMaxVerifyRuns ?? fileLoop?.maxVerifyRuns;
 
   return {
-    enabled:
-      cli.loop ??
-      envEnabled ??
-      fileLoop?.enabledByDefault ??
-      false,
-    profile:
-      envProfile ??
-      fileLoop?.profile ??
-      "code",
-    maxRounds:
-      cli.maxRounds ??
-      envMaxRounds ??
-      fileLoop?.maxRounds ??
-      3,
+    enabled: cli.loop ?? envEnabled ?? fileLoop?.enabledByDefault ?? false,
+    profile: envProfile ?? fileLoop?.profile ?? "code",
+    maxRounds: cli.maxRounds ?? envMaxRounds ?? fileLoop?.maxRounds ?? 3,
     ...(maxToolCalls === undefined ? {} : { maxToolCalls }),
     ...(maxVerifyRuns === undefined ? {} : { maxVerifyRuns }),
-    failureMode:
-      cli.failMode ??
-      envFailureMode ??
-      fileLoop?.failureMode ??
-      "handoff",
-    autoVerify:
-      envAutoVerify ??
-      fileLoop?.autoVerify ??
-      true,
+    failureMode: cli.failMode ?? envFailureMode ?? fileLoop?.failureMode ?? "handoff",
+    autoVerify: envAutoVerify ?? fileLoop?.autoVerify ?? true,
     verifyCommand: cli.verify ?? envVerifyCommand,
     verifyFallbackCommand: envVerifyFallbackCommand ?? fileLoop?.verifyCommand,
   };
 }
 
-export function buildLoopEnvironment(
-  loop: LoopRuntimeOptions,
-): Partial<NodeJS.ProcessEnv> {
+export function buildLoopEnvironment(loop: LoopRuntimeOptions): Partial<NodeJS.ProcessEnv> {
   return {
     GLM_LOOP_ENABLED: loop.enabled ? "1" : "0",
     GLM_LOOP_PROFILE: loop.profile,
@@ -357,8 +324,12 @@ export function buildLoopEnvironment(
       : { GLM_LOOP_MAX_VERIFY_RUNS: String(loop.maxVerifyRuns) }),
     GLM_LOOP_FAILURE_MODE: loop.failureMode,
     GLM_LOOP_AUTO_VERIFY: loop.autoVerify ? "1" : "0",
-    ...(loop.verifyCommand ? { GLM_LOOP_VERIFY_COMMAND: loop.verifyCommand } : { GLM_LOOP_VERIFY_COMMAND: undefined }),
-    ...(loop.verifyFallbackCommand ? { GLM_LOOP_VERIFY_FALLBACK_COMMAND: loop.verifyFallbackCommand } : { GLM_LOOP_VERIFY_FALLBACK_COMMAND: undefined }),
+    ...(loop.verifyCommand
+      ? { GLM_LOOP_VERIFY_COMMAND: loop.verifyCommand }
+      : { GLM_LOOP_VERIFY_COMMAND: undefined }),
+    ...(loop.verifyFallbackCommand
+      ? { GLM_LOOP_VERIFY_FALLBACK_COMMAND: loop.verifyFallbackCommand }
+      : { GLM_LOOP_VERIFY_FALLBACK_COMMAND: undefined }),
   };
 }
 

@@ -29,18 +29,12 @@ afterEach(() => {
 
 describe("glm-mcp extension helpers", () => {
   test("buildMcpToolName namespaces and normalizes identifiers", () => {
-    expect(buildMcpToolName("Brave Search", "web.search")).toBe(
-      "mcp__brave_search__web_search",
-    );
-    expect(buildMcpToolName("  Z.ai  ", "ZhipuAI/GLM-5")).toBe(
-      "mcp__z_ai__zhipuai_glm-5",
-    );
+    expect(buildMcpToolName("Brave Search", "web.search")).toBe("mcp__brave_search__web_search");
+    expect(buildMcpToolName("  Z.ai  ", "ZhipuAI/GLM-5")).toBe("mcp__z_ai__zhipuai_glm-5");
   });
 
   test("buildMcpProxyToolName namespaces proxy tools per server", () => {
-    expect(buildMcpProxyToolName("Brave Search")).toBe(
-      "mcp__brave_search__proxy",
-    );
+    expect(buildMcpProxyToolName("Brave Search")).toBe("mcp__brave_search__proxy");
   });
 
   test("resolveMcpConfigPath defaults to ~/.glm/mcp.json", () => {
@@ -203,24 +197,28 @@ describe("glm-mcp extension helpers", () => {
       toolMode: "hybrid",
     });
 
-    saveMcpMetadataCache(cachePath, {
-      version: 1,
-      servers: {
-        vision: {
-          configHash: "placeholder",
-          cachedAt: Date.now(),
-          tools: [
-            {
-              name: "vision_analyze",
-              description: "Analyze an image",
-              inputSchema: { type: "object" },
-            },
-          ],
+    saveMcpMetadataCache(
+      cachePath,
+      {
+        version: 1,
+        servers: {
+          vision: {
+            configHash: "placeholder",
+            cachedAt: Date.now(),
+            tools: [
+              {
+                name: "vision_analyze",
+                description: "Analyze an image",
+                inputSchema: { type: "object" },
+              },
+            ],
+          },
         },
       },
-    }, {
-      vision: resolved,
-    });
+      {
+        vision: resolved,
+      },
+    );
 
     const cache = loadMcpMetadataCache(cachePath);
     expect(cache?.servers.vision?.tools).toHaveLength(1);
@@ -262,9 +260,7 @@ describe("glm-mcp extension helpers", () => {
   });
 
   test("resolveMcpServerConfig rejects remote configs without url", () => {
-    expect(() => resolveMcpServerConfig({ type: "streamable-http" })).toThrow(
-      /url/i,
-    );
+    expect(() => resolveMcpServerConfig({ type: "streamable-http" })).toThrow(/url/i);
   });
 
   test("registers a proxy tool and uses cached metadata for list in proxy mode", async () => {
@@ -333,10 +329,20 @@ describe("glm-mcp extension helpers", () => {
     const sendMessage = vi.fn();
 
     await registerMcpExtension({
-      registerTool: (tool: { name: string; execute: (toolCallId: string, params: Record<string, unknown>, signal?: AbortSignal) => Promise<any> }) => {
+      registerTool: (tool: {
+        name: string;
+        execute: (
+          toolCallId: string,
+          params: Record<string, unknown>,
+          signal?: AbortSignal,
+        ) => Promise<any>;
+      }) => {
         tools.set(tool.name, tool);
       },
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options);
       },
       sendMessage,
@@ -419,7 +425,10 @@ describe("glm-mcp extension helpers", () => {
       registerTool: (tool: { name: string }) => {
         tools.push(tool.name);
       },
-      registerCommand: (_name: string, _options: { handler: (args: string, ctx: any) => Promise<void> }) => {},
+      registerCommand: (
+        _name: string,
+        _options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {},
       sendMessage: vi.fn(),
       on: vi.fn(),
     } as any);
@@ -430,7 +439,10 @@ describe("glm-mcp extension helpers", () => {
     const commandApi = new Map<string, { handler: (args: string, ctx: any) => Promise<void> }>();
     await registerMcpExtension({
       registerTool: vi.fn(),
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commandApi.set(name, options);
       },
       sendMessage: vi.fn(),

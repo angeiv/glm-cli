@@ -1,5 +1,9 @@
 import type { GlmConfigFile } from "../app/config-store.js";
-import { buildCapabilityEnvironment, type LoopRuntimeOptions, type RuntimeConfig } from "../app/env.js";
+import {
+  buildCapabilityEnvironment,
+  type LoopRuntimeOptions,
+  type RuntimeConfig,
+} from "../app/env.js";
 import { appendRuntimeEvent, getRuntimeEvents } from "./event-log.js";
 import { resolveGlmProfileV2 } from "../models/resolve-glm-profile-v2.js";
 import { formatCompactionSource, resolveRuntimeCompactionStatus } from "./compaction-settings.js";
@@ -144,8 +148,7 @@ function resolveRuntimeBaseUrl(
   config?: GlmConfigFile,
 ): string | undefined {
   if (provider === "glm") {
-    const explicitBaseUrl =
-      env.GLM_BASE_URL?.trim() || config?.providers?.glm?.baseURL?.trim();
+    const explicitBaseUrl = env.GLM_BASE_URL?.trim() || config?.providers?.glm?.baseURL?.trim();
     if (explicitBaseUrl) {
       return explicitBaseUrl;
     }
@@ -313,7 +316,9 @@ export async function buildRuntimeStatus(args: {
       failureMode: args.loop.failureMode,
       autoVerify: args.loop.autoVerify,
       ...(args.loop.verifyCommand ? { verifyCommand: args.loop.verifyCommand } : {}),
-      ...(args.loop.verifyFallbackCommand ? { verifyFallbackCommand: args.loop.verifyFallbackCommand } : {}),
+      ...(args.loop.verifyFallbackCommand
+        ? { verifyFallbackCommand: args.loop.verifyFallbackCommand }
+        : {}),
     },
     compaction,
     diagnostics: {
@@ -472,7 +477,9 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
   ];
 }
 
-function compactionSourceSummary(status: RuntimeStatus): "default" | "global" | "project" | "mixed" {
+function compactionSourceSummary(
+  status: RuntimeStatus,
+): "default" | "global" | "project" | "mixed" {
   const sources = status.compaction.sources;
   const values = new Set(Object.values(sources));
   if (values.size === 1) {

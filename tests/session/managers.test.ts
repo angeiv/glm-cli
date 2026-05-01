@@ -12,10 +12,14 @@ test("createGlmServices injects the prompt stack through resource loader overrid
   const cwd = mkdtempSync(join(tmpdir(), "glm-managers-cwd-"));
   const agentDir = mkdtempSync(join(tmpdir(), "glm-managers-agent-"));
 
-  writeFileSync(join(cwd, "package.json"), JSON.stringify({
-    packageManager: "pnpm@10.33.0",
-    type: "module",
-  }), "utf8");
+  writeFileSync(
+    join(cwd, "package.json"),
+    JSON.stringify({
+      packageManager: "pnpm@10.33.0",
+      type: "module",
+    }),
+    "utf8",
+  );
   mkdirSync(join(agentDir, "prompts"), { recursive: true });
   writeFileSync(join(agentDir, "prompts", "system.md"), "You are glm.\n", "utf8");
 

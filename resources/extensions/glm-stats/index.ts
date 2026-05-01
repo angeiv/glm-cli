@@ -46,7 +46,9 @@ function asUsage(message: unknown): Usage | undefined {
           cacheRead:
             typeof (costRaw as any).cacheRead === "number" ? (costRaw as any).cacheRead : undefined,
           cacheWrite:
-            typeof (costRaw as any).cacheWrite === "number" ? (costRaw as any).cacheWrite : undefined,
+            typeof (costRaw as any).cacheWrite === "number"
+              ? (costRaw as any).cacheWrite
+              : undefined,
           total: typeof (costRaw as any).total === "number" ? (costRaw as any).total : undefined,
         }
       : undefined;
@@ -179,9 +181,7 @@ export default function (pi: ExtensionAPI) {
             `context: ${
               contextUsage.tokens === null ? "unknown" : formatNumber(contextUsage.tokens)
             } / ${formatNumber(contextUsage.contextWindow)}${
-              contextUsage.percent === null
-                ? ""
-                : ` (${Math.round(contextUsage.percent * 100)}%)`
+              contextUsage.percent === null ? "" : ` (${Math.round(contextUsage.percent * 100)}%)`
             }`,
           );
         }
@@ -194,4 +194,3 @@ export default function (pi: ExtensionAPI) {
   register("stats");
   register("usage");
 }
-

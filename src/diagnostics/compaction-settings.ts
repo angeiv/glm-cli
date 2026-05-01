@@ -43,9 +43,7 @@ function extractCompactionSettings(parsed: SettingsFile | undefined): {
 
   return {
     enabled: coerceBoolean((compaction as CompactionSettingsInput).enabled),
-    reserveTokens: coercePositiveInteger(
-      (compaction as CompactionSettingsInput).reserveTokens,
-    ),
+    reserveTokens: coercePositiveInteger((compaction as CompactionSettingsInput).reserveTokens),
     keepRecentTokens: coercePositiveInteger(
       (compaction as CompactionSettingsInput).keepRecentTokens,
     ),
@@ -73,7 +71,9 @@ async function readSettingsFile(path: string): Promise<{
   }
 }
 
-function summarizeSources(sources: RuntimeCompactionStatus["sources"]): RuntimeSettingsSource | "mixed" {
+function summarizeSources(
+  sources: RuntimeCompactionStatus["sources"],
+): RuntimeSettingsSource | "mixed" {
   const values = new Set(Object.values(sources));
   return values.size === 1 ? (values.values().next().value as RuntimeSettingsSource) : "mixed";
 }
@@ -101,9 +101,7 @@ export async function resolveRuntimeCompactionStatus(args: {
   const projectCompaction = extractCompactionSettings(projectSettings.parsed);
 
   const enabled =
-    projectCompaction.enabled ??
-    globalCompaction.enabled ??
-    DEFAULT_COMPACTION.enabled;
+    projectCompaction.enabled ?? globalCompaction.enabled ?? DEFAULT_COMPACTION.enabled;
   const reserveTokens =
     projectCompaction.reserveTokens ??
     globalCompaction.reserveTokens ??

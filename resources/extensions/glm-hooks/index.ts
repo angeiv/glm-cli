@@ -19,7 +19,10 @@ function getHookRunner(): { run: (pi: any, event: any, args?: any) => Promise<an
   return runner;
 }
 
-function maybeInjectContext(pi: ExtensionAPI, decision: { type: string; content?: string; reason?: string }) {
+function maybeInjectContext(
+  pi: ExtensionAPI,
+  decision: { type: string; content?: string; reason?: string },
+) {
   if (decision.type !== "injectContext") return;
   const content = String(decision.content ?? "").trim();
   if (!content) return;
@@ -56,9 +59,7 @@ function formatHookStatusLines(): string[] {
   if (rules.length) {
     lines.push("Rules:");
     for (const rule of rules.slice(0, 10)) {
-      lines.push(
-        `- ${rule.id ?? "<anonymous>"} | ${rule.event} | ${rule.handler.backend}`,
-      );
+      lines.push(`- ${rule.id ?? "<anonymous>"} | ${rule.event} | ${rule.handler.backend}`);
     }
     if (rules.length > 10) {
       lines.push(`... (${rules.length - 10} more)`);

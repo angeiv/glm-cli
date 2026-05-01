@@ -1,9 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-  VerificationCommandResolution,
-  VerificationResult,
-} from "../loop/types.js";
+import type { VerificationCommandResolution, VerificationResult } from "../loop/types.js";
 import { resolveGlmSessionPaths } from "../session/session-paths.js";
 
 export type VerificationArtifact = {

@@ -1,8 +1,4 @@
-import type {
-  LoopControllerResult,
-  LoopRoundRecord,
-  VerificationResult,
-} from "../types.js";
+import type { LoopControllerResult, LoopRoundRecord, VerificationResult } from "../types.js";
 
 export type LoopProfile = {
   name: "code";

@@ -73,10 +73,7 @@ describe("glm-memory extension", () => {
 
     const sessionDir = join(tmpdir(), `glm-memory-compaction-${Date.now()}`);
     const sessionId = "f80124bb-ca79-4c42-8e47-413fe8fdb7d8";
-    const sessionFile = join(
-      sessionDir,
-      `2026-04-25T00-00-00-000Z_${sessionId}.jsonl`,
-    );
+    const sessionFile = join(sessionDir, `2026-04-25T00-00-00-000Z_${sessionId}.jsonl`);
 
     const sessionCompact = handlers.get("session_compact");
     expect(sessionCompact).toBeTypeOf("function");
@@ -113,4 +110,3 @@ describe("glm-memory extension", () => {
     expect(readFileSync(memoryPath, "utf8")).toContain("compacted summary");
   });
 });
-

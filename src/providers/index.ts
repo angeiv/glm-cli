@@ -51,9 +51,8 @@ export function resolveProviderSelection(
   }
 
   if (env.OPENAI_API_KEY) {
-    const openAiProvider = fallbackProvider === "openai-responses"
-      ? "openai-responses"
-      : "openai-compatible";
+    const openAiProvider =
+      fallbackProvider === "openai-responses" ? "openai-responses" : "openai-compatible";
     return {
       provider: openAiProvider,
       model: determineModel(openAiProvider),

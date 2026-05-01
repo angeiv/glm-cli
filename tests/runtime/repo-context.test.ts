@@ -43,4 +43,3 @@ describe("repo context pack", () => {
     expect(pack).not.toContain("Ignore this section.");
   });
 });
-

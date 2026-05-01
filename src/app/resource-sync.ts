@@ -1,5 +1,10 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { cp as cpAsync, mkdir as mkdirAsync, readdir as readdirAsync, rm as rmAsync } from "node:fs/promises";
+import {
+  cp as cpAsync,
+  mkdir as mkdirAsync,
+  readdir as readdirAsync,
+  rm as rmAsync,
+} from "node:fs/promises";
 import { dirname, join, resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { VERSION } from "@mariozechner/pi-coding-agent";

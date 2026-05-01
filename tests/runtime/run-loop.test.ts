@@ -45,7 +45,10 @@ function createFakeRuntime(
           content: [{ type: "text", text: replies.shift() ?? "ok" }],
         });
         for (let i = 0; i < toolMessagesPerPrompt; i++) {
-          state.messages.push({ role: "toolResult", content: [{ type: "text", text: "tool result" }] });
+          state.messages.push({
+            role: "toolResult",
+            content: [{ type: "text", text: "tool result" }],
+          });
         }
       }),
       agent: {
@@ -77,7 +80,7 @@ describe("runTaskLoop", () => {
         'const fs = require("node:fs");',
         'const path = require("node:path");',
         'const flag = path.join(process.cwd(), ".loop-pass");',
-        'if (fs.existsSync(flag)) process.exit(0);',
+        "if (fs.existsSync(flag)) process.exit(0);",
         'fs.writeFileSync(flag, "1", "utf8");',
         'console.error("first verification failed");',
         "process.exit(1);",
@@ -86,9 +89,7 @@ describe("runTaskLoop", () => {
     );
 
     const runtime = createFakeRuntime(dir, ["first attempt", "repair attempt"]);
-    const stdout = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
     const result = await runTaskLoop(runtime, "fix tests", {
       enabled: true,
@@ -110,7 +111,7 @@ describe("runTaskLoop", () => {
     const failPath = join(dir, "verify-always-fail.cjs");
     writeFileSync(
       failPath,
-      ["console.error(\"verification failed\");", "process.exit(1);"].join("\n"),
+      ['console.error("verification failed");', "process.exit(1);"].join("\n"),
       "utf8",
     );
 
@@ -137,7 +138,7 @@ describe("runTaskLoop", () => {
     const failPath = join(dir, "verify-always-fail.cjs");
     writeFileSync(
       failPath,
-      ["console.error(\"verification failed\");", "process.exit(1);"].join("\n"),
+      ['console.error("verification failed");', "process.exit(1);"].join("\n"),
       "utf8",
     );
 
@@ -164,9 +165,7 @@ describe("runTaskLoop", () => {
   test("hands off after one round when verification is unavailable", async () => {
     const dir = mkdtempSync(join(tmpdir(), "glm-run-loop-"));
     const runtime = createFakeRuntime(dir, ["initial attempt"]);
-    const stdout = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
+    const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
     const result = await runTaskLoop(runtime, "fix tests", {
       enabled: true,
@@ -179,8 +178,6 @@ describe("runTaskLoop", () => {
     expect(result.exitCode).toBe(1);
     expect(runtime.session.prompt).toHaveBeenCalledTimes(1);
     expect(runtime.dispose).toHaveBeenCalledTimes(1);
-    expect(stdout).toHaveBeenCalledWith(
-      expect.stringContaining("requires human handoff"),
-    );
+    expect(stdout).toHaveBeenCalledWith(expect.stringContaining("requires human handoff"));
   });
 });

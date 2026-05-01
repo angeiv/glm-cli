@@ -22,10 +22,7 @@ import {
   resolveLoopRuntimeOptions,
   resolveNotificationRuntimeOptions,
 } from "../app/env.js";
-import {
-  buildRuntimeStatus,
-  setRuntimeStatus,
-} from "../diagnostics/runtime-status.js";
+import { buildRuntimeStatus, setRuntimeStatus } from "../diagnostics/runtime-status.js";
 import { appendRuntimeEvent, configureRuntimeEventLog } from "../diagnostics/event-log.js";
 import { loadHooks } from "../hooks/loader.js";
 import { DEFAULT_HOOKS_PATH } from "../hooks/registry.js";
@@ -64,10 +61,7 @@ export type RuntimeModelStrategy = {
 const GLM_APPROVAL_POLICY_STATE = Symbol.for("glm.approvalPolicy");
 type GlmApprovalPolicyState = { policy: ApprovalPolicy };
 
-function resolveStatusProvider(
-  provider: string | undefined,
-  fallback: ProviderName,
-): ProviderName {
+function resolveStatusProvider(provider: string | undefined, fallback: ProviderName): ProviderName {
   return provider && isProviderName(provider) ? provider : fallback;
 }
 
@@ -91,16 +85,10 @@ function setGlmApprovalPolicy(policy: ApprovalPolicy): void {
 
 function getGlmApprovalPolicy(fallback: ApprovalPolicy): ApprovalPolicy {
   const current = getGlmApprovalPolicyState().policy;
-  return current === "ask" || current === "auto" || current === "never"
-    ? current
-    : fallback;
+  return current === "ask" || current === "auto" || current === "never" ? current : fallback;
 }
 
-const MODEL_SELECTION_ENV_KEYS = [
-  "GLM_MODEL",
-  "OPENAI_MODEL",
-  "ANTHROPIC_MODEL",
-] as const;
+const MODEL_SELECTION_ENV_KEYS = ["GLM_MODEL", "OPENAI_MODEL", "ANTHROPIC_MODEL"] as const;
 
 function maybeWarnOnStoredSessionModelMismatch(args: {
   sessionManager: Pick<ReturnType<typeof createGlmSessionManager>, "buildSessionContext"> &
@@ -127,9 +115,7 @@ function maybeWarnOnStoredSessionModelMismatch(args: {
 
   const savedProvider = String((savedModel as any).provider ?? "");
   const savedModelId =
-    typeof (savedModel as any).modelId === "string"
-      ? (savedModel as any).modelId.trim()
-      : "";
+    typeof (savedModel as any).modelId === "string" ? (savedModel as any).modelId.trim() : "";
 
   if (!isProviderName(savedProvider) || !savedModelId) return;
   if (savedProvider === current.provider && savedModelId === current.model) return;
@@ -203,9 +189,7 @@ export async function withScopedEnvironment<T>(
   }
 }
 
-export async function withPreservedProcessCwd<T>(
-  run: () => Promise<T>,
-): Promise<T> {
+export async function withPreservedProcessCwd<T>(run: () => Promise<T>): Promise<T> {
   const originalCwd = process.cwd();
 
   try {
@@ -246,8 +230,7 @@ export function buildApprovalPolicyEnvironment(
 }
 
 export function resolveRequestedModel(
-  modelRegistry: Pick<ModelRegistry, "find"> &
-    Partial<Pick<ModelRegistry, "getAvailable">>,
+  modelRegistry: Pick<ModelRegistry, "find"> & Partial<Pick<ModelRegistry, "getAvailable">>,
   provider: string,
   modelId: string,
 ) {
@@ -255,9 +238,7 @@ export function resolveRequestedModel(
 
   if (!model) {
     const availableModels =
-      typeof modelRegistry.getAvailable === "function"
-        ? modelRegistry.getAvailable()
-        : [];
+      typeof modelRegistry.getAvailable === "function" ? modelRegistry.getAvailable() : [];
     const availableProviderModels = availableModels.filter(
       (candidate) => candidate.provider === provider,
     );
@@ -284,9 +265,10 @@ export function resolveRequestedModel(
   return model;
 }
 
-export function getGlmModelSelection(
-  model?: { provider: string; id: string },
-): GlmModelSelection | undefined {
+export function getGlmModelSelection(model?: {
+  provider: string;
+  id: string;
+}): GlmModelSelection | undefined {
   if (!model) {
     return undefined;
   }
@@ -299,10 +281,7 @@ export function getGlmModelSelection(
 
 export function resolveRuntimeModelStrategy(
   preferred: GlmModelSelection,
-  sessionManager: Pick<
-    ReturnType<typeof createGlmSessionManager>,
-    "buildSessionContext"
-  >,
+  sessionManager: Pick<ReturnType<typeof createGlmSessionManager>, "buildSessionContext">,
   sessionStartEvent?: {
     type: "session_start";
     reason: string;
@@ -488,9 +467,7 @@ function enableDefaultTools(session: {
   session.setActiveToolsByName([...active]);
 }
 
-export async function createGlmSession(
-  input: GlmSessionInput,
-): Promise<GlmSessionResult> {
+export async function createGlmSession(input: GlmSessionInput): Promise<GlmSessionResult> {
   setGlmApprovalPolicy(input.approvalPolicy);
 
   const options = buildSessionOptions(input);
@@ -519,9 +496,7 @@ export async function createGlmSession(
   };
 }
 
-export async function createGlmRuntime(
-  input: GlmSessionInput,
-): Promise<AgentSessionRuntime> {
+export async function createGlmRuntime(input: GlmSessionInput): Promise<AgentSessionRuntime> {
   setGlmApprovalPolicy(input.approvalPolicy);
 
   const initialOptions = buildSessionOptions(input);
@@ -559,8 +534,7 @@ export async function createGlmRuntime(
       customTools: options.customTools,
     });
     enableDefaultTools(result.session);
-    const activeSelection =
-      getGlmModelSelection(result.session.model) ?? strategy.selection;
+    const activeSelection = getGlmModelSelection(result.session.model) ?? strategy.selection;
     if (activeSelection) {
       await syncPackagedResources(options.agentDir);
       const config = await readConfigFile();
@@ -585,8 +559,7 @@ export async function createGlmRuntime(
       });
       setRuntimeStatus(status);
     }
-    preferredSelection =
-      getGlmModelSelection(result.session.model) ?? preferredSelection;
+    preferredSelection = getGlmModelSelection(result.session.model) ?? preferredSelection;
 
     return {
       ...result,
@@ -598,37 +571,30 @@ export async function createGlmRuntime(
   const runtime = await createAgentSessionRuntime(createRuntime, {
     cwd: input.cwd,
     agentDir: initialOptions.agentDir,
-    sessionManager: createGlmSessionManager(
-      initialOptions.cwd,
-      initialOptions.sessionDir,
-    ),
+    sessionManager: createGlmSessionManager(initialOptions.cwd, initialOptions.sessionDir),
   });
 
   const originalNewSession = runtime.newSession.bind(runtime);
   runtime.newSession = async (options) => {
-    preferredSelection =
-      getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    preferredSelection = getGlmModelSelection(runtime.session.model) ?? preferredSelection;
     return originalNewSession(options);
   };
 
   const originalSwitchSession = runtime.switchSession.bind(runtime);
   runtime.switchSession = async (sessionPath, cwdOverride) => {
-    preferredSelection =
-      getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    preferredSelection = getGlmModelSelection(runtime.session.model) ?? preferredSelection;
     return originalSwitchSession(sessionPath, cwdOverride);
   };
 
   const originalFork = runtime.fork.bind(runtime);
   runtime.fork = async (entryId) => {
-    preferredSelection =
-      getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    preferredSelection = getGlmModelSelection(runtime.session.model) ?? preferredSelection;
     return originalFork(entryId);
   };
 
   const originalImportFromJsonl = runtime.importFromJsonl.bind(runtime);
   runtime.importFromJsonl = async (sessionPath, cwdOverride) => {
-    preferredSelection =
-      getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    preferredSelection = getGlmModelSelection(runtime.session.model) ?? preferredSelection;
     return originalImportFromJsonl(sessionPath, cwdOverride);
   };
 

@@ -24,10 +24,7 @@ describe("runtime event log", () => {
 
     const events = getRuntimeEvents();
     expect(events).toHaveLength(2);
-    expect(events.map((event) => event.type)).toEqual([
-      "loop.verify",
-      "mcp.connect_failed",
-    ]);
+    expect(events.map((event) => event.type)).toEqual(["loop.verify", "mcp.connect_failed"]);
   });
 
   test("clearRuntimeEvents removes all retained events", () => {

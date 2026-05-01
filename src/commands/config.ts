@@ -456,8 +456,7 @@ export async function configSet(
   }
 
   await (deps?.writeConfigFile ?? writeConfigFile)(config);
-  const loggedValue =
-    parsedValue === undefined ? CLEARABLE_VALUE : String(parsedValue);
+  const loggedValue = parsedValue === undefined ? CLEARABLE_VALUE : String(parsedValue);
   (deps?.log ?? console.log)(`Updated ${key}=${loggedValue}`);
   return config;
 }

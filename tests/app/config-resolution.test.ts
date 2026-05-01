@@ -4,11 +4,7 @@ import {
   buildNotificationEnvironment,
   resolveRuntimeConfig,
 } from "../../src/app/env.js";
-import {
-  fileSystem,
-  normalizeConfigFile,
-  readConfigFile,
-} from "../../src/app/config-store.js";
+import { fileSystem, normalizeConfigFile, readConfigFile } from "../../src/app/config-store.js";
 
 describe("resolveRuntimeConfig", () => {
   test("prefers cli flags over env and file config", () => {
@@ -22,7 +18,10 @@ describe("resolveRuntimeConfig", () => {
         defaultProvider: "openai-compatible",
         defaultModel: "foo",
         approvalPolicy: "ask",
-        providers: { glm: { apiKey: "k", baseURL: "" }, "openai-compatible": { apiKey: "", baseURL: "" } },
+        providers: {
+          glm: { apiKey: "k", baseURL: "" },
+          "openai-compatible": { apiKey: "", baseURL: "" },
+        },
       },
     );
 
@@ -109,8 +108,6 @@ describe("config store normalization", () => {
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
     await expect(readConfigFile()).rejects.toThrow(/default provider/i);
   });
-
-
 
   test("readConfigFile accepts openai-responses as defaultProvider", async () => {
     const payload = JSON.stringify({
@@ -321,7 +318,9 @@ describe("config store normalization", () => {
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
-    await expect(readConfigFile()).rejects.toThrow(/debugRuntime|eventLogLimit|hooksEnabled|hookTimeoutMs/i);
+    await expect(readConfigFile()).rejects.toThrow(
+      /debugRuntime|eventLogLimit|hooksEnabled|hookTimeoutMs/i,
+    );
   });
 
   test("readConfigFile rejects invalid notification config values", async () => {
@@ -339,7 +338,9 @@ describe("config store normalization", () => {
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
-    await expect(readConfigFile()).rejects.toThrow(/notifications.enabled|notifications.onTurnEnd/i);
+    await expect(readConfigFile()).rejects.toThrow(
+      /notifications.enabled|notifications.onTurnEnd/i,
+    );
   });
 
   test("buildCapabilityEnvironment prefers explicit env and falls back to config", () => {

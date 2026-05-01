@@ -18,7 +18,8 @@ describe("glm-compaction extension", () => {
     );
 
     compactMock.mockResolvedValue({
-      summary: "## Goal\nSomething\n\n<read-files>\n/tmp/old-read\n</read-files>\n\n<modified-files>\n/tmp/old-mod\n</modified-files>",
+      summary:
+        "## Goal\nSomething\n\n<read-files>\n/tmp/old-read\n</read-files>\n\n<modified-files>\n/tmp/old-mod\n</modified-files>",
       firstKeptEntryId: "entry-1",
       tokensBefore: 123,
       details: { readFiles: ["/tmp/read-now"], modifiedFiles: ["/tmp/mod-now"] },

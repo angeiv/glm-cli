@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline";
-import { readConfigFile, StorageProviderKey, writeConfigFile } from "../app/config-store.js";
-import { normalizeProviderName, ProviderName } from "../providers/types.js";
+import { readConfigFile, type StorageProviderKey, writeConfigFile } from "../app/config-store.js";
+import { normalizeProviderName, type ProviderName } from "../providers/types.js";
 
 type ProviderOptions = Extract<ProviderName, "glm" | "openai-compatible">;
 const DEFAULT_PROVIDER: ProviderOptions = "glm";

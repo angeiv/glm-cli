@@ -50,9 +50,7 @@ type ResolvedRemoteMcpServerConfig = ResolvedMcpServerConfigBase & {
   headers?: Record<string, string>;
 };
 
-export type ResolvedMcpServerConfig =
-  | ResolvedStdioMcpServerConfig
-  | ResolvedRemoteMcpServerConfig;
+export type ResolvedMcpServerConfig = ResolvedStdioMcpServerConfig | ResolvedRemoteMcpServerConfig;
 
 type McpRequestInit = {
   headers?: Record<string, string>;
@@ -123,7 +121,9 @@ export function buildMcpProxyToolName(serverName: string): string {
 }
 
 function setUiStatus(
-  ctx: { hasUI: boolean; ui: { setStatus(key: string, text: string | undefined): void } } | undefined,
+  ctx:
+    | { hasUI: boolean; ui: { setStatus(key: string, text: string | undefined): void } }
+    | undefined,
   text: string | undefined,
 ): void {
   if (!ctx?.hasUI) return;
@@ -175,9 +175,16 @@ function resolveTransportType(
     return hasCommand ? "stdio" : undefined;
   }
 
-  const normalized = type.trim().toLowerCase().replace(/[_\s]+/g, "-");
+  const normalized = type
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
   if (normalized === "stdio") return "stdio";
-  if (normalized === "http" || normalized === "streamable-http" || normalized === "streamablehttp") {
+  if (
+    normalized === "http" ||
+    normalized === "streamable-http" ||
+    normalized === "streamablehttp"
+  ) {
     return "streamable-http";
   }
   if (normalized === "sse") return "sse";
@@ -524,7 +531,9 @@ function formatProxyToolList(serverName: string, tools: LoadedMcpTool[]): string
 
   return [
     `${serverName} (${tools.length} tool${tools.length === 1 ? "" : "s"}):`,
-    ...tools.map((tool) => `- ${tool.toolName}${tool.tool.description ? `: ${tool.tool.description}` : ""}`),
+    ...tools.map(
+      (tool) => `- ${tool.toolName}${tool.tool.description ? `: ${tool.tool.description}` : ""}`,
+    ),
   ].join("\n");
 }
 
@@ -595,11 +604,7 @@ export default async function (pi: ExtensionAPI) {
 
   function connectingStatus(serverName: string, config: ResolvedMcpServerConfig): string {
     const transport =
-      config.type === "stdio"
-        ? "stdio"
-        : config.type === "streamable-http"
-          ? "http"
-          : "sse";
+      config.type === "stdio" ? "stdio" : config.type === "streamable-http" ? "http" : "sse";
     return `MCP: connecting ${serverName} (${transport})...`;
   }
 
@@ -638,9 +643,7 @@ export default async function (pi: ExtensionAPI) {
 
     const promise = (async () => {
       const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
-      const { StdioClientTransport } = await import(
-        "@modelcontextprotocol/sdk/client/stdio.js"
-      );
+      const { StdioClientTransport } = await import("@modelcontextprotocol/sdk/client/stdio.js");
       const { StreamableHTTPClientTransport } = await import(
         "@modelcontextprotocol/sdk/client/streamableHttp.js"
       );
@@ -860,15 +863,14 @@ export default async function (pi: ExtensionAPI) {
           required: ["action"],
         } as any,
         execute: async (_toolCallId, params, signal, _onUpdate, ctx) => {
-          const action = typeof (params as Record<string, unknown>)?.action === "string"
-            ? String((params as Record<string, unknown>).action)
-            : "";
+          const action =
+            typeof (params as Record<string, unknown>)?.action === "string"
+              ? String((params as Record<string, unknown>).action)
+              : "";
 
           if (action === "list") {
             const tools =
-              cachedTools.length > 0
-                ? cachedTools
-                : (await connectServer(serverName, ctx)).tools;
+              cachedTools.length > 0 ? cachedTools : (await connectServer(serverName, ctx)).tools;
             return {
               content: [{ type: "text" as const, text: formatProxyToolList(serverName, tools) }],
               details: {
@@ -880,9 +882,10 @@ export default async function (pi: ExtensionAPI) {
           }
 
           if (action === "call") {
-            const toolName = typeof (params as Record<string, unknown>)?.tool === "string"
-              ? String((params as Record<string, unknown>).tool).trim()
-              : "";
+            const toolName =
+              typeof (params as Record<string, unknown>)?.tool === "string"
+                ? String((params as Record<string, unknown>).tool).trim()
+                : "";
             if (!toolName) {
               throw new Error("tool is required when action=call");
             }

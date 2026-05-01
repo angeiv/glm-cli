@@ -173,7 +173,9 @@ describe("buildRuntimeStatus", () => {
     });
     expect(formatRuntimeStatusLines(status)).toEqual(
       expect.arrayContaining([
-        expect.stringContaining(`Verification: smoke | fail | pnpm test | tests failed | ${artifactPath}`),
+        expect.stringContaining(
+          `Verification: smoke | fail | pnpm test | tests failed | ${artifactPath}`,
+        ),
       ]),
     );
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");

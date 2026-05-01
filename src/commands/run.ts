@@ -108,7 +108,8 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
       },
       async () => {
         const configuredLane = fileConfig.taskLaneDefault ?? "auto";
-        const promptMode = input.promptMode ??
+        const promptMode =
+          input.promptMode ??
           (configuredLane === "auto"
             ? routePromptModeForTask({
                 task: input.task,

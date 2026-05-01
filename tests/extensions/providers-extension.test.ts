@@ -53,4 +53,3 @@ describe("glm-providers extension", () => {
     expect(glm46?.compat?.zaiToolStream).toBe(true);
   });
 });
-

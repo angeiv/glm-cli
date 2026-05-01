@@ -165,8 +165,7 @@ function parseOptionalPositiveInteger(value: string | undefined): number | undef
 }
 
 function readDefaultState(env: NodeJS.ProcessEnv): LoopState {
-  const failureMode =
-    env.GLM_LOOP_FAILURE_MODE === "fail" ? "fail" : "handoff";
+  const failureMode = env.GLM_LOOP_FAILURE_MODE === "fail" ? "fail" : "handoff";
   const profile = env.GLM_LOOP_PROFILE === "code" ? "code" : "code";
   const maxToolCalls = parseOptionalPositiveInteger(env.GLM_LOOP_MAX_TOOL_CALLS);
   const maxVerifyRuns = parseOptionalPositiveInteger(env.GLM_LOOP_MAX_VERIFY_RUNS);
@@ -230,9 +229,7 @@ function isLoopResultRecord(value: unknown): value is LoopResultRecord {
   const maybe = value as Partial<LoopResultRecord>;
   const verification = maybe.verification as Partial<LoopVerificationRecord> | undefined;
   return (
-    (maybe.status === "succeeded" ||
-      maybe.status === "handoff" ||
-      maybe.status === "failed") &&
+    (maybe.status === "succeeded" || maybe.status === "handoff" || maybe.status === "failed") &&
     typeof maybe.task === "string" &&
     typeof maybe.rounds === "number" &&
     Number.isInteger(maybe.rounds) &&
@@ -267,9 +264,7 @@ function isLegacyLoopResultRecord(value: unknown): value is LegacyLoopResultReco
   if (!value || typeof value !== "object") return false;
   const maybe = value as Partial<LegacyLoopResultRecord>;
   return (
-    (maybe.status === "succeeded" ||
-      maybe.status === "handoff" ||
-      maybe.status === "failed") &&
+    (maybe.status === "succeeded" || maybe.status === "handoff" || maybe.status === "failed") &&
     typeof maybe.task === "string" &&
     typeof maybe.rounds === "number" &&
     Number.isInteger(maybe.rounds) &&
@@ -309,15 +304,11 @@ function normalizeLoopResultRecord(value: unknown): LoopResultRecord | undefined
   return undefined;
 }
 
-function readPersistedResult(
-  sessionManager: ReadonlySessionManager,
-): LoopResultRecord | undefined {
+function readPersistedResult(sessionManager: ReadonlySessionManager): LoopResultRecord | undefined {
   return readPersistedResults(sessionManager)[0];
 }
 
-function readPersistedResults(
-  sessionManager: ReadonlySessionManager,
-): LoopResultRecord[] {
+function readPersistedResults(sessionManager: ReadonlySessionManager): LoopResultRecord[] {
   const entries = sessionManager.getEntries();
   const results: LoopResultRecord[] = [];
   for (let i = entries.length - 1; i >= 0; i--) {
@@ -330,9 +321,7 @@ function readPersistedResults(
     }
   }
 
-  return results.sort((left, right) =>
-    right.completedAt.localeCompare(left.completedAt),
-  );
+  return results.sort((left, right) => right.completedAt.localeCompare(left.completedAt));
 }
 
 function persistLoopState(pi: ExtensionAPI, state: LoopState): void {
@@ -364,9 +353,7 @@ function summarizeOutputText(
   return `${summary.slice(0, maxChars - 1)}…`;
 }
 
-function createLoopVerificationRecord(
-  result: VerificationResult,
-): LoopVerificationRecord {
+function createLoopVerificationRecord(result: VerificationResult): LoopVerificationRecord {
   return {
     kind: result.kind,
     ...(result.command ? { command: result.command } : {}),
@@ -487,9 +474,7 @@ function buildHistoryLines(results: LoopResultRecord[], limit: number): string[]
   const lines = [`Recent loop results: ${visible.length}`];
   for (let i = 0; i < visible.length; i++) {
     const result = visible[i];
-    lines.push(
-      `${i + 1}. ${result.status} | ${result.task} | rounds ${result.rounds}`,
-    );
+    lines.push(`${i + 1}. ${result.status} | ${result.task} | rounds ${result.rounds}`);
     lines.push(
       result.verification.command
         ? `   verifier: ${result.verification.command}`
@@ -500,10 +485,7 @@ function buildHistoryLines(results: LoopResultRecord[], limit: number): string[]
   return lines;
 }
 
-function buildShowLines(
-  results: LoopResultRecord[],
-  index: number,
-): string[] {
+function buildShowLines(results: LoopResultRecord[], index: number): string[] {
   const result = results[index - 1];
   if (!result) {
     return [`Loop result #${index} was not found.`];
@@ -528,9 +510,7 @@ function buildShowLines(
     ...(result.verification.stderrSummary
       ? [`Stderr summary: ${result.verification.stderrSummary}`]
       : []),
-    ...(result.verification.artifactPath
-      ? [`Artifact: ${result.verification.artifactPath}`]
-      : []),
+    ...(result.verification.artifactPath ? [`Artifact: ${result.verification.artifactPath}`] : []),
     `Outcome: ${result.outcome}`,
     `Completed at: ${result.completedAt}`,
   ];
@@ -573,7 +553,9 @@ function buildStatusLines(
   ];
 }
 
-export function getActiveLoop(sessionManager: ReadonlySessionManager): ActiveLoopSession | undefined {
+export function getActiveLoop(
+  sessionManager: ReadonlySessionManager,
+): ActiveLoopSession | undefined {
   const sessionId = sessionManager.getSessionId();
   if (!sessionId) {
     return undefined;
@@ -599,10 +581,7 @@ function clearLoopTerminalStatus(sessionManager: ReadonlySessionManager): void {
   terminalLoopStatuses.delete(sessionId);
 }
 
-function setLoopTerminalStatus(
-  sessionManager: ReadonlySessionManager,
-  text: string,
-): void {
+function setLoopTerminalStatus(sessionManager: ReadonlySessionManager, text: string): void {
   const sessionId = sessionManager.getSessionId();
   if (!sessionId) {
     return;
@@ -611,9 +590,7 @@ function setLoopTerminalStatus(
   terminalLoopStatuses.set(sessionId, text);
 }
 
-function getLoopTerminalStatus(
-  sessionManager: ReadonlySessionManager,
-): string | undefined {
+function getLoopTerminalStatus(sessionManager: ReadonlySessionManager): string | undefined {
   const sessionId = sessionManager.getSessionId();
   if (!sessionId) {
     return undefined;
@@ -627,13 +604,9 @@ function formatActiveLoopStatus(active: ActiveLoopSession): string {
   const maxToolCalls = active.mode === "auto" ? active.state.maxToolCalls : active.maxToolCalls;
   const maxVerifyRuns = active.mode === "auto" ? active.state.maxVerifyRuns : active.maxVerifyRuns;
   const toolsBudget =
-    maxToolCalls === undefined
-      ? undefined
-      : `tools ${active.toolCallsUsed}/${maxToolCalls}`;
+    maxToolCalls === undefined ? undefined : `tools ${active.toolCallsUsed}/${maxToolCalls}`;
   const verifyBudget =
-    maxVerifyRuns === undefined
-      ? undefined
-      : `verify ${active.verifyRunsUsed}/${maxVerifyRuns}`;
+    maxVerifyRuns === undefined ? undefined : `verify ${active.verifyRunsUsed}/${maxVerifyRuns}`;
 
   const suffix = [toolsBudget, verifyBudget].filter(Boolean).join(" | ");
   return suffix ? `${base} | ${suffix}` : base;
@@ -655,10 +628,7 @@ function setActiveLoopPhase(
   }
 }
 
-function setLoopStatus(
-  ctx: Pick<ExtensionContext, "ui">,
-  text: string | undefined,
-): void {
+function setLoopStatus(ctx: Pick<ExtensionContext, "ui">, text: string | undefined): void {
   const setStatus = (ctx.ui as { setStatus?: (key: string, text: string | undefined) => void })
     .setStatus;
   if (typeof setStatus === "function") {
@@ -787,9 +757,7 @@ async function readTextFile(path: string): Promise<string | undefined> {
   }
 }
 
-function detectNodePackageManager(
-  pkg: Record<string, unknown>,
-): "pnpm" | "npm" | "yarn" | "bun" {
+function detectNodePackageManager(pkg: Record<string, unknown>): "pnpm" | "npm" | "yarn" | "bun" {
   const raw = typeof pkg.packageManager === "string" ? pkg.packageManager : "";
   if (raw.startsWith("pnpm@")) return "pnpm";
   if (raw.startsWith("yarn@")) return "yarn";
@@ -842,10 +810,7 @@ async function detectCodeVerifier(cwd: string): Promise<VerificationCommandResol
   }
 
   const pyproject = await readTextFile(`${cwd}/pyproject.toml`);
-  if (
-    pyproject &&
-    (pyproject.includes("[tool.pytest") || pyproject.includes("pytest"))
-  ) {
+  if (pyproject && (pyproject.includes("[tool.pytest") || pyproject.includes("pytest"))) {
     return { kind: "command", command: "pytest", source: "pyproject.toml" };
   }
 
@@ -859,8 +824,7 @@ async function detectCodeVerifier(cwd: string): Promise<VerificationCommandResol
 
   return {
     kind: "unavailable",
-    summary:
-      "No supported high-confidence verifier could be detected for this project.",
+    summary: "No supported high-confidence verifier could be detected for this project.",
   };
 }
 
@@ -945,8 +909,7 @@ async function resolveVerifier(
     }
     return {
       kind: "unavailable",
-      summary:
-        "Loop auto verification is disabled and no verification command was provided.",
+      summary: "Loop auto verification is disabled and no verification command was provided.",
     };
   }
 
@@ -983,9 +946,10 @@ async function executeLoopRun(
   });
 
   const runTurn = async (message: string) => {
-    const entriesBefore = typeof ctx.sessionManager.getEntries === "function"
-      ? ctx.sessionManager.getEntries().length
-      : undefined;
+    const entriesBefore =
+      typeof ctx.sessionManager.getEntries === "function"
+        ? ctx.sessionManager.getEntries().length
+        : undefined;
     pi.sendUserMessage(message);
     await ctx.waitForIdle();
     if (entriesBefore !== undefined) {
@@ -1017,21 +981,23 @@ async function executeLoopRun(
       if (manual) {
         manual.verifyRunsUsed = rounds.length;
       }
-      const status: LoopExecutionStatus =
-        state.failureMode === "fail" ? "failed" : "handoff";
+      const status: LoopExecutionStatus = state.failureMode === "fail" ? "failed" : "handoff";
       const outcome = buildFailureSummary({
         task,
         status,
         rounds,
         lastResult: verification,
       });
-      persistLoopResult(pi, createLoopResultRecord({
-        status,
-        task,
-        rounds: rounds.length,
-        verification,
-        outcome,
-      }));
+      persistLoopResult(
+        pi,
+        createLoopResultRecord({
+          status,
+          task,
+          rounds: rounds.length,
+          verification,
+          outcome,
+        }),
+      );
       setLoopTerminalStatus(
         ctx.sessionManager,
         status === "failed" ? "loop failed" : "loop handoff",
@@ -1047,10 +1013,7 @@ async function executeLoopRun(
         level: status === "failed" ? "error" : "warn",
         summary: `${status} | ${task} | rounds=${rounds.length}`,
       });
-      emitLoopMessage(
-        pi,
-        outcome.split("\n"),
-      );
+      emitLoopMessage(pi, outcome.split("\n"));
       return;
     }
     const verification =
@@ -1072,13 +1035,16 @@ async function executeLoopRun(
 
     if (verification.kind === "pass") {
       const outcome = buildSuccessSummary(rounds);
-      persistLoopResult(pi, createLoopResultRecord({
-        status: "succeeded",
-        task,
-        rounds: rounds.length,
-        verification,
-        outcome,
-      }));
+      persistLoopResult(
+        pi,
+        createLoopResultRecord({
+          status: "succeeded",
+          task,
+          rounds: rounds.length,
+          verification,
+          outcome,
+        }),
+      );
       setLoopTerminalStatus(ctx.sessionManager, "loop done");
       refreshLoopStatus(ctx, state);
       notifyLoopResult(ctx.sessionManager.getSessionId(), {
@@ -1103,21 +1069,23 @@ async function executeLoopRun(
         summary: `Verification budget exceeded (maxVerifyRuns=${state.maxVerifyRuns}). Last result: ${verification.summary}`,
       };
 
-      const status: LoopExecutionStatus =
-        state.failureMode === "fail" ? "failed" : "handoff";
+      const status: LoopExecutionStatus = state.failureMode === "fail" ? "failed" : "handoff";
       const outcome = buildFailureSummary({
         task,
         status,
         rounds,
         lastResult: budgetStop,
       });
-      persistLoopResult(pi, createLoopResultRecord({
-        status,
-        task,
-        rounds: rounds.length,
-        verification: budgetStop,
-        outcome,
-      }));
+      persistLoopResult(
+        pi,
+        createLoopResultRecord({
+          status,
+          task,
+          rounds: rounds.length,
+          verification: budgetStop,
+          outcome,
+        }),
+      );
       setLoopTerminalStatus(
         ctx.sessionManager,
         status === "failed" ? "loop failed" : "loop handoff",
@@ -1133,10 +1101,7 @@ async function executeLoopRun(
         level: status === "failed" ? "error" : "warn",
         summary: `${status} | ${task} | rounds=${rounds.length}`,
       });
-      emitLoopMessage(
-        pi,
-        outcome.split("\n"),
-      );
+      emitLoopMessage(pi, outcome.split("\n"));
       return;
     }
 
@@ -1147,25 +1112,24 @@ async function executeLoopRun(
       continue;
     }
 
-    const status: LoopExecutionStatus =
-      state.failureMode === "fail" ? "failed" : "handoff";
+    const status: LoopExecutionStatus = state.failureMode === "fail" ? "failed" : "handoff";
     const outcome = buildFailureSummary({
       task,
       status,
       rounds,
       lastResult: verification,
     });
-    persistLoopResult(pi, createLoopResultRecord({
-      status,
-      task,
-      rounds: rounds.length,
-      verification,
-      outcome,
-    }));
-    setLoopTerminalStatus(
-      ctx.sessionManager,
-      status === "failed" ? "loop failed" : "loop handoff",
+    persistLoopResult(
+      pi,
+      createLoopResultRecord({
+        status,
+        task,
+        rounds: rounds.length,
+        verification,
+        outcome,
+      }),
     );
+    setLoopTerminalStatus(ctx.sessionManager, status === "failed" ? "loop failed" : "loop handoff");
     refreshLoopStatus(ctx, state);
     notifyLoopResult(ctx.sessionManager.getSessionId(), {
       status,
@@ -1177,10 +1141,7 @@ async function executeLoopRun(
       level: status === "failed" ? "error" : "warn",
       summary: `${status} | ${task} | rounds=${rounds.length}`,
     });
-    emitLoopMessage(
-      pi,
-      outcome.split("\n"),
-    );
+    emitLoopMessage(pi, outcome.split("\n"));
     return;
   }
 }
@@ -1209,9 +1170,10 @@ async function startAutoLoopIfNeeded(
 
   const verifier = await resolveVerifier(ctx.cwd, state);
   clearLoopTerminalStatus(ctx.sessionManager);
-  const entryCursor = typeof ctx.sessionManager.getEntries === "function"
-    ? ctx.sessionManager.getEntries().length
-    : undefined;
+  const entryCursor =
+    typeof ctx.sessionManager.getEntries === "function"
+      ? ctx.sessionManager.getEntries().length
+      : undefined;
   activeLoops.set(sessionId, {
     mode: "auto",
     task,
@@ -1253,10 +1215,7 @@ async function continueAutoLoop(
 
   setActiveLoopPhase(ctx.sessionManager, "verify");
   refreshLoopStatus(ctx);
-  if (
-    active.state.maxToolCalls !== undefined &&
-    active.toolCallsUsed > active.state.maxToolCalls
-  ) {
+  if (active.state.maxToolCalls !== undefined && active.toolCallsUsed > active.state.maxToolCalls) {
     const verification: VerificationResult = {
       kind: "unavailable",
       summary: `Tool call budget exceeded (maxToolCalls=${active.state.maxToolCalls}, used=${active.toolCallsUsed}).`,
@@ -1270,25 +1229,24 @@ async function continueAutoLoop(
     active.verifyRunsUsed = active.rounds.length;
 
     activeLoops.delete(sessionId);
-    const status: LoopExecutionStatus =
-      active.state.failureMode === "fail" ? "failed" : "handoff";
+    const status: LoopExecutionStatus = active.state.failureMode === "fail" ? "failed" : "handoff";
     const outcome = buildFailureSummary({
       task: active.task,
       status,
       rounds: active.rounds,
       lastResult: verification,
     });
-    persistLoopResult(pi, createLoopResultRecord({
-      status,
-      task: active.task,
-      rounds: active.rounds.length,
-      verification,
-      outcome,
-    }));
-    setLoopTerminalStatus(
-      ctx.sessionManager,
-      status === "failed" ? "loop failed" : "loop handoff",
+    persistLoopResult(
+      pi,
+      createLoopResultRecord({
+        status,
+        task: active.task,
+        rounds: active.rounds.length,
+        verification,
+        outcome,
+      }),
     );
+    setLoopTerminalStatus(ctx.sessionManager, status === "failed" ? "loop failed" : "loop handoff");
     notifyLoopResult(ctx.sessionManager.getSessionId(), {
       status,
       task: active.task,
@@ -1299,10 +1257,7 @@ async function continueAutoLoop(
       level: status === "failed" ? "error" : "warn",
       summary: `${status} | ${active.task} | rounds=${active.rounds.length}`,
     });
-    emitLoopMessage(
-      pi,
-      outcome.split("\n"),
-    );
+    emitLoopMessage(pi, outcome.split("\n"));
     return;
   }
 
@@ -1324,13 +1279,16 @@ async function continueAutoLoop(
   if (verification.kind === "pass") {
     activeLoops.delete(sessionId);
     const outcome = buildSuccessSummary(active.rounds);
-    persistLoopResult(pi, createLoopResultRecord({
-      status: "succeeded",
-      task: active.task,
-      rounds: active.rounds.length,
-      verification,
-      outcome,
-    }));
+    persistLoopResult(
+      pi,
+      createLoopResultRecord({
+        status: "succeeded",
+        task: active.task,
+        rounds: active.rounds.length,
+        verification,
+        outcome,
+      }),
+    );
     setLoopTerminalStatus(ctx.sessionManager, "loop done");
     notifyLoopResult(ctx.sessionManager.getSessionId(), {
       status: "succeeded",
@@ -1353,8 +1311,7 @@ async function continueAutoLoop(
       : active.rounds.length < active.state.maxVerifyRuns;
   if (!canVerifyAgain) {
     activeLoops.delete(sessionId);
-    const status: LoopExecutionStatus =
-      active.state.failureMode === "fail" ? "failed" : "handoff";
+    const status: LoopExecutionStatus = active.state.failureMode === "fail" ? "failed" : "handoff";
     const budgetStop: VerificationResult = {
       kind: "unavailable",
       ...(verification.command ? { command: verification.command } : {}),
@@ -1366,17 +1323,17 @@ async function continueAutoLoop(
       rounds: active.rounds,
       lastResult: budgetStop,
     });
-    persistLoopResult(pi, createLoopResultRecord({
-      status,
-      task: active.task,
-      rounds: active.rounds.length,
-      verification: budgetStop,
-      outcome,
-    }));
-    setLoopTerminalStatus(
-      ctx.sessionManager,
-      status === "failed" ? "loop failed" : "loop handoff",
+    persistLoopResult(
+      pi,
+      createLoopResultRecord({
+        status,
+        task: active.task,
+        rounds: active.rounds.length,
+        verification: budgetStop,
+        outcome,
+      }),
     );
+    setLoopTerminalStatus(ctx.sessionManager, status === "failed" ? "loop failed" : "loop handoff");
     notifyLoopResult(ctx.sessionManager.getSessionId(), {
       status,
       task: active.task,
@@ -1387,46 +1344,37 @@ async function continueAutoLoop(
       level: status === "failed" ? "error" : "warn",
       summary: `${status} | ${active.task} | rounds=${active.rounds.length}`,
     });
-    emitLoopMessage(
-      pi,
-      outcome.split("\n"),
-    );
+    emitLoopMessage(pi, outcome.split("\n"));
     return;
   }
 
-  if (
-    verification.kind === "fail" &&
-    active.rounds.length < active.state.maxRounds
-  ) {
+  if (verification.kind === "fail" && active.rounds.length < active.state.maxRounds) {
     active.announceSuccess = true;
     setActiveLoopPhase(ctx.sessionManager, "repair", active.rounds.length + 1);
     refreshLoopStatus(ctx);
-    pi.sendUserMessage(
-      buildRepairPrompt(verification, active.rounds.length + 1),
-    );
+    pi.sendUserMessage(buildRepairPrompt(verification, active.rounds.length + 1));
     return;
   }
 
   activeLoops.delete(sessionId);
-  const status: LoopExecutionStatus =
-    active.state.failureMode === "fail" ? "failed" : "handoff";
+  const status: LoopExecutionStatus = active.state.failureMode === "fail" ? "failed" : "handoff";
   const outcome = buildFailureSummary({
     task: active.task,
     status,
     rounds: active.rounds,
     lastResult: verification,
   });
-  persistLoopResult(pi, createLoopResultRecord({
-    status,
-    task: active.task,
-    rounds: active.rounds.length,
-    verification,
-    outcome,
-  }));
-  setLoopTerminalStatus(
-    ctx.sessionManager,
-    status === "failed" ? "loop failed" : "loop handoff",
+  persistLoopResult(
+    pi,
+    createLoopResultRecord({
+      status,
+      task: active.task,
+      rounds: active.rounds.length,
+      verification,
+      outcome,
+    }),
   );
+  setLoopTerminalStatus(ctx.sessionManager, status === "failed" ? "loop failed" : "loop handoff");
   notifyLoopResult(ctx.sessionManager.getSessionId(), {
     status,
     task: active.task,
@@ -1437,10 +1385,7 @@ async function continueAutoLoop(
     level: status === "failed" ? "error" : "warn",
     summary: `${status} | ${active.task} | rounds=${active.rounds.length}`,
   });
-  emitLoopMessage(
-    pi,
-    outcome.split("\n"),
-  );
+  emitLoopMessage(pi, outcome.split("\n"));
 }
 
 function usage(): string {
@@ -1469,8 +1414,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.registerCommand("loop", {
-    description:
-      "Manage glm's explicit delivery-quality loop for the current session.",
+    description: "Manage glm's explicit delivery-quality loop for the current session.",
     handler: async (args, ctx) => {
       const [subcommand, ...rest] = args.trim().split(/\s+/).filter(Boolean);
       const defaults = readDefaultState(process.env);
@@ -1528,32 +1472,20 @@ export default function (pi: ExtensionAPI) {
 
       if (subcommand === "history") {
         const requested = rest[0] ? Number(rest[0]) : 5;
-        const limit =
-          Number.isInteger(requested) && requested > 0
-            ? requested
-            : 5;
-        emitLoopMessage(
-          pi,
-          buildHistoryLines(readPersistedResults(ctx.sessionManager), limit),
-        );
+        const limit = Number.isInteger(requested) && requested > 0 ? requested : 5;
+        emitLoopMessage(pi, buildHistoryLines(readPersistedResults(ctx.sessionManager), limit));
         return;
       }
 
       if (subcommand === "show") {
         const requested = rest[0] ? Number(rest[0]) : NaN;
-        const index =
-          Number.isInteger(requested) && requested > 0
-            ? requested
-            : NaN;
+        const index = Number.isInteger(requested) && requested > 0 ? requested : NaN;
         if (!Number.isInteger(index)) {
           emitLoopMessage(pi, [usage()]);
           return;
         }
 
-        emitLoopMessage(
-          pi,
-          buildShowLines(readPersistedResults(ctx.sessionManager), index),
-        );
+        emitLoopMessage(pi, buildShowLines(readPersistedResults(ctx.sessionManager), index));
         return;
       }
 

@@ -1,5 +1,7 @@
 import { afterEach, test, expect, vi } from "vitest";
-import glmPolicyExtension, { isDangerousCommand } from "../../resources/extensions/glm-policy/index.ts";
+import glmPolicyExtension, {
+  isDangerousCommand,
+} from "../../resources/extensions/glm-policy/index.ts";
 import { resolveProviderSettings } from "../../resources/extensions/glm-providers/index.ts";
 import { clearRuntimeEvents, getRuntimeEvents } from "../../src/diagnostics/event-log.js";
 
@@ -15,12 +17,9 @@ const rmVariants = [
   "sudo rm -fr /tmp/demo",
 ];
 
-test.each(rmVariants)(
-  "marks '%s' as dangerous even in yolo mode",
-  (command) => {
-    expect(isDangerousCommand(command)).toBe(true);
-  },
-);
+test.each(rmVariants)("marks '%s' as dangerous even in yolo mode", (command) => {
+  expect(isDangerousCommand(command)).toBe(true);
+});
 
 test("dangerous bash commands always require explicit confirmation even when approval policy is never", async () => {
   const previous = process.env.GLM_APPROVAL_POLICY;
@@ -159,7 +158,13 @@ test("non-interactive mode blocks ask-policy commands without prompting", async 
 });
 
 test("approval command offers three policy completions", async () => {
-  const commands = new Map<string, { handler: unknown; getArgumentCompletions?: (prefix: string) => Array<{ value: string; label: string }> | null }>();
+  const commands = new Map<
+    string,
+    {
+      handler: unknown;
+      getArgumentCompletions?: (prefix: string) => Array<{ value: string; label: string }> | null;
+    }
+  >();
 
   glmPolicyExtension({
     on: vi.fn(),

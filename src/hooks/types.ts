@@ -64,4 +64,3 @@ export type HookExecutionRecord = {
   decision?: HookDecision;
   error?: string;
 };
-

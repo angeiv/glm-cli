@@ -21,7 +21,8 @@ const webSearchSchema = Type.Object({
   allowedDomains: Type.Optional(
     Type.Array(
       Type.String({
-        description: "Optional list of allowed domains (host suffix match). Example: ['docs.modelscope.cn']",
+        description:
+          "Optional list of allowed domains (host suffix match). Example: ['docs.modelscope.cn']",
       }),
       { description: "Only keep results from these domains." },
     ),
@@ -111,7 +112,11 @@ function formatSearchResults(results: SearchResult[]): string {
   return lines.join("\n");
 }
 
-async function searchWithBraveApi(query: string, count: number, signal?: AbortSignal): Promise<SearchResult[]> {
+async function searchWithBraveApi(
+  query: string,
+  count: number,
+  signal?: AbortSignal,
+): Promise<SearchResult[]> {
   const key = process.env.BRAVE_API_KEY?.trim();
   if (!key) {
     throw new Error("BRAVE_API_KEY is required for Brave Search backend");
@@ -147,7 +152,11 @@ async function searchWithBraveApi(query: string, count: number, signal?: AbortSi
     .filter((item: SearchResult) => Boolean(item.url));
 }
 
-async function searchWithSearx(query: string, count: number, signal?: AbortSignal): Promise<SearchResult[]> {
+async function searchWithSearx(
+  query: string,
+  count: number,
+  signal?: AbortSignal,
+): Promise<SearchResult[]> {
   const endpoint = process.env.GLM_WEB_SEARCH_URL?.trim();
   if (!endpoint) {
     throw new Error("GLM_WEB_SEARCH_URL is required for SearxNG backend");
@@ -183,7 +192,11 @@ async function searchWithSearx(query: string, count: number, signal?: AbortSigna
     .filter((item: SearchResult) => Boolean(item.url));
 }
 
-async function runWebSearch(query: string, count: number, signal?: AbortSignal): Promise<SearchResult[]> {
+async function runWebSearch(
+  query: string,
+  count: number,
+  signal?: AbortSignal,
+): Promise<SearchResult[]> {
   // Prefer Brave when available (explicit API key).
   if (process.env.BRAVE_API_KEY?.trim()) {
     return searchWithBraveApi(query, count, signal);
@@ -291,8 +304,9 @@ export default function (pi: ExtensionAPI) {
           throw new Error(`${res.status} ${text}`.trim());
         }
 
-        const trimmed =
-          contentType.toLowerCase().includes("text/html") ? stripHtml(text) : text.trim();
+        const trimmed = contentType.toLowerCase().includes("text/html")
+          ? stripHtml(text)
+          : text.trim();
 
         const maxChars = 30_000;
         const finalText = trimmed.length > maxChars ? `${trimmed.slice(0, maxChars)}\n…` : trimmed;

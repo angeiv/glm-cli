@@ -1,9 +1,6 @@
 import type { VerificationResult } from "../loop/types.js";
 
-export function buildVerificationOverlay(
-  result: VerificationResult,
-  nextRound: number,
-): string {
+export function buildVerificationOverlay(result: VerificationResult, nextRound: number): string {
   return [
     `Verification overlay: repair round ${nextRound}.`,
     result.command ? `Verifier: ${result.command}` : "Verifier: unavailable",

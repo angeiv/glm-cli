@@ -80,4 +80,3 @@ describe("glm-hooks extension", () => {
     expect(result).toMatchObject({ block: true, reason: "nope" });
   });
 });
-

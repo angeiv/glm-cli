@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { CliHandlers, parseCliArgs, runCli } from "../../src/cli.js";
+import { type CliHandlers, parseCliArgs, runCli } from "../../src/cli.js";
 
 const originalExit = process.exit;
 
@@ -50,7 +50,9 @@ describe("parseCliArgs", () => {
   });
 
   test("parses run command with task and global flags", () => {
-    expect(parseCliArgs(["run", "fix tests", "--provider", "openai-compatible", "--yolo"])).toMatchObject({
+    expect(
+      parseCliArgs(["run", "fix tests", "--provider", "openai-compatible", "--yolo"]),
+    ).toMatchObject({
       command: "run",
       task: "fix tests",
       provider: "openai-compatible",
@@ -72,7 +74,6 @@ describe("parseCliArgs", () => {
       "Use either --json or --jsonl, not both",
     );
   });
-
 
   test("parses openai-responses provider", () => {
     expect(parseCliArgs(["run", "fix tests", "--provider", "openai-responses"])).toMatchObject({

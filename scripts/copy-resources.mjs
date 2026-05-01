@@ -11,7 +11,12 @@ function copyResourcesFiltered(srcDir, destDir) {
   cpSync(srcDir, destDir, {
     recursive: true,
     filter: (src) => {
-      if (src.endsWith(".ts") && src.includes(`${join("resources", "extensions")}${process.platform === "win32" ? "\\" : "/"}`)) {
+      if (
+        src.endsWith(".ts") &&
+        src.includes(
+          `${join("resources", "extensions")}${process.platform === "win32" ? "\\" : "/"}`,
+        )
+      ) {
         return false;
       }
       return true;

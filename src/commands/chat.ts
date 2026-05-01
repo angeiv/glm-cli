@@ -73,9 +73,7 @@ export async function runChatCommand(input: ChatCommandInput): Promise<void> {
           ...runtimeConfig,
           promptMode:
             input.promptMode ??
-            (configuredLane === "auto"
-              ? "standard"
-              : (configuredLane as PromptMode)),
+            (configuredLane === "auto" ? "standard" : (configuredLane as PromptMode)),
         });
 
         await runChatSession(runtime);

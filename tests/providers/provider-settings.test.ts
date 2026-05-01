@@ -41,4 +41,3 @@ describe("resolveProviderSettings", () => {
     expect(resolved.baseUrl).toBe("https://env.example.com");
   });
 });
-

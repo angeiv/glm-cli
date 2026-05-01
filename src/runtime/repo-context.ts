@@ -78,11 +78,7 @@ function extractMarkdownSection(markdown: string, headingText: string): string |
   return trimmed ? trimmed : undefined;
 }
 
-function keepUsefulLines(args: {
-  text: string;
-  maxLines: number;
-  maxChars: number;
-}): string[] {
+function keepUsefulLines(args: { text: string; maxLines: number; maxChars: number }): string[] {
   const rawLines = args.text.split(/\r?\n/).map((line) => line.trim());
   const filtered = rawLines.filter((line) => {
     if (!line) return false;
@@ -153,4 +149,3 @@ export async function buildRepoContextPack(cwd: string): Promise<string | undefi
 
   return lines.join("\n");
 }
-

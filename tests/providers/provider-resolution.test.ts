@@ -70,8 +70,6 @@ describe("resolveRuntimeConfig", () => {
     expect(runtime.model).toBe("foo");
   });
 
-
-
   test("supports openai-responses as a file default provider", () => {
     const config = createConfigFile({ defaultProvider: "openai-responses", defaultModel: "foo" });
     const runtime = resolveRuntimeConfig({}, {}, config);
@@ -109,7 +107,6 @@ describe("resolveRuntimeConfig", () => {
     expect(runtime.provider).toBe("glm");
   });
 });
-
 
 describe("openai-responses autodetection", () => {
   test("OPENAI_API_KEY alone does not override an explicit openai-responses default", () => {

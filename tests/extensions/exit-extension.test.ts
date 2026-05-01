@@ -3,10 +3,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test, vi } from "vitest";
 
-const extensionSourcePath = resolve(
-  process.cwd(),
-  "resources/extensions/glm-exit/index.ts",
-);
+const extensionSourcePath = resolve(process.cwd(), "resources/extensions/glm-exit/index.ts");
 
 describe("glm-exit extension", () => {
   test("registers /exit and shuts down the session", async () => {

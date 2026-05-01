@@ -13,9 +13,7 @@ describe("glm-loop extension", () => {
       "../../resources/extensions/glm-loop/index.js"
     );
 
-    let handler:
-      | ((args: string, ctx: any) => Promise<void>)
-      | undefined;
+    let handler: ((args: string, ctx: any) => Promise<void>) | undefined;
     const entries: SessionEntry[] = [];
     const messages: string[] = [];
 
@@ -74,9 +72,7 @@ describe("glm-loop extension", () => {
       "../../resources/extensions/glm-loop/index.js"
     );
 
-    let handler:
-      | ((args: string, ctx: any) => Promise<void>)
-      | undefined;
+    let handler: ((args: string, ctx: any) => Promise<void>) | undefined;
     const entries: SessionEntry[] = [];
     const userMessages: string[] = [];
     const customMessages: string[] = [];
@@ -153,9 +149,7 @@ describe("glm-loop extension", () => {
     expect(userMessages[0]).toContain("explicit delivery-quality loop");
     expect(userMessages[1]).toContain("first verification failed");
     expect(exec).toHaveBeenCalledTimes(2);
-    expect(customMessages[customMessages.length - 1]).toContain(
-      "Loop succeeded after 2 rounds.",
-    );
+    expect(customMessages[customMessages.length - 1]).toContain("Loop succeeded after 2 rounds.");
   });
 
   test("manual loop updates the status bar with run, verify, repair, and done phases", async () => {
@@ -163,9 +157,7 @@ describe("glm-loop extension", () => {
       "../../resources/extensions/glm-loop/index.js"
     );
 
-    let handler:
-      | ((args: string, ctx: any) => Promise<void>)
-      | undefined;
+    let handler: ((args: string, ctx: any) => Promise<void>) | undefined;
     const entries: SessionEntry[] = [];
     const exec = vi
       .fn()
@@ -279,7 +271,10 @@ describe("glm-loop extension", () => {
       });
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: (event: string, handler: (event: any, ctx: any) => Promise<void>) => {
@@ -322,9 +317,7 @@ describe("glm-loop extension", () => {
     await events.get("agent_end")?.({ messages: [] }, ctx);
 
     expect(exec).toHaveBeenCalledTimes(2);
-    expect(customMessages[customMessages.length - 1]).toContain(
-      "Loop succeeded after 2 rounds.",
-    );
+    expect(customMessages[customMessages.length - 1]).toContain("Loop succeeded after 2 rounds.");
   });
 
   test("auto loop updates the status bar with run, verify, repair, and done phases", async () => {
@@ -554,7 +547,10 @@ describe("glm-loop extension", () => {
     });
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: (event: string, handler: (event: any, ctx: any) => Promise<void>) => {
@@ -632,7 +628,10 @@ describe("glm-loop extension", () => {
     const messages: string[] = [];
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: (event: string, handler: (event: any, ctx: any) => Promise<void>) => {
@@ -697,7 +696,10 @@ describe("glm-loop extension", () => {
     });
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: vi.fn(),
@@ -807,7 +809,10 @@ describe("glm-loop extension", () => {
     const messages: string[] = [];
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: vi.fn(),
@@ -902,7 +907,10 @@ describe("glm-loop extension", () => {
     const messages: string[] = [];
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: vi.fn(),
@@ -980,7 +988,10 @@ describe("glm-loop extension", () => {
     const messages: string[] = [];
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: vi.fn(),
@@ -1050,7 +1061,10 @@ describe("glm-loop extension", () => {
     const messages: string[] = [];
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: vi.fn(),
@@ -1110,7 +1124,10 @@ describe("glm-loop extension", () => {
     const userMessages: string[] = [];
 
     registerLoopExtension({
-      registerCommand: (name: string, options: { handler: (args: string, ctx: any) => Promise<void> }) => {
+      registerCommand: (
+        name: string,
+        options: { handler: (args: string, ctx: any) => Promise<void> },
+      ) => {
         commands.set(name, options.handler);
       },
       on: (event: string, handler: (event: any, ctx: any) => Promise<void>) => {

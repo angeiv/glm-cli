@@ -21,10 +21,7 @@ export function getMcpMetadataCachePath(env: NodeJS.ProcessEnv): string {
   return join(homedir(), ".glm", "agent", "mcp-cache.json");
 }
 
-export function resolveMcpToolMode(
-  value: unknown,
-  options?: { strict?: boolean },
-): McpToolMode {
+export function resolveMcpToolMode(value: unknown, options?: { strict?: boolean }): McpToolMode {
   if (typeof value !== "string" || !value.trim()) {
     return "hybrid";
   }
