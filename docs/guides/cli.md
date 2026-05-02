@@ -85,6 +85,86 @@ These flags apply to `glm`, `glm chat`, and `glm run`:
 - `--max-verify-runs <n>`: loop verification budget
 - `--fail-mode <handoff|fail>`: loop terminal behavior
 
+## Provider, API, and model selection
+
+Recommended selection flow:
+
+1. Choose a `provider`
+2. Optionally override `api`
+3. Set the target `model`
+
+Notes:
+
+- If `--api` is omitted, `glm` defaults to `openai-compatible`.
+- `openai-completions` is accepted as an alias for `openai-compatible`.
+- `anthropic-messages` is accepted as an alias for `anthropic`.
+- `custom` is the generic path for proxy gateways, local runtimes, and unknown models.
+- Unknown `custom` models start from a conservative generic capability profile. Use `modelOverrides` when you need better model-specific tuning.
+
+Common scenarios:
+
+```bash
+# 1. Official BigModel Coding endpoint
+GLM_API_KEY=your-key \
+glm --provider bigmodel-coding --model glm-5.1
+
+# 2. OpenRouter with a hosted GLM alias
+OPENAI_API_KEY=your-key \
+glm --provider openrouter --model ZhipuAI/GLM-5
+
+# 3. Custom OpenAI-compatible gateway
+OPENAI_API_KEY=your-key \
+OPENAI_BASE_URL=https://gateway.example.com/v1 \
+glm --provider custom --api openai-compatible --model my-model
+
+# 4. Custom Anthropic-compatible gateway
+ANTHROPIC_AUTH_TOKEN=your-token \
+ANTHROPIC_BASE_URL=https://gateway.example.com/v1/messages \
+glm --provider custom --api anthropic --model my-model
+
+# 5. Local OpenAI-compatible model server
+OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
+glm --provider custom --model qwen2.5-coder-32b-instruct
+```
+
+You can persist the default selection:
+
+```bash
+glm config set defaultProvider custom
+glm config set defaultApi openai-compatible
+glm config set defaultModel my-model
+```
+
+You can also store `custom` credentials and base URL interactively:
+
+```bash
+glm auth login
+```
+
+When a `custom` model needs capability tuning, add a `modelOverrides` entry in `~/.glm/config.json`:
+
+```json
+{
+  "modelOverrides": [
+    {
+      "match": {
+        "provider": "custom",
+        "api": "openai-compatible",
+        "modelId": "my-model"
+      },
+      "modalities": ["text"],
+      "caps": {
+        "contextWindow": 128000,
+        "maxOutputTokens": 8192,
+        "supportsThinking": false
+      }
+    }
+  ]
+}
+```
+
+See [config-surface.md](../references/config-surface.md) for the full override shape.
+
 ## Prompt lanes (`--mode`)
 
 `--mode` selects a prompt lane (execution style). It changes the instruction overlay the model receives, but it does not toggle runtime behavior (for example, whether the loop runs).

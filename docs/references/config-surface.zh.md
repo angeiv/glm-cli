@@ -84,6 +84,28 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 
 `modelOverrides[].match` 可按 `provider`、`api`、base URL 通配、模型别名、canonical ID、platform 以及 upstream vendor 进行匹配。
 
+未知 `custom` 模型的覆盖示例：
+
+```json
+{
+  "modelOverrides": [
+    {
+      "match": {
+        "provider": "custom",
+        "api": "openai-compatible",
+        "modelId": "my-model"
+      },
+      "modalities": ["text"],
+      "caps": {
+        "contextWindow": 128000,
+        "maxOutputTokens": 8192,
+        "supportsThinking": false
+      }
+    }
+  ]
+}
+```
+
 ## `glm config` 命令面
 
 `glm config get|set` 当前暴露以下 key：

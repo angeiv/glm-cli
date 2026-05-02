@@ -84,6 +84,28 @@ Anthropic-compatible credentials are env-only today.
 
 `modelOverrides[].match` can target `provider`, `api`, base URL globs, model aliases, canonical IDs, platform, and upstream vendor hints.
 
+Example override for an unknown `custom` model:
+
+```json
+{
+  "modelOverrides": [
+    {
+      "match": {
+        "provider": "custom",
+        "api": "openai-compatible",
+        "modelId": "my-model"
+      },
+      "modalities": ["text"],
+      "caps": {
+        "contextWindow": 128000,
+        "maxOutputTokens": 8192,
+        "supportsThinking": false
+      }
+    }
+  ]
+}
+```
+
 ## `glm config` command surface
 
 `glm config get|set` currently exposes:
