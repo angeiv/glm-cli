@@ -250,6 +250,32 @@ describe("config store normalization", () => {
     });
   });
 
+  test("readConfigFile accepts model routing vision fallback config", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+      modelRouting: {
+        visionFallback: {
+          mode: "route",
+          provider: "openai-compatible",
+          model: "qwen/qwen3.5-122b-a10b",
+        },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    const config = await readConfigFile();
+    expect(config.modelRouting?.visionFallback).toEqual({
+      mode: "route",
+      provider: "openai-compatible",
+      model: "qwen/qwen3.5-122b-a10b",
+    });
+  });
+
   test("readConfigFile rejects invalid model profile override rules", async () => {
     const payload = JSON.stringify({
       defaultProvider: "glm",
@@ -294,6 +320,25 @@ describe("config store normalization", () => {
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
     await expect(readConfigFile()).rejects.toThrow(/modalities/i);
+  });
+
+  test("readConfigFile rejects invalid model routing vision fallback mode", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "glm",
+      approvalPolicy: "ask",
+      providers: {
+        glm: { apiKey: "", baseURL: "" },
+        "openai-compatible": { apiKey: "", baseURL: "" },
+      },
+      modelRouting: {
+        visionFallback: {
+          mode: "auto",
+        },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/visionFallback/i);
   });
 
   test("readConfigFile rejects invalid glm capability values", async () => {

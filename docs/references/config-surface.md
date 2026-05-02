@@ -65,6 +65,9 @@ Supported persisted keys today:
 - `loop.autoVerify`
 - `loop.verifyCommand`
 - `modelProfiles.overrides`
+- `modelRouting.visionFallback.mode`
+- `modelRouting.visionFallback.provider`
+- `modelRouting.visionFallback.model`
 - `providers.glm.apiKey`
 - `providers.glm.baseURL`
 - `providers.glm.endpoint`
@@ -110,6 +113,9 @@ Anthropic-compatible credentials are env-only today.
 - `loopFailureMode`
 - `loopAutoVerify`
 - `loopVerifyCommand`
+- `visionFallbackMode`
+- `visionFallbackProvider`
+- `visionFallbackModel`
 
 When adding a new config key, update all of:
 
@@ -135,6 +141,9 @@ Capability and loop env inputs currently include:
 - `GLM_TOOL_STREAM`
 - `GLM_RESPONSE_FORMAT`
 - `GLM_CONTEXT_CACHE`
+- `GLM_VISION_FALLBACK_MODE`
+- `GLM_VISION_FALLBACK_PROVIDER`
+- `GLM_VISION_FALLBACK_MODEL`
 - `GLM_LOOP_ENABLED`
 - `GLM_LOOP_PROFILE`
 - `GLM_LOOP_MAX_ROUNDS`

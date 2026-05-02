@@ -26,6 +26,8 @@ export type ThinkingMode = "auto" | "enabled" | "disabled";
 export type ToolStreamMode = "auto" | "on" | "off";
 export type ResponseFormatType = "json_object";
 export type ContextCacheMode = "auto" | "explicit" | "off";
+export type VisionFallbackMode = "off" | "suggest" | "route";
+export type RoutingProviderName = "glm" | "openai-compatible" | "openai-responses" | "anthropic";
 export type TaskLaneDefault = "auto" | "direct" | "standard" | "intensive";
 export type LoopProfileName = "code";
 export type LoopFailureMode = "handoff" | "fail";
@@ -56,6 +58,14 @@ export type GlmCapabilitiesConfig = {
 };
 export type ModelProfilesConfig = {
   overrides?: GlmProfileOverrideRule[];
+};
+export type VisionFallbackConfig = {
+  mode?: VisionFallbackMode;
+  provider?: RoutingProviderName;
+  model?: string;
+};
+export type ModelRoutingConfig = {
+  visionFallback?: VisionFallbackConfig;
 };
 export type LoopConfig = {
   enabledByDefault?: boolean;
@@ -88,6 +98,13 @@ const VALID_THINKING_MODES: ThinkingMode[] = ["auto", "enabled", "disabled"];
 const VALID_TOOL_STREAM_MODES: ToolStreamMode[] = ["auto", "on", "off"];
 const VALID_RESPONSE_FORMAT_TYPES: ResponseFormatType[] = ["json_object"];
 const VALID_CONTEXT_CACHE_MODES: ContextCacheMode[] = ["auto", "explicit", "off"];
+const VALID_VISION_FALLBACK_MODES: VisionFallbackMode[] = ["off", "suggest", "route"];
+const VALID_ROUTING_PROVIDER_NAMES: RoutingProviderName[] = [
+  "glm",
+  "openai-compatible",
+  "openai-responses",
+  "anthropic",
+];
 const VALID_TASK_LANE_DEFAULTS: TaskLaneDefault[] = ["auto", "direct", "standard", "intensive"];
 const VALID_LOOP_PROFILES: LoopProfileName[] = ["code"];
 const VALID_LOOP_FAILURE_MODES: LoopFailureMode[] = ["handoff", "fail"];
@@ -108,6 +125,14 @@ function createDefaultGlmCapabilitiesConfig(): GlmCapabilitiesConfig {
     thinkingMode: "auto",
     toolStream: "auto",
     contextCache: "auto",
+  };
+}
+
+function createDefaultModelRoutingConfig(): ModelRoutingConfig {
+  return {
+    visionFallback: {
+      mode: "suggest",
+    },
   };
 }
 
@@ -142,6 +167,7 @@ function buildDefaultConfigFile(): GlmConfigFile {
     notifications: createDefaultNotificationsConfig(),
     generation: createDefaultGenerationConfig(),
     glmCapabilities: createDefaultGlmCapabilitiesConfig(),
+    modelRouting: createDefaultModelRoutingConfig(),
     loop: createDefaultLoopConfig(),
     providers: {
       glm: createEmptyProviderConfig(),
@@ -162,6 +188,7 @@ export type GlmConfigFile = {
   notifications: NotificationsConfig;
   generation: GenerationConfig;
   glmCapabilities: GlmCapabilitiesConfig;
+  modelRouting?: ModelRoutingConfig;
   loop: LoopConfig;
   modelProfiles?: ModelProfilesConfig;
   providers: Record<StorageProviderKey, ProviderConfig>;
@@ -329,6 +356,28 @@ function cloneModelProfilesConfig(config?: ModelProfilesConfig): ModelProfilesCo
   return { overrides };
 }
 
+function cloneModelRoutingConfig(config?: ModelRoutingConfig): ModelRoutingConfig | undefined {
+  const rawVisionFallback = (config as unknown as { visionFallback?: unknown })?.visionFallback;
+  if (rawVisionFallback === undefined) {
+    return undefined;
+  }
+
+  if (typeof rawVisionFallback !== "object" || rawVisionFallback === null) {
+    return { ...(config as any) } as ModelRoutingConfig;
+  }
+
+  const maybe = rawVisionFallback as Record<string, unknown>;
+  return {
+    visionFallback: {
+      ...(maybe.mode === undefined ? {} : { mode: maybe.mode as VisionFallbackMode }),
+      ...(maybe.provider === undefined
+        ? {}
+        : { provider: maybe.provider as RoutingProviderName }),
+      ...(maybe.model === undefined ? {} : { model: maybe.model as string }),
+    },
+  };
+}
+
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
   const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
   const rawTaskLaneDefault = (config as unknown as { taskLaneDefault?: unknown })?.taskLaneDefault;
@@ -342,6 +391,10 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       : (rawDefaultProvider as PersistedProviderName);
   const modelProfiles = cloneModelProfilesConfig(
     (config as unknown as { modelProfiles?: ModelProfilesConfig })?.modelProfiles,
+  );
+  const modelRouting = cloneModelRoutingConfig(
+    (config as unknown as { modelRouting?: ModelRoutingConfig })?.modelRouting ??
+      BASE_DEFAULT_CONFIG_FILE.modelRouting,
   );
 
   return {
@@ -380,6 +433,7 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       (config as unknown as { glmCapabilities?: GlmCapabilitiesConfig })?.glmCapabilities ??
         BASE_DEFAULT_CONFIG_FILE.glmCapabilities,
     ),
+    ...(modelRouting ? { modelRouting } : {}),
     loop: cloneLoopConfig(
       (config as unknown as { loop?: LoopConfig })?.loop ?? BASE_DEFAULT_CONFIG_FILE.loop,
     ),
@@ -420,6 +474,14 @@ function isResponseFormatType(value?: string): value is ResponseFormatType {
 
 function isContextCacheMode(value?: string): value is ContextCacheMode {
   return VALID_CONTEXT_CACHE_MODES.includes(value as ContextCacheMode);
+}
+
+function isVisionFallbackMode(value?: string): value is VisionFallbackMode {
+  return VALID_VISION_FALLBACK_MODES.includes(value as VisionFallbackMode);
+}
+
+function isRoutingProviderName(value?: string): value is RoutingProviderName {
+  return VALID_ROUTING_PROVIDER_NAMES.includes(value as RoutingProviderName);
 }
 
 function isTaskLaneDefault(value?: string): value is TaskLaneDefault {
@@ -470,6 +532,7 @@ function validateConfigFile(config: GlmConfigFile): void {
 
   validateGenerationConfig(config.generation);
   validateGlmCapabilitiesConfig(config.glmCapabilities);
+  validateModelRoutingConfig(config.modelRouting);
   validateLoopConfig(config.loop);
   validateModelProfilesConfig(config.modelProfiles);
 
@@ -536,6 +599,48 @@ function validateGlmCapabilitiesConfig(config: GlmCapabilitiesConfig): void {
 
   if (!isContextCacheMode(config.contextCache)) {
     throw new Error(`Invalid contextCache in config file: ${config.contextCache}`);
+  }
+}
+
+function validateModelRoutingConfig(config?: ModelRoutingConfig): void {
+  if (config === undefined) return;
+  if (typeof config !== "object" || config === null) {
+    throw new Error(`Invalid modelRouting in config file: ${typeof config}`);
+  }
+
+  const visionFallback = (config as unknown as { visionFallback?: unknown })?.visionFallback;
+  if (visionFallback === undefined) {
+    return;
+  }
+
+  if (typeof visionFallback !== "object" || visionFallback === null) {
+    throw new Error(
+      `Invalid modelRouting.visionFallback in config file: ${typeof visionFallback}`,
+    );
+  }
+
+  const record = visionFallback as Record<string, unknown>;
+  if (record.mode !== undefined && !isVisionFallbackMode(record.mode as string)) {
+    throw new Error(
+      `Invalid modelRouting.visionFallback.mode in config file: ${String(record.mode)}`,
+    );
+  }
+
+  if (record.provider !== undefined && !isRoutingProviderName(record.provider as string)) {
+    throw new Error(
+      `Invalid modelRouting.visionFallback.provider in config file: ${String(record.provider)}`,
+    );
+  }
+
+  if (record.model !== undefined) {
+    if (typeof record.model !== "string") {
+      throw new Error(
+        `Invalid modelRouting.visionFallback.model in config file: ${typeof record.model}`,
+      );
+    }
+    if (!record.model.trim()) {
+      throw new Error("Invalid modelRouting.visionFallback.model in config file: empty string");
+    }
   }
 }
 

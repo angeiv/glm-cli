@@ -32,6 +32,9 @@ export type RuntimeEnvVars = Partial<{
   GLM_TOOL_STREAM: string;
   GLM_RESPONSE_FORMAT: string;
   GLM_CONTEXT_CACHE: string;
+  GLM_VISION_FALLBACK_MODE: string;
+  GLM_VISION_FALLBACK_PROVIDER: string;
+  GLM_VISION_FALLBACK_MODEL: string;
   GLM_LOOP_ENABLED: string;
   GLM_LOOP_PROFILE: string;
   GLM_LOOP_MAX_ROUNDS: string;
@@ -212,6 +215,39 @@ export function buildCapabilityEnvironment(
           GLM_CONTEXT_CACHE: readConfiguredEnvValue(
             env.GLM_CONTEXT_CACHE,
             fileConfig.glmCapabilities?.contextCache,
+          )!,
+        }),
+    ...(readConfiguredEnvValue(
+      env.GLM_VISION_FALLBACK_MODE,
+      fileConfig.modelRouting?.visionFallback?.mode,
+    ) === undefined
+      ? {}
+      : {
+          GLM_VISION_FALLBACK_MODE: readConfiguredEnvValue(
+            env.GLM_VISION_FALLBACK_MODE,
+            fileConfig.modelRouting?.visionFallback?.mode,
+          )!,
+        }),
+    ...(readConfiguredEnvValue(
+      env.GLM_VISION_FALLBACK_PROVIDER,
+      fileConfig.modelRouting?.visionFallback?.provider,
+    ) === undefined
+      ? {}
+      : {
+          GLM_VISION_FALLBACK_PROVIDER: readConfiguredEnvValue(
+            env.GLM_VISION_FALLBACK_PROVIDER,
+            fileConfig.modelRouting?.visionFallback?.provider,
+          )!,
+        }),
+    ...(readConfiguredEnvValue(
+      env.GLM_VISION_FALLBACK_MODEL,
+      fileConfig.modelRouting?.visionFallback?.model,
+    ) === undefined
+      ? {}
+      : {
+          GLM_VISION_FALLBACK_MODEL: readConfiguredEnvValue(
+            env.GLM_VISION_FALLBACK_MODEL,
+            fileConfig.modelRouting?.visionFallback?.model,
           )!,
         }),
   };

@@ -65,6 +65,9 @@ Compaction（上下文压缩）配置项（展示默认值）：
 - `loop.autoVerify`
 - `loop.verifyCommand`
 - `modelProfiles.overrides`
+- `modelRouting.visionFallback.mode`
+- `modelRouting.visionFallback.provider`
+- `modelRouting.visionFallback.model`
 - `providers.glm.apiKey`
 - `providers.glm.baseURL`
 - `providers.glm.endpoint`
@@ -110,6 +113,9 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `loopFailureMode`
 - `loopAutoVerify`
 - `loopVerifyCommand`
+- `visionFallbackMode`
+- `visionFallbackProvider`
+- `visionFallbackModel`
 
 当新增配置项时，需要同步更新：
 
@@ -135,6 +141,9 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `GLM_TOOL_STREAM`
 - `GLM_RESPONSE_FORMAT`
 - `GLM_CONTEXT_CACHE`
+- `GLM_VISION_FALLBACK_MODE`
+- `GLM_VISION_FALLBACK_PROVIDER`
+- `GLM_VISION_FALLBACK_MODEL`
 - `GLM_LOOP_ENABLED`
 - `GLM_LOOP_PROFILE`
 - `GLM_LOOP_MAX_ROUNDS`

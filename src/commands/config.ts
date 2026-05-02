@@ -6,9 +6,11 @@ import {
   type ApprovalPolicy,
   type ContextCacheMode,
   type GlmConfigFile,
+  type RoutingProviderName,
   type ResponseFormatType,
   type ThinkingMode,
   type ToolStreamMode,
+  type VisionFallbackMode,
   writeConfigFile,
 } from "../app/config-store.js";
 
@@ -33,6 +35,9 @@ const CONFIG_KEYS = [
   "toolStream",
   "responseFormat",
   "contextCache",
+  "visionFallbackMode",
+  "visionFallbackProvider",
+  "visionFallbackModel",
   "loopEnabledByDefault",
   "loopProfile",
   "loopMaxRounds",
@@ -50,6 +55,13 @@ const THINKING_MODES = ["auto", "enabled", "disabled"] as const;
 const TOOL_STREAM_MODES = ["auto", "on", "off"] as const;
 const RESPONSE_FORMAT_TYPES = ["json_object"] as const;
 const CONTEXT_CACHE_MODES = ["auto", "explicit", "off"] as const;
+const VISION_FALLBACK_MODES = ["off", "suggest", "route"] as const;
+const ROUTING_PROVIDER_NAMES = [
+  "glm",
+  "openai-compatible",
+  "openai-responses",
+  "anthropic",
+] as const;
 const LOOP_PROFILES = ["code"] as const;
 const LOOP_FAILURE_MODES = ["handoff", "fail"] as const;
 const CLEARABLE_VALUE = "unset";
@@ -123,6 +135,15 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   }
   if (key === "contextCache") {
     return config.glmCapabilities.contextCache ?? "auto";
+  }
+  if (key === "visionFallbackMode") {
+    return config.modelRouting?.visionFallback?.mode ?? "suggest";
+  }
+  if (key === "visionFallbackProvider") {
+    return config.modelRouting?.visionFallback?.provider ?? CLEARABLE_VALUE;
+  }
+  if (key === "visionFallbackModel") {
+    return config.modelRouting?.visionFallback?.model ?? CLEARABLE_VALUE;
   }
   if (key === "loopEnabledByDefault") {
     return String(config.loop.enabledByDefault ?? false);
@@ -251,6 +272,29 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
   if (key === "contextCache") {
     if (!CONTEXT_CACHE_MODES.includes(trimmed as (typeof CONTEXT_CACHE_MODES)[number])) {
       throw new Error(`contextCache must be ${CONTEXT_CACHE_MODES.join(", ")}`);
+    }
+  }
+
+  if (key === "visionFallbackMode") {
+    if (!VISION_FALLBACK_MODES.includes(trimmed as (typeof VISION_FALLBACK_MODES)[number])) {
+      throw new Error(`visionFallbackMode must be ${VISION_FALLBACK_MODES.join(", ")}`);
+    }
+  }
+
+  if (key === "visionFallbackProvider") {
+    if (trimmed === CLEARABLE_VALUE) {
+      return undefined;
+    }
+    if (!ROUTING_PROVIDER_NAMES.includes(trimmed as (typeof ROUTING_PROVIDER_NAMES)[number])) {
+      throw new Error(
+        `visionFallbackProvider must be ${ROUTING_PROVIDER_NAMES.join(", ")}, or ${CLEARABLE_VALUE}`,
+      );
+    }
+  }
+
+  if (key === "visionFallbackModel") {
+    if (trimmed === CLEARABLE_VALUE) {
+      return undefined;
     }
   }
 
@@ -423,6 +467,26 @@ export async function configSet(
     }
   } else if (key === "contextCache") {
     config.glmCapabilities.contextCache = parsedValue as ContextCacheMode;
+  } else if (key === "visionFallbackMode") {
+    config.modelRouting ??= {};
+    config.modelRouting.visionFallback ??= {};
+    config.modelRouting.visionFallback.mode = parsedValue as VisionFallbackMode;
+  } else if (key === "visionFallbackProvider") {
+    config.modelRouting ??= {};
+    config.modelRouting.visionFallback ??= {};
+    if (parsedValue === undefined) {
+      delete config.modelRouting.visionFallback.provider;
+    } else {
+      config.modelRouting.visionFallback.provider = parsedValue as RoutingProviderName;
+    }
+  } else if (key === "visionFallbackModel") {
+    config.modelRouting ??= {};
+    config.modelRouting.visionFallback ??= {};
+    if (parsedValue === undefined) {
+      delete config.modelRouting.visionFallback.model;
+    } else {
+      config.modelRouting.visionFallback.model = parsedValue as string;
+    }
   } else if (key === "loopEnabledByDefault") {
     config.loop.enabledByDefault = parsedValue as boolean;
   } else if (key === "loopProfile") {
