@@ -40,7 +40,7 @@ function normalizeOverrideModalities(value) {
   const modalities = [];
   for (const item of value) {
     const normalized = normalizeNonEmptyString(item)?.toLowerCase();
-    if (normalized !== "text" && normalized !== "image") continue;
+    if (normalized !== "text" && normalized !== "image" && normalized !== "video") continue;
     if (modalities.includes(normalized)) continue;
     modalities.push(normalized);
   }

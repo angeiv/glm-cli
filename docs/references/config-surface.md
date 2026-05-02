@@ -81,6 +81,8 @@ Anthropic-compatible credentials are env-only today.
 - `modalities`
 - `caps`
 
+`modelProfiles.overrides[].modalities` currently accepts `text`, `image`, and `video`.
+
 ## `glm config` command surface
 
 `glm config get|set` currently exposes:

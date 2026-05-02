@@ -63,10 +63,10 @@ describe("GLM profile resolution v2", () => {
 
     expect(profile.canonicalModelId).toBe("qwen/qwen3.5-122b-a10b");
     expect(profile.payloadPatchPolicy).toBe("safe-openai-compatible");
-    expect(profile.effectiveModalities).toEqual(["text", "image"]);
+    expect(profile.effectiveModalities).toEqual(["text", "image", "video"]);
     expect(profile.effectiveCaps).toMatchObject({
       contextWindow: 262_144,
-      maxOutputTokens: 81_920,
+      maxOutputTokens: 65_536,
       supportsThinking: true,
       defaultThinkingMode: "enabled",
       supportsStreaming: true,
@@ -90,7 +90,45 @@ describe("GLM profile resolution v2", () => {
       });
 
       expect(profile.canonicalModelId, modelId).toBe("qwen/qwen3.5-122b-a10b");
-      expect(profile.effectiveModalities, modelId).toEqual(["text", "image"]);
+      expect(profile.effectiveModalities, modelId).toEqual(["text", "image", "video"]);
     }
+  });
+
+  test("resolves qwen 3.5 and 3.6 stable and snapshot aliases to canonical profiles", () => {
+    const cases = [
+      ["qwen3.5-plus", "qwen/qwen3.5-plus"],
+      ["qwen/qwen3.5-plus-02-15", "qwen/qwen3.5-plus"],
+      ["qwen/qwen3.5-plus-20260420", "qwen/qwen3.5-plus"],
+      ["qwen3.6-plus-2026-04-02", "qwen/qwen3.6-plus"],
+      ["qwen3.6-flash-2026-04-16", "qwen/qwen3.6-flash"],
+    ] as const;
+
+    for (const [modelId, canonicalModelId] of cases) {
+      const profile = resolveGlmProfileV2({
+        provider: "openai-compatible",
+        modelId,
+        baseUrl: "https://openrouter.ai/api/v1",
+      });
+
+      expect(profile.canonicalModelId, modelId).toBe(canonicalModelId);
+      expect(profile.effectiveModalities, modelId).toEqual(["text", "image", "video"]);
+    }
+  });
+
+  test("applies openrouter-specific qwen 3.6 35b capability differences", () => {
+    const profile = resolveGlmProfileV2({
+      provider: "openai-compatible",
+      modelId: "qwen/qwen3.6-35b-a3b",
+      baseUrl: "https://openrouter.ai/api/v1",
+    });
+
+    expect(profile.canonicalModelId).toBe("qwen/qwen3.6-35b-a3b");
+    expect(profile.effectiveModalities).toEqual(["text", "image", "video"]);
+    expect(profile.effectiveCaps).toMatchObject({
+      contextWindow: 262_144,
+      maxOutputTokens: 65_536,
+      supportsStructuredOutput: true,
+      supportsToolCall: false,
+    });
   });
 });

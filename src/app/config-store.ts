@@ -91,7 +91,7 @@ const VALID_CONTEXT_CACHE_MODES: ContextCacheMode[] = ["auto", "explicit", "off"
 const VALID_TASK_LANE_DEFAULTS: TaskLaneDefault[] = ["auto", "direct", "standard", "intensive"];
 const VALID_LOOP_PROFILES: LoopProfileName[] = ["code"];
 const VALID_LOOP_FAILURE_MODES: LoopFailureMode[] = ["handoff", "fail"];
-const VALID_GLM_INPUT_MODALITIES: GlmInputModality[] = ["text", "image"];
+const VALID_GLM_INPUT_MODALITIES: GlmInputModality[] = ["text", "image", "video"];
 
 const BASE_DEFAULT_CONFIG_FILE = buildDefaultConfigFile();
 

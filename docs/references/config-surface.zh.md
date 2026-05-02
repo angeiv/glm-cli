@@ -81,6 +81,8 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `modalities`
 - `caps`
 
+`modelProfiles.overrides[].modalities` 当前支持 `text`、`image`、`video`。
+
 ## `glm config` 命令面
 
 `glm config get|set` 当前暴露以下 key：

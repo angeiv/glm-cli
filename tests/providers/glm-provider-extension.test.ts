@@ -155,8 +155,8 @@ describe("glm provider extension", () => {
   test("registers built-in qwen metadata with multimodal input and qwen thinking compat", () => {
     const provider = registerProviderByName("openai-compatible", {
       OPENAI_API_KEY: "token",
-      OPENAI_MODEL: "Qwen-3.5-122B-A10B",
-      OPENAI_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      OPENAI_MODEL: "qwen3.6-plus-2026-04-02",
+      OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
     });
 
     expect(provider).toBeDefined();
@@ -170,10 +170,10 @@ describe("glm provider extension", () => {
 
     expect(models).toEqual([
       expect.objectContaining({
-        id: "Qwen-3.5-122B-A10B",
-        contextWindow: 262_144,
-        maxTokens: 81_920,
-        input: ["text", "image"],
+        id: "qwen3.6-plus-2026-04-02",
+        contextWindow: 1_000_000,
+        maxTokens: 65_536,
+        input: ["text", "image", "video"],
         compat: expect.objectContaining({
           supportsDeveloperRole: false,
           supportsReasoningEffort: false,

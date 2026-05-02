@@ -222,7 +222,7 @@ describe("config store normalization", () => {
               modelId: "ZhipuAI/GLM-5*",
             },
             canonicalModelId: "glm-5",
-            modalities: ["text", "image"],
+            modalities: ["text", "image", "video"],
             caps: {
               contextWindow: 96000,
               supportsToolStream: false,
@@ -237,7 +237,7 @@ describe("config store normalization", () => {
     expect(config.modelProfiles?.overrides).toHaveLength(1);
     expect(config.modelProfiles?.overrides?.[0]).toMatchObject({
       canonicalModelId: "glm-5",
-      modalities: ["text", "image"],
+      modalities: ["text", "image", "video"],
       match: {
         provider: "anthropic",
         baseUrl: "*modelscope.cn*",
