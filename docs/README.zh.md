@@ -14,6 +14,7 @@
 ## 参考文档
 
 - 配置与环境变量（完整清单）：[references/config-surface.zh.md](./references/config-surface.zh.md)
+- Dynamic Model Discovery 设计边界：[references/dynamic-model-discovery.zh.md](./references/dynamic-model-discovery.zh.md)
 - OpenAI agent loop 笔记：[references/openai/agent-loop.zh.md](./references/openai/agent-loop.zh.md)
 - OpenAI harness engineering 笔记：[references/openai/harness-engineering.zh.md](./references/openai/harness-engineering.zh.md)
 
