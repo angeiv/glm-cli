@@ -79,6 +79,7 @@ describe("anthropic provider extension model registration", () => {
     });
 
     expect(anthropic).toBeDefined();
+    expect(anthropic!.config.name).toBe("Anthropic Compatible");
     const models = anthropic!.config.models as Array<{
       id: string;
       name: string;
@@ -155,6 +156,7 @@ describe("openai-responses provider extension registration", () => {
     });
 
     expect(provider).toBeDefined();
+    expect(provider!.config.name).toBe("OpenAI Responses");
     expect(provider!.config.api).toBe("openai-responses");
     expect(provider!.config.baseUrl).toBe("https://example.com/v1");
     const models = provider!.config.models as Array<{ id: string }>;

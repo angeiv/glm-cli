@@ -60,6 +60,7 @@ describe("glm provider extension", () => {
     });
 
     expect(provider).toBeDefined();
+    expect(provider!.config.name).toBe("GLM");
     const models = provider!.config.models as Array<{
       id: string;
       contextWindow: number;
@@ -71,6 +72,17 @@ describe("glm provider extension", () => {
         expect.objectContaining({ id: "glm-4.5-airx", contextWindow: 131_072 }),
       ]),
     );
+    const glm51 = models.find((model) => model.id === "glm-5.1") as
+      | {
+          thinkingLevelMap?: Record<string, string | null>;
+        }
+      | undefined;
+    expect(glm51?.thinkingLevelMap).toMatchObject({
+      minimal: null,
+      low: null,
+      medium: null,
+    });
+    expect(glm51?.thinkingLevelMap).not.toHaveProperty("xhigh");
   });
 
   test("uses canonical GLM metadata for third-party aliases on openai-compatible", () => {
@@ -81,6 +93,7 @@ describe("glm provider extension", () => {
     });
 
     expect(provider).toBeDefined();
+    expect(provider!.config.name).toBe("OpenAI Compatible");
     const models = provider!.config.models as Array<{
       id: string;
       contextWindow: number;
@@ -174,6 +187,11 @@ describe("glm provider extension", () => {
         contextWindow: 1_000_000,
         maxTokens: 65_536,
         input: ["text", "image", "video"],
+        thinkingLevelMap: expect.objectContaining({
+          minimal: null,
+          low: null,
+          medium: null,
+        }),
         compat: expect.objectContaining({
           supportsDeveloperRole: false,
           supportsReasoningEffort: false,
@@ -181,5 +199,31 @@ describe("glm provider extension", () => {
         }),
       }),
     ]);
+  });
+
+  test("registers restricted thinking levels for openai-responses gateway models", () => {
+    const provider = registerProviderByName("openai-responses", {
+      OPENAI_API_KEY: "token",
+      OPENAI_MODEL: "glm-5.1",
+      OPENAI_BASE_URL: "https://gateway.example.com/v1",
+    });
+
+    expect(provider).toBeDefined();
+    const models = provider!.config.models as Array<{
+      id: string;
+      thinkingLevelMap?: Record<string, string | null>;
+    }>;
+
+    expect(models).toEqual([
+      expect.objectContaining({
+        id: "glm-5.1",
+        thinkingLevelMap: expect.objectContaining({
+          minimal: null,
+          low: null,
+          medium: null,
+        }),
+      }),
+    ]);
+    expect(models[0].thinkingLevelMap).not.toHaveProperty("xhigh");
   });
 });

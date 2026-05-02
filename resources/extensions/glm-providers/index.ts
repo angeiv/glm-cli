@@ -124,6 +124,8 @@ type AnthropicMessagesResponse = {
   detail?: string;
 };
 
+type ThinkingLevelMap = Record<string, string | null>;
+
 function isModelscopeAnthropicBaseUrl(baseUrl: string): boolean {
   const normalized = baseUrl.trim().toLowerCase();
   return normalized.includes("api-inference.modelscope.cn");
@@ -632,6 +634,32 @@ function resolveOpenAiCompat(profile: ReturnType<typeof resolveGlmProfileV2>) {
   return OPENAI_COMPAT;
 }
 
+function isKnownThinkingFamily(profile: ReturnType<typeof resolveGlmProfileV2>): boolean {
+  const canonical = profile.canonicalModelId?.trim().toLowerCase() ?? "";
+  return canonical.startsWith("glm-") || canonical.startsWith("qwen/");
+}
+
+function resolveThinkingLevelMap(
+  profile: ReturnType<typeof resolveGlmProfileV2>,
+): ThinkingLevelMap | undefined {
+  if (!profile.effectiveCaps.supportsThinking) {
+    return undefined;
+  }
+
+  if (!isKnownThinkingFamily(profile)) {
+    return undefined;
+  }
+
+  // Current GLM / Qwen gateway integrations exposed by glm-cli behave like an
+  // on/off thinking switch in practice. Limit the selectable levels to those
+  // the transport can express today and keep room for future richer mappings.
+  return {
+    minimal: null,
+    low: null,
+    medium: null,
+  };
+}
+
 function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string) {
   const profile = resolveGlmProfileV2({
     provider: "openai-compatible",
@@ -652,6 +680,9 @@ function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string
     contextWindow: profile.effectiveCaps.contextWindow,
     maxTokens: profile.effectiveCaps.maxOutputTokens,
     compat: resolveOpenAiCompat(profile),
+    ...(resolveThinkingLevelMap(profile)
+      ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
+      : {}),
   };
 }
 
@@ -674,6 +705,9 @@ function resolveOpenAiResponsesModelDefinition(modelId: string, baseUrl: string)
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: profile.effectiveCaps.contextWindow,
     maxTokens: profile.effectiveCaps.maxOutputTokens,
+    ...(resolveThinkingLevelMap(profile)
+      ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
+      : {}),
   };
 }
 
@@ -694,6 +728,9 @@ export function resolveAnthropicModels(options: { requestedModelId: string; base
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: profile.effectiveCaps.contextWindow,
       maxTokens: profile.effectiveCaps.maxOutputTokens,
+      ...(resolveThinkingLevelMap(profile)
+        ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
+        : {}),
     };
   });
 
@@ -721,6 +758,9 @@ export function resolveAnthropicModels(options: { requestedModelId: string; base
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: profile.effectiveCaps.contextWindow,
       maxTokens: profile.effectiveCaps.maxOutputTokens,
+      ...(resolveThinkingLevelMap(profile)
+        ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
+        : {}),
     },
   ];
 }
@@ -808,6 +848,7 @@ export default function (pi: ExtensionAPI) {
 
   if (glmSettings.apiKey) {
     pi.registerProvider("glm", {
+      name: "GLM",
       baseUrl: glmSettings.baseUrl,
       apiKey: glmSettings.apiKey,
       api: "openai-completions",
@@ -832,6 +873,9 @@ export default function (pi: ExtensionAPI) {
           contextWindow: profile.effectiveCaps.contextWindow,
           maxTokens: profile.effectiveCaps.maxOutputTokens,
           compat,
+          ...(resolveThinkingLevelMap(profile)
+            ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
+            : {}),
         };
       }),
     });
@@ -852,6 +896,7 @@ export default function (pi: ExtensionAPI) {
         resolveConfigDefaultModel(),
       ) ?? "glm-5.1";
     pi.registerProvider("openai-compatible", {
+      name: "OpenAI Compatible",
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-completions",
@@ -859,6 +904,7 @@ export default function (pi: ExtensionAPI) {
     });
 
     pi.registerProvider("openai-responses", {
+      name: "OpenAI Responses",
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-responses",
@@ -882,6 +928,7 @@ export default function (pi: ExtensionAPI) {
     const isModelscope = isModelscopeAnthropicBaseUrl(baseUrl);
 
     pi.registerProvider("anthropic", {
+      name: "Anthropic Compatible",
       baseUrl,
       apiKey: "ANTHROPIC_AUTH_TOKEN",
       // ModelScope's Anthropic-compatible endpoint supports streaming, but sometimes aborts

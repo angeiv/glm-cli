@@ -26,6 +26,7 @@ import { buildRuntimeStatus, setRuntimeStatus } from "../diagnostics/runtime-sta
 import { appendRuntimeEvent, configureRuntimeEventLog } from "../diagnostics/event-log.js";
 import { loadHooks } from "../hooks/loader.js";
 import { DEFAULT_HOOKS_PATH } from "../hooks/registry.js";
+import { installShouldStopAfterTurn } from "../runtime/should-stop-after-turn.js";
 
 export type GlmSessionInput = {
   cwd: string;
@@ -89,6 +90,7 @@ function getGlmApprovalPolicy(fallback: ApprovalPolicy): ApprovalPolicy {
 }
 
 const MODEL_SELECTION_ENV_KEYS = ["GLM_MODEL", "OPENAI_MODEL", "ANTHROPIC_MODEL"] as const;
+const PI_RUNTIME_ENV_KEYS = ["PI_CODING_AGENT_DIR", "PI_CODING_AGENT_SESSION_DIR"] as const;
 
 function maybeWarnOnStoredSessionModelMismatch(args: {
   sessionManager: Pick<ReturnType<typeof createGlmSessionManager>, "buildSessionContext"> &
@@ -227,6 +229,20 @@ export function buildApprovalPolicyEnvironment(
   approvalPolicy: ApprovalPolicy,
 ): Partial<NodeJS.ProcessEnv> {
   return { GLM_APPROVAL_POLICY: approvalPolicy };
+}
+
+export function buildPiRuntimeEnvironment(input: {
+  agentDir: string;
+  sessionDir: string;
+}): Partial<NodeJS.ProcessEnv> {
+  const overrides: Partial<NodeJS.ProcessEnv> = Object.fromEntries(
+    PI_RUNTIME_ENV_KEYS.map((key) => [key, undefined]),
+  );
+
+  overrides.PI_CODING_AGENT_DIR = input.agentDir;
+  overrides.PI_CODING_AGENT_SESSION_DIR = input.sessionDir;
+
+  return overrides;
 }
 
 export function resolveRequestedModel(
@@ -422,6 +438,10 @@ async function prepareGlmSession(
     {
       ...buildModelSelectionEnvironment(strategy.selection),
       ...buildApprovalPolicyEnvironment(getGlmApprovalPolicy(options.approvalPolicy)),
+      ...buildPiRuntimeEnvironment({
+        agentDir: options.agentDir,
+        sessionDir: options.sessionDir,
+      }),
       ...buildNotificationEnvironment(process.env, config),
     },
     async () => {
@@ -484,6 +504,7 @@ export async function createGlmSession(input: GlmSessionInput): Promise<GlmSessi
     model,
     customTools: options.customTools,
   });
+  installShouldStopAfterTurn(result.session);
   enableDefaultTools(result.session);
 
   return {
@@ -533,6 +554,7 @@ export async function createGlmRuntime(input: GlmSessionInput): Promise<AgentSes
       model,
       customTools: options.customTools,
     });
+    installShouldStopAfterTurn(result.session);
     enableDefaultTools(result.session);
     const activeSelection = getGlmModelSelection(result.session.model) ?? strategy.selection;
     if (activeSelection) {
