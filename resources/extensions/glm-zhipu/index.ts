@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { resolveGlmProfileV2 } from "../shared/glm-profile.js";
+import { resolveRuntimeModelProfile } from "../shared/glm-profile.js";
 import { readGlmModelProfileOverrides } from "../shared/glm-user-config.js";
 
 const modelProfileOverrides = readGlmModelProfileOverrides();
@@ -91,14 +91,14 @@ export function shouldApplyGlmNativePayloadPatches(model: {
     return false;
   }
 
-  const profile = resolveGlmProfileV2({
+  const profile = resolveRuntimeModelProfile({
     provider: model.provider,
     modelId: model.id ?? "",
     baseUrl: model.baseUrl,
     overrides: modelProfileOverrides,
   });
 
-  return profile.payloadPatchPolicy === "glm-native";
+  return profile.patchPipeline.zhipuNative;
 }
 
 function stripStrictFromTools(tools: unknown): unknown {
@@ -161,7 +161,7 @@ export function applyZhipuPayloadPatches(
   const next = { ...(payload as Record<string, unknown>) };
   const profile =
     model && typeof model.id === "string"
-      ? resolveGlmProfileV2({
+      ? resolveRuntimeModelProfile({
           provider: model.provider,
           modelId: model.id,
           baseUrl: model.baseUrl,
