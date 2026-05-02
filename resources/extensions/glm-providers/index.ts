@@ -7,79 +7,17 @@ import {
   type SimpleStreamOptions,
 } from "@mariozechner/pi-ai";
 import {
-  getCatalogModelProfile,
-  getStandardGlmModels,
-  resolveGlmProfileV2,
+  getProviderDefaultApi,
+  getProviderDisplayName,
+  normalizeApiKind,
+  normalizeProviderName,
+  resolveAnthropicModels,
+  resolveNativeGlmProviderModels,
+  resolveOpenAiCompatibleModelDefinition,
+  resolveOpenAiResponsesModelDefinition,
+  resolveProviderSettings as resolveSharedProviderSettings,
 } from "../shared/glm-profile.js";
 import { readGlmModelProfileOverrides, readGlmUserConfig } from "../shared/glm-user-config.js";
-
-const OPENAI_COMPAT = {
-  // Many OpenAI-compatible servers reject the newer "developer" role.
-  supportsDeveloperRole: false,
-} as const;
-
-const ZHIPU_OPENAI_COMPAT = {
-  // BigModel / z.ai OpenAI-compatible endpoints are close to OpenAI Chat Completions, but
-  // differ in a few fields (tokens/thinking/streaming-tool).
-  supportsDeveloperRole: false,
-  supportsStore: false,
-  supportsUsageInStreaming: false,
-  supportsStrictMode: false,
-  supportsReasoningEffort: false,
-  maxTokensField: "max_tokens",
-  thinkingFormat: "zai",
-  // Enable tool streaming only when the resolved model profile supports it.
-  zaiToolStream: false,
-} as const;
-
-const QWEN_OPENAI_COMPAT = {
-  supportsDeveloperRole: false,
-  supportsReasoningEffort: false,
-  maxTokensField: "max_tokens",
-  thinkingFormat: "qwen-chat-template",
-} as const;
-
-const GLM_BASE_URL_PRESETS = {
-  // BigModel
-  bigmodel: "https://open.bigmodel.cn/api/paas/v4/",
-  "bigmodel-coding": "https://open.bigmodel.cn/api/coding/paas/v4/",
-  // z.ai
-  zai: "https://api.z.ai/api/paas/v4/",
-  "zai-coding": "https://api.z.ai/api/coding/paas/v4/",
-} as const;
-
-type GlmBaseUrlPreset = keyof typeof GLM_BASE_URL_PRESETS;
-
-function normalizeGlmBaseUrlPreset(value?: string): GlmBaseUrlPreset | undefined {
-  if (!value) return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return undefined;
-
-  const aliases: Record<string, GlmBaseUrlPreset> = {
-    "bigmodel-api": "bigmodel",
-    "open.bigmodel": "bigmodel",
-    "open.bigmodel.cn": "bigmodel",
-    "bigmodel-coding-plan": "bigmodel-coding",
-
-    "zai-api": "zai",
-    "z.ai": "zai",
-    "api.z.ai": "zai",
-    "zai-coding-plan": "zai-coding",
-  };
-
-  const mapped = aliases[normalized];
-  if (mapped) return mapped;
-
-  return Object.hasOwn(GLM_BASE_URL_PRESETS, normalized)
-    ? (normalized as GlmBaseUrlPreset)
-    : undefined;
-}
-
-function resolveGlmBaseUrlPreset(envPreset?: string, persistedPreset?: string): string | undefined {
-  const preset = normalizeGlmBaseUrlPreset(envPreset) ?? normalizeGlmBaseUrlPreset(persistedPreset);
-  if (!preset) return undefined;
-  return GLM_BASE_URL_PRESETS[preset];
-}
 
 type AnthropicContentBlock =
   | { type: "text"; text: string }
@@ -123,8 +61,6 @@ type AnthropicMessagesResponse = {
   error?: { message?: string };
   detail?: string;
 };
-
-type ThinkingLevelMap = Record<string, string | null>;
 
 function isModelscopeAnthropicBaseUrl(baseUrl: string): boolean {
   const normalized = baseUrl.trim().toLowerCase();
@@ -622,161 +558,17 @@ function resolveModelId(...candidates: Array<string | undefined>): string | unde
   return undefined;
 }
 
-function resolveOpenAiCompat(profile: ReturnType<typeof resolveGlmProfileV2>) {
-  if (profile.payloadPatchPolicy === "glm-native") {
-    return { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream };
-  }
-
-  if (profile.canonicalModelId?.startsWith("qwen/")) {
-    return { ...OPENAI_COMPAT, ...QWEN_OPENAI_COMPAT };
-  }
-
-  return OPENAI_COMPAT;
-}
-
-function isKnownThinkingFamily(profile: ReturnType<typeof resolveGlmProfileV2>): boolean {
-  const canonical = profile.canonicalModelId?.trim().toLowerCase() ?? "";
-  return canonical.startsWith("glm-") || canonical.startsWith("qwen/");
-}
-
-function resolveThinkingLevelMap(
-  profile: ReturnType<typeof resolveGlmProfileV2>,
-): ThinkingLevelMap | undefined {
-  if (!profile.effectiveCaps.supportsThinking) {
-    return undefined;
-  }
-
-  if (!isKnownThinkingFamily(profile)) {
-    return undefined;
-  }
-
-  // Current GLM / Qwen gateway integrations exposed by glm-cli behave like an
-  // on/off thinking switch in practice. Limit the selectable levels to those
-  // the transport can express today and keep room for future richer mappings.
-  return {
-    minimal: null,
-    low: null,
-    medium: null,
-  };
-}
-
-function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string) {
-  const profile = resolveGlmProfileV2({
-    provider: "openai-compatible",
-    modelId,
-    baseUrl,
-    overrides: modelProfileOverrides,
-  });
-  const canonical = profile.canonicalModelId
-    ? getCatalogModelProfile(profile.canonicalModelId)
-    : undefined;
-
-  return {
-    id: modelId,
-    name: canonical?.displayName ?? modelId,
-    reasoning: profile.effectiveCaps.supportsThinking,
-    input: profile.effectiveModalities,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: profile.effectiveCaps.contextWindow,
-    maxTokens: profile.effectiveCaps.maxOutputTokens,
-    compat: resolveOpenAiCompat(profile),
-    ...(resolveThinkingLevelMap(profile)
-      ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-      : {}),
-  };
-}
-
-function resolveOpenAiResponsesModelDefinition(modelId: string, baseUrl: string) {
-  const profile = resolveGlmProfileV2({
-    provider: "openai-responses",
-    modelId,
-    baseUrl,
-    overrides: modelProfileOverrides,
-  });
-  const canonical = profile.canonicalModelId
-    ? getCatalogModelProfile(profile.canonicalModelId)
-    : undefined;
-
-  return {
-    id: modelId,
-    name: canonical?.displayName ?? modelId,
-    reasoning: profile.effectiveCaps.supportsThinking,
-    input: profile.effectiveModalities,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: profile.effectiveCaps.contextWindow,
-    maxTokens: profile.effectiveCaps.maxOutputTokens,
-    ...(resolveThinkingLevelMap(profile)
-      ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-      : {}),
-  };
-}
-
-export function resolveAnthropicModels(options: { requestedModelId: string; baseUrl: string }) {
-  const standardModels = getStandardGlmModels().map((model) => {
-    const profile = resolveGlmProfileV2({
-      provider: "anthropic",
-      modelId: model.id,
-      baseUrl: options.baseUrl,
-      overrides: modelProfileOverrides,
-    });
-
-    return {
-      id: model.id,
-      name: model.displayName,
-      reasoning: profile.effectiveCaps.supportsThinking,
-      input: profile.effectiveModalities,
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: profile.effectiveCaps.contextWindow,
-      maxTokens: profile.effectiveCaps.maxOutputTokens,
-      ...(resolveThinkingLevelMap(profile)
-        ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-        : {}),
-    };
-  });
-
-  if (standardModels.some((model) => model.id === options.requestedModelId)) {
-    return standardModels;
-  }
-
-  const profile = resolveGlmProfileV2({
-    provider: "anthropic",
-    modelId: options.requestedModelId,
-    baseUrl: options.baseUrl,
-    overrides: modelProfileOverrides,
-  });
-  const canonical = profile.canonicalModelId
-    ? getCatalogModelProfile(profile.canonicalModelId)
-    : undefined;
-
-  return [
-    ...standardModels,
-    {
-      id: options.requestedModelId,
-      name: canonical?.displayName ?? options.requestedModelId,
-      reasoning: profile.canonicalModelId ? profile.effectiveCaps.supportsThinking : true,
-      input: profile.effectiveModalities,
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: profile.effectiveCaps.contextWindow,
-      maxTokens: profile.effectiveCaps.maxOutputTokens,
-      ...(resolveThinkingLevelMap(profile)
-        ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-        : {}),
-    },
-  ];
-}
-
 type PersistedProviderConfig = {
   apiKey?: string;
   baseURL?: string;
-  endpoint?: string;
+  api?: string;
 };
 
 type PersistedConfig = {
+  defaultApi?: string;
   defaultModel?: string;
-  providers?: {
-    glm?: PersistedProviderConfig;
-    "openai-compatible"?: PersistedProviderConfig;
-  };
+  defaultProvider?: string;
+  providers?: Record<string, PersistedProviderConfig | undefined>;
 };
 
 function normalizeProvider(value: unknown): PersistedProviderConfig | undefined {
@@ -784,9 +576,9 @@ function normalizeProvider(value: unknown): PersistedProviderConfig | undefined 
   const maybe = value as Record<string, unknown>;
   const apiKey = typeof maybe.apiKey === "string" ? maybe.apiKey : undefined;
   const baseURL = typeof maybe.baseURL === "string" ? maybe.baseURL : undefined;
-  const endpoint = typeof maybe.endpoint === "string" ? maybe.endpoint : undefined;
-  if (!apiKey && !baseURL && !endpoint) return undefined;
-  return { apiKey, baseURL, endpoint };
+  const api = typeof maybe.api === "string" ? maybe.api : undefined;
+  if (!apiKey && !baseURL && !api) return undefined;
+  return { apiKey, baseURL, api };
 }
 
 function readPersistedConfig(): PersistedConfig {
@@ -797,14 +589,21 @@ function readPersistedConfig(): PersistedConfig {
     }
     const providers = (parsed as { providers?: Record<string, unknown> }).providers;
     return {
+      defaultApi:
+        typeof (parsed as { defaultApi?: string }).defaultApi === "string"
+          ? (parsed as { defaultApi?: string }).defaultApi
+          : undefined,
       defaultModel:
         typeof (parsed as { defaultModel?: string }).defaultModel === "string"
           ? (parsed as { defaultModel?: string }).defaultModel
           : undefined,
-      providers: {
-        glm: normalizeProvider(providers?.glm),
-        "openai-compatible": normalizeProvider(providers?.["openai-compatible"]),
-      },
+      defaultProvider:
+        typeof (parsed as { defaultProvider?: string }).defaultProvider === "string"
+          ? (parsed as { defaultProvider?: string }).defaultProvider
+          : undefined,
+      providers: Object.fromEntries(
+        Object.entries(providers ?? {}).map(([key, value]) => [key, normalizeProvider(value)]),
+      ),
     };
   } catch {
     return {};
@@ -814,129 +613,142 @@ function readPersistedConfig(): PersistedConfig {
 const persistedConfig = readPersistedConfig();
 const modelProfileOverrides = readGlmModelProfileOverrides();
 
-export function resolveProviderSettings(options: {
-  envApiKey?: string;
-  envBaseUrl?: string;
-  persisted?: PersistedProviderConfig;
-  defaultBaseUrl: string;
-}) {
-  const envApiKey = options.envApiKey?.trim();
-  const persistedApiKey = options.persisted?.apiKey?.trim();
-  const envBaseUrl = options.envBaseUrl?.trim();
-  const persistedBaseUrl = options.persisted?.baseURL?.trim();
-
-  const apiKey = envApiKey || persistedApiKey;
-  const baseUrl = envBaseUrl || persistedBaseUrl || options.defaultBaseUrl;
-  return { apiKey, baseUrl };
+export function resolveProviderSettings(options) {
+  return resolveSharedProviderSettings(options);
 }
 
 function resolveConfigDefaultModel(): string | undefined {
   return persistedConfig.defaultModel;
 }
 
-export default function (pi: ExtensionAPI) {
-  const glmPresetBaseUrl = resolveGlmBaseUrlPreset(
-    process.env.GLM_ENDPOINT,
-    persistedConfig.providers?.glm?.endpoint,
+function resolveSelectedProvider() {
+  return (
+    normalizeProviderName(process.env.GLM_PROVIDER) ??
+    normalizeProviderName(persistedConfig.defaultProvider) ??
+    "bigmodel-coding"
   );
-  const glmSettings = resolveProviderSettings({
-    envApiKey: process.env.GLM_API_KEY,
-    envBaseUrl: process.env.GLM_BASE_URL,
-    persisted: persistedConfig.providers?.glm,
-    defaultBaseUrl: glmPresetBaseUrl ?? GLM_BASE_URL_PRESETS["bigmodel-coding"],
-  });
+}
 
-  if (glmSettings.apiKey) {
-    pi.registerProvider("glm", {
-      name: "GLM",
-      baseUrl: glmSettings.baseUrl,
-      apiKey: glmSettings.apiKey,
-      api: "openai-completions",
-      models: getStandardGlmModels().map((model) => {
-        const profile = resolveGlmProfileV2({
-          provider: "glm",
-          modelId: model.id,
-          baseUrl: glmSettings.baseUrl,
-          overrides: modelProfileOverrides,
-        });
-        const compat =
-          profile.payloadPatchPolicy === "glm-native"
-            ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
-            : OPENAI_COMPAT;
+function resolveSelectedApi(provider, persisted) {
+  return (
+    normalizeApiKind(process.env.GLM_API) ??
+    normalizeApiKind(persisted?.api) ??
+    normalizeApiKind(persistedConfig.defaultApi) ??
+    getProviderDefaultApi(provider)
+  );
+}
 
-        return {
-          id: model.id,
-          name: model.displayName,
-          reasoning: profile.effectiveCaps.supportsThinking,
-          input: profile.effectiveModalities,
-          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-          contextWindow: profile.effectiveCaps.contextWindow,
-          maxTokens: profile.effectiveCaps.maxOutputTokens,
-          compat,
-          ...(resolveThinkingLevelMap(profile)
-            ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-            : {}),
-        };
-      }),
-    });
-  }
-
-  const openaiSettings = resolveProviderSettings({
-    envApiKey: process.env.OPENAI_API_KEY,
-    envBaseUrl: process.env.OPENAI_BASE_URL,
-    persisted: persistedConfig.providers?.["openai-compatible"],
-    defaultBaseUrl: "https://api.openai.com/v1",
-  });
-
-  if (openaiSettings.apiKey) {
-    const openaiModelId =
-      resolveModelId(
-        process.env.OPENAI_MODEL,
-        process.env.GLM_MODEL,
-        resolveConfigDefaultModel(),
-      ) ?? "glm-5.1";
-    pi.registerProvider("openai-compatible", {
-      name: "OpenAI Compatible",
-      baseUrl: openaiSettings.baseUrl,
-      apiKey: openaiSettings.apiKey,
-      api: "openai-completions",
-      models: [resolveOpenAiCompatibleModelDefinition(openaiModelId, openaiSettings.baseUrl)],
-    });
-
-    pi.registerProvider("openai-responses", {
-      name: "OpenAI Responses",
-      baseUrl: openaiSettings.baseUrl,
-      apiKey: openaiSettings.apiKey,
-      api: "openai-responses",
-      models: [resolveOpenAiResponsesModelDefinition(openaiModelId, openaiSettings.baseUrl)],
-    });
-  }
-
-  if (
-    process.env.ANTHROPIC_AUTH_TOKEN ||
-    process.env.ANTHROPIC_MODEL ||
-    process.env.ANTHROPIC_BASE_URL
-  ) {
-    const anthropicModelId =
+function resolveRequestedModelId(provider, api) {
+  if (api === "anthropic") {
+    return (
       resolveModelId(
         process.env.ANTHROPIC_MODEL,
         process.env.GLM_MODEL,
         resolveConfigDefaultModel(),
-      ) ?? "glm-5.1";
-
-    const baseUrl = process.env.ANTHROPIC_BASE_URL ?? "https://open.bigmodel.cn/api/anthropic";
-    const isModelscope = isModelscopeAnthropicBaseUrl(baseUrl);
-
-    pi.registerProvider("anthropic", {
-      name: "Anthropic Compatible",
-      baseUrl,
-      apiKey: "ANTHROPIC_AUTH_TOKEN",
-      // ModelScope's Anthropic-compatible endpoint supports streaming, but sometimes aborts
-      // connections early (undici "terminated"). Prefer streaming and automatically fall back
-      // to a non-streaming request to surface real HTTP errors without Pi's retry UI.
-      api: isModelscope ? "anthropic-messages-modelscope" : "anthropic-messages",
-      ...(isModelscope ? { streamSimple: createStreamFirstModelscopeAnthropicApi() } : {}),
-      models: resolveAnthropicModels({ requestedModelId: anthropicModelId, baseUrl }),
-    });
+      ) ?? "glm-5.1"
+    );
   }
+
+  if (
+    provider === "bigmodel" ||
+    provider === "bigmodel-coding" ||
+    provider === "zai" ||
+    provider === "zai-coding"
+  ) {
+    return (
+      resolveModelId(
+        process.env.GLM_MODEL,
+        process.env.OPENAI_MODEL,
+        resolveConfigDefaultModel(),
+      ) ?? "glm-5.1"
+    );
+  }
+
+  return (
+    resolveModelId(process.env.OPENAI_MODEL, process.env.GLM_MODEL, resolveConfigDefaultModel()) ??
+    "glm-5.1"
+  );
+}
+
+function shouldRegisterProvider(provider, persisted) {
+  return Boolean(
+    process.env.GLM_API_KEY?.trim() ||
+      process.env.OPENAI_API_KEY?.trim() ||
+      process.env.ANTHROPIC_AUTH_TOKEN?.trim() ||
+      process.env.GLM_MODEL?.trim() ||
+      process.env.OPENAI_MODEL?.trim() ||
+      process.env.ANTHROPIC_MODEL?.trim() ||
+      persisted?.apiKey?.trim() ||
+      persisted?.baseURL?.trim(),
+  );
+}
+
+export default function (pi: ExtensionAPI) {
+  const provider = resolveSelectedProvider();
+  const persisted = persistedConfig.providers?.[provider];
+  const api = resolveSelectedApi(provider, persisted);
+
+  if (!shouldRegisterProvider(provider, persisted)) {
+    return;
+  }
+
+  const settings = resolveSharedProviderSettings({
+    provider,
+    api,
+    env: process.env,
+    persisted,
+  });
+  const modelId = resolveRequestedModelId(provider, api);
+  const isModelscope = api === "anthropic" && isModelscopeAnthropicBaseUrl(settings.baseUrl);
+
+  const models =
+    api === "anthropic"
+      ? resolveAnthropicModels({
+          provider,
+          requestedModelId: modelId,
+          baseUrl: settings.baseUrl,
+          overrides: modelProfileOverrides,
+        })
+      : api === "openai-responses"
+        ? [
+            resolveOpenAiResponsesModelDefinition({
+              provider,
+              modelId,
+              baseUrl: settings.baseUrl,
+              overrides: modelProfileOverrides,
+            }),
+          ]
+        : provider === "bigmodel" ||
+            provider === "bigmodel-coding" ||
+            provider === "zai" ||
+            provider === "zai-coding"
+          ? resolveNativeGlmProviderModels({
+              provider,
+              baseUrl: settings.baseUrl,
+              overrides: modelProfileOverrides,
+            })
+          : [
+              resolveOpenAiCompatibleModelDefinition({
+                provider,
+                modelId,
+                baseUrl: settings.baseUrl,
+                overrides: modelProfileOverrides,
+              }),
+            ];
+
+  pi.registerProvider(provider, {
+    name: getProviderDisplayName(provider),
+    baseUrl: settings.baseUrl,
+    apiKey: settings.apiKey ?? "",
+    api:
+      api === "anthropic"
+        ? isModelscope
+          ? "anthropic-messages-modelscope"
+          : "anthropic-messages"
+        : api === "openai-responses"
+          ? "openai-responses"
+          : "openai-completions",
+    ...(isModelscope ? { streamSimple: createStreamFirstModelscopeAnthropicApi() } : {}),
+    models,
+  });
 }

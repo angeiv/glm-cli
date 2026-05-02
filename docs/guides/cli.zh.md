@@ -72,7 +72,8 @@ glm inspect --json
 
 以下 flags 同时适用于 `glm`、`glm chat`、`glm run`：
 
-- `--provider <name>`：`glm`、`openai-compatible`、`openai-responses`、`anthropic`
+- `--provider <name>`：`bigmodel`、`bigmodel-coding`、`zai`、`zai-coding`、`bailian`、`bailian-coding`、`openrouter`、`custom`
+- `--api <name>`：可选协议覆盖，默认 `openai-compatible`，也支持 `openai-responses` 和 `anthropic`
 - `--model <id>`：模型 ID（支持 `ZhipuAI/GLM-5` 等别名）
 - `--cwd <path>`：覆盖工作目录
 - `--mode <direct|standard|intensive>`：覆盖 prompt lane
@@ -83,6 +84,86 @@ glm inspect --json
 - `--max-tool-calls <n>`：loop 工具调用预算
 - `--max-verify-runs <n>`：loop 验证预算
 - `--fail-mode <handoff|fail>`：loop 终止策略
+
+## Provider、API 与模型选择
+
+推荐的选择顺序：
+
+1. 先选 `provider`
+2. 按需覆盖 `api`
+3. 再指定目标 `model`
+
+说明：
+
+- 如果不传 `--api`，`glm` 默认使用 `openai-compatible`
+- `openai-completions` 可作为 `openai-compatible` 的别名使用
+- `anthropic-messages` 可作为 `anthropic` 的别名使用
+- `custom` 是通用入口，适用于代理网关、本地运行时和未知模型
+- 未知 `custom` 模型会先使用一套保守的 generic 能力参数；如果效果不理想，再通过 `modelOverrides` 做模型级调优
+
+常见场景示例：
+
+```bash
+# 1. 官方 BigModel Coding 入口
+GLM_API_KEY=your-key \
+glm --provider bigmodel-coding --model glm-5.1
+
+# 2. 使用 OpenRouter 上托管的 GLM 别名
+OPENAI_API_KEY=your-key \
+glm --provider openrouter --model ZhipuAI/GLM-5
+
+# 3. 自定义 OpenAI-compatible 网关
+OPENAI_API_KEY=your-key \
+OPENAI_BASE_URL=https://gateway.example.com/v1 \
+glm --provider custom --api openai-compatible --model my-model
+
+# 4. 自定义 Anthropic-compatible 网关
+ANTHROPIC_AUTH_TOKEN=your-token \
+ANTHROPIC_BASE_URL=https://gateway.example.com/v1/messages \
+glm --provider custom --api anthropic --model my-model
+
+# 5. 本地 OpenAI-compatible 模型服务
+OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
+glm --provider custom --model qwen2.5-coder-32b-instruct
+```
+
+也可以把默认选择持久化：
+
+```bash
+glm config set defaultProvider custom
+glm config set defaultApi openai-compatible
+glm config set defaultModel my-model
+```
+
+如果希望交互式保存 `custom` 的凭据和 base URL，可以使用：
+
+```bash
+glm auth login
+```
+
+如果 `custom` 模型需要更精细的能力参数，可以在 `~/.glm/config.json` 中增加 `modelOverrides`：
+
+```json
+{
+  "modelOverrides": [
+    {
+      "match": {
+        "provider": "custom",
+        "api": "openai-compatible",
+        "modelId": "my-model"
+      },
+      "modalities": ["text"],
+      "caps": {
+        "contextWindow": 128000,
+        "maxOutputTokens": 8192,
+        "supportsThinking": false
+      }
+    }
+  ]
+}
+```
+
+完整字段说明见 [config-surface.zh.md](../references/config-surface.zh.md)。
 
 ## Prompt lane（`--mode`）
 
@@ -230,7 +311,7 @@ BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions 
 对于百炼 GLM-5.1，如需确定性复用稳定前缀，可以开启显式缓存标记：
 
 ```bash
-GLM_CONTEXT_CACHE=explicit glm --provider openai-compatible --model glm-5.1
+GLM_CONTEXT_CACHE=explicit glm --provider bailian --model glm-5.1
 ```
 
 对应持久化配置：

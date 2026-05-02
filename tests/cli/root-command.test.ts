@@ -50,12 +50,10 @@ describe("parseCliArgs", () => {
   });
 
   test("parses run command with task and global flags", () => {
-    expect(
-      parseCliArgs(["run", "fix tests", "--provider", "openai-compatible", "--yolo"]),
-    ).toMatchObject({
+    expect(parseCliArgs(["run", "fix tests", "--provider", "openrouter", "--yolo"])).toMatchObject({
       command: "run",
       task: "fix tests",
-      provider: "openai-compatible",
+      provider: "openrouter",
       yolo: true,
     });
   });
@@ -75,11 +73,14 @@ describe("parseCliArgs", () => {
     );
   });
 
-  test("parses openai-responses provider", () => {
-    expect(parseCliArgs(["run", "fix tests", "--provider", "openai-responses"])).toMatchObject({
+  test("parses custom provider with explicit api", () => {
+    expect(
+      parseCliArgs(["run", "fix tests", "--provider", "custom", "--api", "openai-responses"]),
+    ).toMatchObject({
       command: "run",
       task: "fix tests",
-      provider: "openai-responses",
+      provider: "custom",
+      api: "openai-responses",
     });
   });
 
@@ -242,12 +243,12 @@ describe("runCli", () => {
   });
 
   test("dispatches to doctor with parsed flags", async () => {
-    await runCli(["doctor", "--yolo", "--provider", "glm"], handlers);
+    await runCli(["doctor", "--yolo", "--provider", "bigmodel-coding"], handlers);
     expect(handlers.doctor).toHaveBeenCalledWith(
       expect.objectContaining({
         cli: expect.objectContaining({
           yolo: true,
-          provider: "glm",
+          provider: "bigmodel-coding",
         }),
       }),
     );
@@ -264,12 +265,12 @@ describe("runCli", () => {
   });
 
   test("dispatches to inspect with parsed flags", async () => {
-    await runCli(["inspect", "--json", "--provider", "glm"], handlers);
+    await runCli(["inspect", "--json", "--provider", "bigmodel-coding"], handlers);
     expect(handlers.inspect).toHaveBeenCalledWith(
       expect.objectContaining({
         json: true,
         cli: expect.objectContaining({
-          provider: "glm",
+          provider: "bigmodel-coding",
         }),
       }),
     );

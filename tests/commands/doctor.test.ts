@@ -19,7 +19,7 @@ describe("runDoctor", () => {
       ...baseConfig,
       providers: {
         ...baseConfig.providers,
-        "openai-compatible": { apiKey: "openai-key", baseURL: "https://example.com" },
+        custom: { apiKey: "openai-key", baseURL: "https://example.com" },
       },
     };
 
@@ -47,7 +47,7 @@ describe("runDoctor", () => {
     expect(resourceCheck?.details).toContain("prompts not synced yet");
   });
 
-  test("treats whitespace-only GLM_API_KEY as missing for glm", async () => {
+  test("treats whitespace-only GLM_API_KEY as missing for bigmodel defaults", async () => {
     const result = await runDoctor({
       ...baseOptions,
       env: { GLM_API_KEY: "   " },
@@ -58,10 +58,10 @@ describe("runDoctor", () => {
     expect(credentialsCheck?.details).toContain("missing GLM_API_KEY");
   });
 
-  test("treats whitespace-only OPENAI_API_KEY as missing for openai-compatible", async () => {
+  test("treats whitespace-only OPENAI_API_KEY as missing for custom openai-compatible", async () => {
     const result = await runDoctor({
       ...baseOptions,
-      cli: { provider: "openai-compatible", model: undefined, yolo: false },
+      cli: { provider: "custom", api: "openai-compatible", model: undefined, yolo: false },
       env: { OPENAI_API_KEY: "   " },
     });
 
@@ -70,10 +70,10 @@ describe("runDoctor", () => {
     expect(credentialsCheck?.details).toContain("missing OPENAI_API_KEY");
   });
 
-  test("treats whitespace-only OPENAI_API_KEY as missing for openai-responses", async () => {
+  test("treats whitespace-only OPENAI_API_KEY as missing for custom responses mode", async () => {
     const result = await runDoctor({
       ...baseOptions,
-      cli: { provider: "openai-responses", model: undefined, yolo: false },
+      cli: { provider: "custom", api: "openai-responses", model: undefined, yolo: false },
       env: { OPENAI_API_KEY: "   " },
     });
 
@@ -81,10 +81,10 @@ describe("runDoctor", () => {
     expect(credentialsCheck?.ok).toBe(false);
     expect(credentialsCheck?.details).toContain("missing OPENAI_API_KEY");
   });
-  test("treats whitespace-only ANTHROPIC_AUTH_TOKEN as missing for anthropic mode", async () => {
+  test("treats whitespace-only ANTHROPIC_AUTH_TOKEN as missing for custom anthropic mode", async () => {
     const result = await runDoctor({
       ...baseOptions,
-      cli: { provider: "anthropic", model: undefined, yolo: false },
+      cli: { provider: "custom", api: "anthropic", model: undefined, yolo: false },
       env: { ANTHROPIC_AUTH_TOKEN: "   " },
     });
 
@@ -100,7 +100,8 @@ describe("runDoctor", () => {
     });
 
     expect(result.status).toMatchObject({
-      provider: "glm",
+      provider: "bigmodel-coding",
+      api: "openai-compatible",
       model: "glm-5.1",
       diagnostics: {
         debugRuntime: false,

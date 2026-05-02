@@ -13,6 +13,13 @@ import {
   resolveMcpToolMode,
 } from "../mcp/config.js";
 import { readLatestVerificationArtifact } from "../harness/artifact-index.js";
+import { resolveProviderBaseUrl } from "../providers/settings.js";
+import {
+  getProviderDefaultApi,
+  isProviderName,
+  normalizeApiKind,
+  resolveProviderInput,
+} from "../providers/types.js";
 import type {
   RuntimeDiagnosticsConfig,
   RuntimeGenerationStatus,
@@ -144,53 +151,30 @@ async function readVerificationStatus(cwd: string): Promise<RuntimeVerificationS
 
 function resolveRuntimeBaseUrl(
   provider: string,
+  api: string | undefined,
   env: NodeJS.ProcessEnv,
   config?: GlmConfigFile,
 ): string | undefined {
-  if (provider === "glm") {
-    const explicitBaseUrl = env.GLM_BASE_URL?.trim() || config?.providers?.glm?.baseURL?.trim();
-    if (explicitBaseUrl) {
-      return explicitBaseUrl;
-    }
+  const providerInput = resolveProviderInput(provider);
+  const canonicalProvider = isProviderName(provider) ? provider : providerInput?.provider;
+  const effectiveApi =
+    normalizeApiKind(api) ??
+    providerInput?.apiHint ??
+    (canonicalProvider ? getProviderDefaultApi(canonicalProvider) : undefined);
 
-    const endpoint =
-      env.GLM_ENDPOINT?.trim().toLowerCase() ||
-      config?.providers?.glm?.endpoint?.trim().toLowerCase();
-    if (
-      endpoint === "zai" ||
-      endpoint === "z.ai" ||
-      endpoint === "api.z.ai" ||
-      endpoint === "zai-api" ||
-      endpoint === "zai-coding" ||
-      endpoint === "zai-coding-plan"
-    ) {
-      return endpoint.includes("coding")
-        ? "https://api.z.ai/api/coding/paas/v4/"
-        : "https://api.z.ai/api/paas/v4/";
-    }
-
-    if (
-      endpoint === "bigmodel" ||
-      endpoint === "open.bigmodel.cn" ||
-      endpoint === "open.bigmodel" ||
-      endpoint === "bigmodel-api"
-    ) {
-      return "https://open.bigmodel.cn/api/paas/v4/";
-    }
-
-    return "https://open.bigmodel.cn/api/coding/paas/v4/";
-  }
-
-  if (provider === "openai-compatible" || provider === "openai-responses") {
-    return (
-      env.OPENAI_BASE_URL?.trim() ||
-      config?.providers?.["openai-compatible"]?.baseURL?.trim() ||
-      undefined
+  if (
+    canonicalProvider &&
+    effectiveApi &&
+    (effectiveApi === "openai-compatible" ||
+      effectiveApi === "openai-responses" ||
+      effectiveApi === "anthropic")
+  ) {
+    return resolveProviderBaseUrl(
+      canonicalProvider,
+      effectiveApi,
+      env,
+      config?.providers?.[canonicalProvider],
     );
-  }
-
-  if (provider === "anthropic") {
-    return env.ANTHROPIC_BASE_URL?.trim() || undefined;
   }
 
   return undefined;
@@ -242,7 +226,16 @@ export async function buildRuntimeStatus(args: {
     agentDir: args.paths.agentDir,
     cwd: args.cwd,
   });
-  const baseUrl = resolveRuntimeBaseUrl(args.runtime.provider, args.env, args.config);
+  const runtimeProviderInput = resolveProviderInput(args.runtime.provider);
+  const effectiveApi =
+    normalizeApiKind(args.runtime.api) ??
+    runtimeProviderInput?.apiHint ??
+    (isProviderName(args.runtime.provider)
+      ? getProviderDefaultApi(args.runtime.provider)
+      : runtimeProviderInput
+        ? getProviderDefaultApi(runtimeProviderInput.provider)
+        : "openai-compatible");
+  const baseUrl = resolveRuntimeBaseUrl(args.runtime.provider, effectiveApi, args.env, args.config);
   const capabilitiesEnv = args.config
     ? buildCapabilityEnvironment(args.env as any, args.config)
     : {};
@@ -275,14 +268,16 @@ export async function buildRuntimeStatus(args: {
   return withEventCount({
     cwd: args.cwd,
     provider: args.runtime.provider,
+    api: effectiveApi,
     model: args.runtime.model,
     baseUrl,
     resolvedModel: (() => {
       const profile = resolveGlmProfileV2({
         provider: args.runtime.provider,
+        api: effectiveApi,
         modelId: args.runtime.model,
         baseUrl,
-        overrides: args.config?.modelProfiles?.overrides,
+        overrides: args.config?.modelOverrides,
       });
 
       return {
@@ -452,6 +447,7 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
   return [
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
+    `API: ${status.api}`,
     `Model: ${status.model}`,
     `Base URL: ${status.baseUrl ?? "default"}`,
     `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,

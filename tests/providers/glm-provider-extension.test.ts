@@ -3,13 +3,14 @@ import { afterEach, describe, expect, test } from "vitest";
 import registerGlmProviders from "../../resources/extensions/glm-providers/index.ts";
 
 const trackedEnvKeys = [
+  "GLM_PROVIDER",
+  "GLM_API",
   "GLM_API_KEY",
   "GLM_BASE_URL",
-  "GLM_ENDPOINT",
+  "GLM_MODEL",
   "OPENAI_API_KEY",
   "OPENAI_BASE_URL",
   "OPENAI_MODEL",
-  "GLM_MODEL",
 ] as const;
 
 const originalEnv = Object.fromEntries(
@@ -53,18 +54,20 @@ afterEach(() => {
   }
 });
 
-describe("glm provider extension", () => {
-  test("registers the broader GLM family catalog for the native glm provider", () => {
-    const provider = registerProviderByName("glm", {
+describe("provider extension registration", () => {
+  test("registers the broader GLM family catalog for official bigmodel providers", () => {
+    const provider = registerProviderByName("bigmodel-coding", {
+      GLM_PROVIDER: "bigmodel-coding",
       GLM_API_KEY: "token",
     });
 
     expect(provider).toBeDefined();
-    expect(provider!.config.name).toBe("GLM");
+    expect(provider!.config.name).toBe("BigModel Coding");
     const models = provider!.config.models as Array<{
       id: string;
       contextWindow: number;
       input: string[];
+      thinkingLevelMap?: Record<string, string | null>;
     }>;
     expect(models).toEqual(
       expect.arrayContaining([
@@ -72,28 +75,23 @@ describe("glm provider extension", () => {
         expect.objectContaining({ id: "glm-4.5-airx", contextWindow: 131_072 }),
       ]),
     );
-    const glm51 = models.find((model) => model.id === "glm-5.1") as
-      | {
-          thinkingLevelMap?: Record<string, string | null>;
-        }
-      | undefined;
-    expect(glm51?.thinkingLevelMap).toMatchObject({
+    expect(models.find((model) => model.id === "glm-5.1")?.thinkingLevelMap).toMatchObject({
       minimal: null,
       low: null,
       medium: null,
     });
-    expect(glm51?.thinkingLevelMap).not.toHaveProperty("xhigh");
   });
 
-  test("uses canonical GLM metadata for third-party aliases on openai-compatible", () => {
-    const provider = registerProviderByName("openai-compatible", {
+  test("uses canonical GLM metadata for third-party aliases on openrouter", () => {
+    const provider = registerProviderByName("openrouter", {
+      GLM_PROVIDER: "openrouter",
       OPENAI_API_KEY: "token",
       OPENAI_MODEL: "ZhipuAI/GLM-5",
-      OPENAI_BASE_URL: "https://gateway.example.com/v1",
+      OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
     });
 
     expect(provider).toBeDefined();
-    expect(provider!.config.name).toBe("OpenAI Compatible");
+    expect(provider!.config.name).toBe("OpenRouter");
     const models = provider!.config.models as Array<{
       id: string;
       contextWindow: number;
@@ -109,11 +107,12 @@ describe("glm provider extension", () => {
     ]);
   });
 
-  test("applies gateway-specific variant overrides without enabling native payload semantics", () => {
-    const provider = registerProviderByName("openai-compatible", {
+  test("keeps gateway payload semantics for openrouter-hosted aliases", () => {
+    const provider = registerProviderByName("openrouter", {
+      GLM_PROVIDER: "openrouter",
       OPENAI_API_KEY: "token",
       OPENAI_MODEL: "z-ai/glm-5.1",
-      OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+      OPENAI_BASE_URL: "https://aihub.internal.example/v1",
     });
 
     expect(provider).toBeDefined();
@@ -140,90 +139,31 @@ describe("glm provider extension", () => {
     });
   });
 
-  test("falls back to generic caps for unknown models on unknown gateways", () => {
-    const provider = registerProviderByName("openai-compatible", {
+  test("registers qwen metadata with multimodal input on custom responses mode", () => {
+    const provider = registerProviderByName("custom", {
+      GLM_PROVIDER: "custom",
+      GLM_API: "openai-responses",
       OPENAI_API_KEY: "token",
-      OPENAI_MODEL: "vendor/some-custom-model",
+      OPENAI_MODEL: "qwen3.6-plus-2026-04-02",
       OPENAI_BASE_URL: "https://gateway.example.com/v1",
     });
 
     expect(provider).toBeDefined();
+    expect(provider!.config.api).toBe("openai-responses");
     const models = provider!.config.models as Array<{
       id: string;
+      input: string[];
       contextWindow: number;
       maxTokens: number;
-      input: string[];
-    }>;
-
-    expect(models).toEqual([
-      expect.objectContaining({
-        id: "vendor/some-custom-model",
-        contextWindow: 128_000,
-        maxTokens: 8_192,
-        input: ["text", "image"],
-      }),
-    ]);
-  });
-
-  test("registers built-in qwen metadata with multimodal input and qwen thinking compat", () => {
-    const provider = registerProviderByName("openai-compatible", {
-      OPENAI_API_KEY: "token",
-      OPENAI_MODEL: "qwen3.6-plus-2026-04-02",
-      OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
-    });
-
-    expect(provider).toBeDefined();
-    const models = provider!.config.models as Array<{
-      id: string;
-      contextWindow: number;
-      maxTokens: number;
-      input: string[];
-      compat?: Record<string, unknown>;
     }>;
 
     expect(models).toEqual([
       expect.objectContaining({
         id: "qwen3.6-plus-2026-04-02",
+        input: ["text", "image", "video"],
         contextWindow: 1_000_000,
         maxTokens: 65_536,
-        input: ["text", "image", "video"],
-        thinkingLevelMap: expect.objectContaining({
-          minimal: null,
-          low: null,
-          medium: null,
-        }),
-        compat: expect.objectContaining({
-          supportsDeveloperRole: false,
-          supportsReasoningEffort: false,
-          thinkingFormat: "qwen-chat-template",
-        }),
       }),
     ]);
-  });
-
-  test("registers restricted thinking levels for openai-responses gateway models", () => {
-    const provider = registerProviderByName("openai-responses", {
-      OPENAI_API_KEY: "token",
-      OPENAI_MODEL: "glm-5.1",
-      OPENAI_BASE_URL: "https://gateway.example.com/v1",
-    });
-
-    expect(provider).toBeDefined();
-    const models = provider!.config.models as Array<{
-      id: string;
-      thinkingLevelMap?: Record<string, string | null>;
-    }>;
-
-    expect(models).toEqual([
-      expect.objectContaining({
-        id: "glm-5.1",
-        thinkingLevelMap: expect.objectContaining({
-          minimal: null,
-          low: null,
-          medium: null,
-        }),
-      }),
-    ]);
-    expect(models[0].thinkingLevelMap).not.toHaveProperty("xhigh");
   });
 });

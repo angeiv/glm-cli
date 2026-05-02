@@ -84,6 +84,10 @@ export async function syncPackagedResources(agentDir: string): Promise<void> {
   // Keeping the stale directory would make Pi load it (slow) even though glm
   // now ships the MCP integration inline.
   await rmAsync(join(agentDir, "extensions", "glm-mcp"), { recursive: true, force: true });
+  await rmAsync(join(agentDir, "extensions", "glm-capability-router"), {
+    recursive: true,
+    force: true,
+  });
 
   // Suppress the "Updated to vX.Y.Z" startup notice by default.
   suppressChangelogNoticeIfNeeded(agentDir);

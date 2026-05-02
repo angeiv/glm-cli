@@ -2,6 +2,13 @@ import { getGlmConfigPath, getGlmRootDir } from "./dirs.js";
 import * as fsPromises from "node:fs/promises";
 import type { GlmProfileOverrideRule } from "../models/resolve-glm-profile-v2.js";
 import type { GlmInputModality } from "../models/glm-profile-core.js";
+import {
+  API_KINDS,
+  PROVIDER_NAMES,
+  type ApiKind,
+  type ProviderName,
+  resolveProviderInput,
+} from "../providers/types.js";
 
 export const fileSystem = {
   readFile: fsPromises.readFile,
@@ -12,15 +19,10 @@ export const fileSystem = {
 export type ProviderConfig = {
   apiKey: string;
   baseURL: string;
-  /**
-   * Optional shorthand for selecting one of GLM's official endpoints without
-   * having to specify the full baseURL. This is currently only used for the
-   * `glm` provider by our bundled Pi extension.
-   */
-  endpoint?: string;
+  api?: ApiKind;
 };
 
-export type StorageProviderKey = "glm" | "openai-compatible";
+export type StorageProviderKey = ProviderName;
 export type ApprovalPolicy = "ask" | "auto" | "never";
 export type ThinkingMode = "auto" | "enabled" | "disabled";
 export type ToolStreamMode = "auto" | "on" | "off";
@@ -54,9 +56,7 @@ export type GlmCapabilitiesConfig = {
   responseFormat?: ResponseFormatType;
   contextCache?: ContextCacheMode;
 };
-export type ModelProfilesConfig = {
-  overrides?: GlmProfileOverrideRule[];
-};
+export type ModelOverridesConfig = GlmProfileOverrideRule[];
 export type LoopConfig = {
   enabledByDefault?: boolean;
   profile?: LoopProfileName;
@@ -76,18 +76,15 @@ export type LoopConfig = {
   verifyCommand?: string;
 };
 
-type PersistedProviderName = StorageProviderKey | "openai-responses";
-const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = [
-  "glm",
-  "openai-compatible",
-  "openai-responses",
-];
+type PersistedProviderName = ProviderName;
+const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = [...PROVIDER_NAMES];
 
 const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
 const VALID_THINKING_MODES: ThinkingMode[] = ["auto", "enabled", "disabled"];
 const VALID_TOOL_STREAM_MODES: ToolStreamMode[] = ["auto", "on", "off"];
 const VALID_RESPONSE_FORMAT_TYPES: ResponseFormatType[] = ["json_object"];
 const VALID_CONTEXT_CACHE_MODES: ContextCacheMode[] = ["auto", "explicit", "off"];
+const VALID_API_KINDS: ApiKind[] = [...API_KINDS];
 const VALID_TASK_LANE_DEFAULTS: TaskLaneDefault[] = ["auto", "direct", "standard", "intensive"];
 const VALID_LOOP_PROFILES: LoopProfileName[] = ["code"];
 const VALID_LOOP_FAILURE_MODES: LoopFailureMode[] = ["handoff", "fail"];
@@ -97,6 +94,12 @@ const BASE_DEFAULT_CONFIG_FILE = buildDefaultConfigFile();
 
 function createEmptyProviderConfig(): ProviderConfig {
   return { apiKey: "", baseURL: "" };
+}
+
+function createDefaultProvidersConfig(): Record<StorageProviderKey, ProviderConfig> {
+  return Object.fromEntries(
+    PROVIDER_NAMES.map((provider) => [provider, createEmptyProviderConfig()]),
+  ) as Record<StorageProviderKey, ProviderConfig>;
 }
 
 function createDefaultGenerationConfig(): GenerationConfig {
@@ -131,8 +134,9 @@ function createDefaultLoopConfig(): LoopConfig {
 
 function buildDefaultConfigFile(): GlmConfigFile {
   return {
-    defaultProvider: "glm",
+    defaultProvider: "bigmodel-coding",
     defaultModel: "glm-5.1",
+    defaultApi: "openai-compatible",
     taskLaneDefault: "auto",
     approvalPolicy: "ask",
     debugRuntime: false,
@@ -143,15 +147,13 @@ function buildDefaultConfigFile(): GlmConfigFile {
     generation: createDefaultGenerationConfig(),
     glmCapabilities: createDefaultGlmCapabilitiesConfig(),
     loop: createDefaultLoopConfig(),
-    providers: {
-      glm: createEmptyProviderConfig(),
-      "openai-compatible": createEmptyProviderConfig(),
-    },
+    providers: createDefaultProvidersConfig(),
   };
 }
 
 export type GlmConfigFile = {
   defaultProvider?: PersistedProviderName;
+  defaultApi?: ApiKind;
   defaultModel?: string;
   taskLaneDefault?: TaskLaneDefault;
   approvalPolicy?: ApprovalPolicy;
@@ -163,7 +165,7 @@ export type GlmConfigFile = {
   generation: GenerationConfig;
   glmCapabilities: GlmCapabilitiesConfig;
   loop: LoopConfig;
-  modelProfiles?: ModelProfilesConfig;
+  modelOverrides?: ModelOverridesConfig;
   providers: Record<StorageProviderKey, ProviderConfig>;
 };
 
@@ -173,22 +175,43 @@ function cloneProviderConfig(config?: ProviderConfig): ProviderConfig {
     baseURL: config?.baseURL ?? "",
   };
 
-  const endpointRaw = (config as unknown as { endpoint?: unknown })?.endpoint;
-  if (endpointRaw === undefined) {
+  const apiRaw = (config as unknown as { api?: unknown })?.api;
+  if (apiRaw === undefined) {
     return base;
   }
 
-  // Preserve invalid endpoint values so validation can reject them.
-  if (typeof endpointRaw !== "string") {
-    return { ...(base as any), endpoint: endpointRaw } as ProviderConfig;
+  if (typeof apiRaw !== "string") {
+    return { ...(base as any), api: apiRaw } as ProviderConfig;
   }
 
-  const endpoint = endpointRaw.trim();
+  const api = apiRaw.trim();
+  if (!api) return base;
 
-  // Keep config JSON tidy by omitting empty endpoint keys.
-  if (!endpoint) return base;
+  return { ...base, api: api as ApiKind };
+}
 
-  return { ...base, endpoint };
+function extractLegacyProviderConfig(
+  providers: Record<string, unknown> | undefined,
+  provider: ProviderName,
+): ProviderConfig | undefined {
+  if (!providers) return undefined;
+
+  const direct = providers[provider];
+  if (direct !== undefined) {
+    return cloneProviderConfig(direct as ProviderConfig);
+  }
+
+  for (const [key, value] of Object.entries(providers)) {
+    const resolved = resolveProviderInput(key);
+    if (resolved?.provider !== provider) continue;
+    const cloned = cloneProviderConfig(value as ProviderConfig);
+    if (cloned.api === undefined && resolved.apiHint) {
+      cloned.api = resolved.apiHint;
+    }
+    return cloned;
+  }
+
+  return undefined;
 }
 
 function cloneGenerationConfig(config?: GenerationConfig): GenerationConfig {
@@ -290,15 +313,14 @@ function cloneLoopConfig(config?: LoopConfig): LoopConfig {
   };
 }
 
-function cloneModelProfilesConfig(config?: ModelProfilesConfig): ModelProfilesConfig | undefined {
-  const rawOverrides = (config as unknown as { overrides?: unknown })?.overrides;
+function cloneModelOverrides(rawOverrides: unknown): ModelOverridesConfig | undefined {
   if (rawOverrides === undefined) {
     return undefined;
   }
 
   if (!Array.isArray(rawOverrides)) {
     // Preserve invalid values so validation can surface a helpful error.
-    return { ...(config as any) } as ModelProfilesConfig;
+    return rawOverrides as ModelOverridesConfig;
   }
 
   if (rawOverrides.length === 0) {
@@ -326,26 +348,36 @@ function cloneModelProfilesConfig(config?: ModelProfilesConfig): ModelProfilesCo
     } as GlmProfileOverrideRule;
   });
 
-  return { overrides };
+  return overrides;
 }
 
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
   const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
+  const rawDefaultApi = (config as unknown as { defaultApi?: unknown })?.defaultApi;
   const rawTaskLaneDefault = (config as unknown as { taskLaneDefault?: unknown })?.taskLaneDefault;
   const rawDebugRuntime = (config as unknown as { debugRuntime?: unknown })?.debugRuntime;
   const rawEventLogLimit = (config as unknown as { eventLogLimit?: unknown })?.eventLogLimit;
   const rawHooksEnabled = (config as unknown as { hooksEnabled?: unknown })?.hooksEnabled;
   const rawHookTimeoutMs = (config as unknown as { hookTimeoutMs?: unknown })?.hookTimeoutMs;
+  const defaultProviderInput =
+    typeof rawDefaultProvider === "string" ? resolveProviderInput(rawDefaultProvider) : undefined;
   const defaultProvider =
-    rawDefaultProvider === undefined
+    defaultProviderInput?.provider ??
+    (rawDefaultProvider === undefined
       ? BASE_DEFAULT_CONFIG_FILE.defaultProvider
-      : (rawDefaultProvider as PersistedProviderName);
-  const modelProfiles = cloneModelProfilesConfig(
-    (config as unknown as { modelProfiles?: ModelProfilesConfig })?.modelProfiles,
-  );
+      : (rawDefaultProvider as PersistedProviderName));
+  const rawProviders = (config as unknown as { providers?: Record<string, unknown> })?.providers;
+  const rawModelOverrides =
+    (config as unknown as { modelOverrides?: unknown })?.modelOverrides ??
+    (config as unknown as { modelProfiles?: { overrides?: unknown } })?.modelProfiles?.overrides;
+  const modelOverrides = cloneModelOverrides(rawModelOverrides);
 
   return {
     defaultProvider,
+    defaultApi:
+      rawDefaultApi === undefined
+        ? (defaultProviderInput?.apiHint ?? BASE_DEFAULT_CONFIG_FILE.defaultApi)
+        : (rawDefaultApi as ApiKind),
     defaultModel: config?.defaultModel ?? BASE_DEFAULT_CONFIG_FILE.defaultModel,
     taskLaneDefault:
       rawTaskLaneDefault === undefined
@@ -383,14 +415,16 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
     loop: cloneLoopConfig(
       (config as unknown as { loop?: LoopConfig })?.loop ?? BASE_DEFAULT_CONFIG_FILE.loop,
     ),
-    ...(modelProfiles ? { modelProfiles } : {}),
-    providers: {
-      glm: cloneProviderConfig(config?.providers?.glm ?? BASE_DEFAULT_CONFIG_FILE.providers.glm),
-      "openai-compatible": cloneProviderConfig(
-        config?.providers?.["openai-compatible"] ??
-          BASE_DEFAULT_CONFIG_FILE.providers["openai-compatible"],
-      ),
-    },
+    ...(modelOverrides ? { modelOverrides } : {}),
+    providers: Object.fromEntries(
+      PROVIDER_NAMES.map((provider) => [
+        provider,
+        cloneProviderConfig(
+          extractLegacyProviderConfig(rawProviders, provider) ??
+            BASE_DEFAULT_CONFIG_FILE.providers[provider],
+        ),
+      ]),
+    ) as Record<StorageProviderKey, ProviderConfig>,
   };
 }
 
@@ -422,6 +456,10 @@ function isContextCacheMode(value?: string): value is ContextCacheMode {
   return VALID_CONTEXT_CACHE_MODES.includes(value as ContextCacheMode);
 }
 
+function isApiKind(value?: string): value is ApiKind {
+  return VALID_API_KINDS.includes(value as ApiKind);
+}
+
 function isTaskLaneDefault(value?: string): value is TaskLaneDefault {
   return VALID_TASK_LANE_DEFAULTS.includes(value as TaskLaneDefault);
 }
@@ -441,6 +479,10 @@ function isGlmInputModality(value: unknown): value is GlmInputModality {
 function validateConfigFile(config: GlmConfigFile): void {
   if (!isPersistedProviderName(config.defaultProvider)) {
     throw new Error(`Invalid default provider in config file: ${config.defaultProvider}`);
+  }
+
+  if (config.defaultApi !== undefined && !isApiKind(config.defaultApi)) {
+    throw new Error(`Invalid defaultApi in config file: ${config.defaultApi}`);
   }
 
   if (typeof config.defaultModel !== "string") {
@@ -471,7 +513,7 @@ function validateConfigFile(config: GlmConfigFile): void {
   validateGenerationConfig(config.generation);
   validateGlmCapabilitiesConfig(config.glmCapabilities);
   validateLoopConfig(config.loop);
-  validateModelProfilesConfig(config.modelProfiles);
+  validateModelOverridesConfig(config.modelOverrides);
 
   Object.entries(config.providers).forEach(([key, value]) => {
     validateProviderConfig(value, key as StorageProviderKey);
@@ -595,37 +637,27 @@ const GLM_MODEL_CAP_KEYS = new Set([
   "supportsMcp",
 ]);
 
-function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
+function validateModelOverridesConfig(config?: ModelOverridesConfig): void {
   if (config === undefined) return;
-  if (typeof config !== "object" || config === null) {
-    throw new Error(`Invalid modelProfiles in config file: ${typeof config}`);
+  if (!Array.isArray(config)) {
+    throw new Error(`Invalid modelOverrides in config file: ${typeof config}`);
   }
 
-  const overrides = (config as unknown as { overrides?: unknown })?.overrides;
-  if (overrides === undefined) {
-    return;
-  }
-
-  if (!Array.isArray(overrides)) {
-    throw new Error(`Invalid modelProfiles.overrides in config file: ${typeof overrides}`);
-  }
-
-  overrides.forEach((rule, index) => {
+  config.forEach((rule, index) => {
     if (typeof rule !== "object" || rule === null) {
-      throw new Error(`Invalid modelProfiles.overrides[${index}] in config file: ${typeof rule}`);
+      throw new Error(`Invalid modelOverrides[${index}] in config file: ${typeof rule}`);
     }
 
     const record = rule as Record<string, unknown>;
     const match = record.match;
     if (typeof match !== "object" || match === null) {
-      throw new Error(
-        `Invalid modelProfiles.overrides[${index}].match in config file: ${typeof match}`,
-      );
+      throw new Error(`Invalid modelOverrides[${index}].match in config file: ${typeof match}`);
     }
 
     const matchRecord = match as Record<string, unknown>;
     const matchKeys = [
       "provider",
+      "api",
       "baseUrl",
       "modelId",
       "canonicalModelId",
@@ -637,12 +669,12 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
       if (value === undefined) return false;
       if (typeof value !== "string") {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].match.${key} in config file: ${typeof value}`,
+          `Invalid modelOverrides[${index}].match.${key} in config file: ${typeof value}`,
         );
       }
       if (!value.trim()) {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].match.${key} in config file: empty string`,
+          `Invalid modelOverrides[${index}].match.${key} in config file: empty string`,
         );
       }
       return true;
@@ -650,7 +682,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
 
     if (populatedKeys.length === 0) {
       throw new Error(
-        `Invalid modelProfiles.overrides[${index}] in config file: match must specify at least one selector`,
+        `Invalid modelOverrides[${index}] in config file: match must specify at least one selector`,
       );
     }
 
@@ -658,12 +690,12 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     if (canonicalModelId !== undefined) {
       if (typeof canonicalModelId !== "string") {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].canonicalModelId in config file: ${typeof canonicalModelId}`,
+          `Invalid modelOverrides[${index}].canonicalModelId in config file: ${typeof canonicalModelId}`,
         );
       }
       if (!canonicalModelId.trim()) {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].canonicalModelId in config file: empty string`,
+          `Invalid modelOverrides[${index}].canonicalModelId in config file: empty string`,
         );
       }
     }
@@ -672,7 +704,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     if (payloadPatchPolicy !== undefined) {
       if (payloadPatchPolicy !== "glm-native" && payloadPatchPolicy !== "safe-openai-compatible") {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].payloadPatchPolicy in config file: ${String(payloadPatchPolicy)}`,
+          `Invalid modelOverrides[${index}].payloadPatchPolicy in config file: ${String(payloadPatchPolicy)}`,
         );
       }
     }
@@ -681,14 +713,14 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     if (modalities !== undefined) {
       if (!Array.isArray(modalities) || modalities.length === 0) {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].modalities in config file: ${String(modalities)}`,
+          `Invalid modelOverrides[${index}].modalities in config file: ${String(modalities)}`,
         );
       }
 
       modalities.forEach((value, modalityIndex) => {
         if (!isGlmInputModality(value)) {
           throw new Error(
-            `Invalid modelProfiles.overrides[${index}].modalities[${modalityIndex}] in config file: ${String(value)}`,
+            `Invalid modelOverrides[${index}].modalities[${modalityIndex}] in config file: ${String(value)}`,
           );
         }
       });
@@ -700,20 +732,18 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     }
 
     if (typeof caps !== "object" || caps === null) {
-      throw new Error(
-        `Invalid modelProfiles.overrides[${index}].caps in config file: ${typeof caps}`,
-      );
+      throw new Error(`Invalid modelOverrides[${index}].caps in config file: ${typeof caps}`);
     }
 
     for (const [key, value] of Object.entries(caps)) {
       if (!GLM_MODEL_CAP_KEYS.has(key)) {
-        throw new Error(`Invalid modelProfiles.overrides[${index}].caps key: ${key}`);
+        throw new Error(`Invalid modelOverrides[${index}].caps key: ${key}`);
       }
 
       if (key === "contextWindow" || key === "maxOutputTokens") {
         if (!Number.isInteger(value) || (value as number) <= 0) {
           throw new Error(
-            `Invalid modelProfiles.overrides[${index}].caps.${key} in config file: ${String(value)}`,
+            `Invalid modelOverrides[${index}].caps.${key} in config file: ${String(value)}`,
           );
         }
         continue;
@@ -722,7 +752,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
       if (key === "defaultThinkingMode") {
         if (value !== "auto" && value !== "enabled" && value !== "disabled") {
           throw new Error(
-            `Invalid modelProfiles.overrides[${index}].caps.defaultThinkingMode in config file: ${String(value)}`,
+            `Invalid modelOverrides[${index}].caps.defaultThinkingMode in config file: ${String(value)}`,
           );
         }
         continue;
@@ -730,7 +760,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
 
       if (typeof value !== "boolean") {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].caps.${key} in config file: ${typeof value}`,
+          `Invalid modelOverrides[${index}].caps.${key} in config file: ${typeof value}`,
         );
       }
     }
@@ -745,9 +775,9 @@ function validateProviderConfig(config: ProviderConfig, key: StorageProviderKey)
     throw new Error(`Invalid baseURL for provider ${key}: ${typeof config.baseURL}`);
   }
 
-  const endpoint = (config as unknown as { endpoint?: unknown })?.endpoint;
-  if (endpoint !== undefined && typeof endpoint !== "string") {
-    throw new Error(`Invalid endpoint for provider ${key}: ${typeof endpoint}`);
+  const api = (config as unknown as { api?: unknown })?.api;
+  if (api !== undefined && (typeof api !== "string" || !isApiKind(api))) {
+    throw new Error(`Invalid api for provider ${key}: ${String(api)}`);
   }
 }
 

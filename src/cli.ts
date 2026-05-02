@@ -5,8 +5,8 @@ import { configGet, configSet } from "./commands/config.js";
 import { runInspectCommand, type InspectCommandArgs } from "./commands/inspect.js";
 import { runVerifyCommand, type VerifyCommandArgs } from "./commands/verify.js";
 import type { LoopFailureMode } from "./app/config-store.js";
-import type { ProviderName } from "./providers/types.js";
-import { normalizeProviderName } from "./providers/types.js";
+import type { ApiKind, ProviderName } from "./providers/types.js";
+import { normalizeApiKind, normalizeProviderName } from "./providers/types.js";
 import type { ChatCommandInput } from "./commands/chat.js";
 import type { RunCommandInput } from "./commands/run.js";
 import { VERSION } from "./version.js";
@@ -27,7 +27,8 @@ Usage:
   glm config set <key> <value>         Set config value
 
 Options:
-  --provider <name>     Provider: glm, openai-compatible, openai-responses, anthropic
+  --provider <name>     Provider: bigmodel, bigmodel-coding, zai, zai-coding, bailian, bailian-coding, openrouter, custom
+  --api <name>          API: openai-compatible, openai-responses, anthropic
   --model <id>          Model ID (e.g., glm-5.1, glm-4-flash)
   --mode <mode>         Prompt mode: direct, standard, intensive
   --cwd <path>          Working directory
@@ -45,7 +46,8 @@ Options:
 
 Examples:
   glm
-  glm --provider glm
+  glm --provider bigmodel-coding
+  glm --provider custom --api anthropic
   glm run "fix the tests"
   glm verify
   glm run "fix the tests" --loop --verify "pnpm test" --max-rounds 4
@@ -56,6 +58,7 @@ Version: ${VERSION}
 
 type GlobalFlags = {
   provider?: ProviderName;
+  api?: ApiKind;
   model?: string;
   promptMode?: PromptMode;
   cwd?: string;
@@ -71,6 +74,7 @@ type GlobalFlags = {
 type BaseCliArgs = {
   cwd: string;
   provider?: ProviderName;
+  api?: ApiKind;
   model?: string;
   promptMode?: PromptMode;
   yolo: boolean;
@@ -155,6 +159,15 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
       throw new Error(`Unknown provider: ${providerFlag}`);
     }
     flags.provider = normalized;
+  }
+
+  const apiFlag = extractFlagValue(args, "--api");
+  if (apiFlag) {
+    const normalized = normalizeApiKind(apiFlag);
+    if (!normalized) {
+      throw new Error(`Unknown api: ${apiFlag}`);
+    }
+    flags.api = normalized;
   }
 
   const modelFlag = extractFlagValue(args, "--model");

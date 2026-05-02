@@ -43,6 +43,7 @@ Compaction（上下文压缩）配置项（展示默认值）：
 当前支持的持久化字段：
 
 - `defaultProvider`
+- `defaultApi`
 - `defaultModel`
 - `taskLaneDefault`
 - `approvalPolicy`
@@ -64,16 +65,14 @@ Compaction（上下文压缩）配置项（展示默认值）：
 - `loop.failureMode`
 - `loop.autoVerify`
 - `loop.verifyCommand`
-- `modelProfiles.overrides`
-- `providers.glm.apiKey`
-- `providers.glm.baseURL`
-- `providers.glm.endpoint`
-- `providers["openai-compatible"].apiKey`
-- `providers["openai-compatible"].baseURL`
+- `modelOverrides`
+- `providers.<provider>.apiKey`
+- `providers.<provider>.baseURL`
+- `providers.<provider>.api`
 
 Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 
-`modelProfiles.overrides[]` 当前支持以下字段：
+`modelOverrides[]` 当前支持以下字段：
 
 - `match`
 - `canonicalModelId`
@@ -81,13 +80,38 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `modalities`
 - `caps`
 
-`modelProfiles.overrides[].modalities` 当前支持 `text`、`image`、`video`。
+`modelOverrides[].modalities` 当前支持 `text`、`image`、`video`。
+
+`modelOverrides[].match` 可按 `provider`、`api`、base URL 通配、模型别名、canonical ID、platform 以及 upstream vendor 进行匹配。
+
+未知 `custom` 模型的覆盖示例：
+
+```json
+{
+  "modelOverrides": [
+    {
+      "match": {
+        "provider": "custom",
+        "api": "openai-compatible",
+        "modelId": "my-model"
+      },
+      "modalities": ["text"],
+      "caps": {
+        "contextWindow": 128000,
+        "maxOutputTokens": 8192,
+        "supportsThinking": false
+      }
+    }
+  ]
+}
+```
 
 ## `glm config` 命令面
 
 `glm config get|set` 当前暴露以下 key：
 
 - `defaultProvider`
+- `defaultApi`
 - `defaultModel`
 - `taskLaneDefault`
 - `approvalPolicy`
@@ -125,8 +149,8 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 能力与 loop 相关环境变量：
 
 - `GLM_PROVIDER`
+- `GLM_API`
 - `GLM_MODEL`
-- `GLM_ENDPOINT`
 - `GLM_MAX_OUTPUT_TOKENS`
 - `GLM_TEMPERATURE`
 - `GLM_TOP_P`
@@ -175,7 +199,9 @@ CLI 会通过 flags 影响 runtime 行为。排查时建议直接运行 `glm ins
 
 ## 解析说明
 
-- Provider/model 会从 CLI flags、环境变量和持久化配置综合解析，逻辑在 `src/providers/index.ts` 与 `src/app/env.ts`。
+- Provider/API/model 会从 CLI flags、环境变量和持久化配置综合解析，逻辑在 `src/providers/index.ts` 与 `src/app/env.ts`。
+- 推荐的操作流程是：先选 `provider`，按需覆盖 `api`，再指定 `model`。
+- `custom` 适用于代理网关、本地模型和未知模型。可以先用模型名直接试跑，再通过 `modelOverrides` 细化能力参数；默认 generic 能力是保守兜底，不代表最佳参数。
 - Loop options 解析在 `src/app/env.ts`。
 - Session 路径派生在 `src/session/session-paths.ts`。
 - 打包的 prompts/extensions 同步逻辑在 `src/app/resource-sync.ts`。

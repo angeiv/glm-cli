@@ -72,7 +72,8 @@ See [config-surface.md](../references/config-surface.md) for the full list of su
 
 These flags apply to `glm`, `glm chat`, and `glm run`:
 
-- `--provider <name>`: `glm`, `openai-compatible`, `openai-responses`, `anthropic`
+- `--provider <name>`: `bigmodel`, `bigmodel-coding`, `zai`, `zai-coding`, `bailian`, `bailian-coding`, `openrouter`, `custom`
+- `--api <name>`: optional protocol override, defaults to `openai-compatible` (`openai-responses` and `anthropic` are also supported)
 - `--model <id>`: model ID (supports GLM aliases like `ZhipuAI/GLM-5`)
 - `--cwd <path>`: working directory override
 - `--mode <direct|standard|intensive>`: prompt lane override
@@ -83,6 +84,86 @@ These flags apply to `glm`, `glm chat`, and `glm run`:
 - `--max-tool-calls <n>`: loop tool call budget
 - `--max-verify-runs <n>`: loop verification budget
 - `--fail-mode <handoff|fail>`: loop terminal behavior
+
+## Provider, API, and model selection
+
+Recommended selection flow:
+
+1. Choose a `provider`
+2. Optionally override `api`
+3. Set the target `model`
+
+Notes:
+
+- If `--api` is omitted, `glm` defaults to `openai-compatible`.
+- `openai-completions` is accepted as an alias for `openai-compatible`.
+- `anthropic-messages` is accepted as an alias for `anthropic`.
+- `custom` is the generic path for proxy gateways, local runtimes, and unknown models.
+- Unknown `custom` models start from a conservative generic capability profile. Use `modelOverrides` when you need better model-specific tuning.
+
+Common scenarios:
+
+```bash
+# 1. Official BigModel Coding endpoint
+GLM_API_KEY=your-key \
+glm --provider bigmodel-coding --model glm-5.1
+
+# 2. OpenRouter with a hosted GLM alias
+OPENAI_API_KEY=your-key \
+glm --provider openrouter --model ZhipuAI/GLM-5
+
+# 3. Custom OpenAI-compatible gateway
+OPENAI_API_KEY=your-key \
+OPENAI_BASE_URL=https://gateway.example.com/v1 \
+glm --provider custom --api openai-compatible --model my-model
+
+# 4. Custom Anthropic-compatible gateway
+ANTHROPIC_AUTH_TOKEN=your-token \
+ANTHROPIC_BASE_URL=https://gateway.example.com/v1/messages \
+glm --provider custom --api anthropic --model my-model
+
+# 5. Local OpenAI-compatible model server
+OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
+glm --provider custom --model qwen2.5-coder-32b-instruct
+```
+
+You can persist the default selection:
+
+```bash
+glm config set defaultProvider custom
+glm config set defaultApi openai-compatible
+glm config set defaultModel my-model
+```
+
+You can also store `custom` credentials and base URL interactively:
+
+```bash
+glm auth login
+```
+
+When a `custom` model needs capability tuning, add a `modelOverrides` entry in `~/.glm/config.json`:
+
+```json
+{
+  "modelOverrides": [
+    {
+      "match": {
+        "provider": "custom",
+        "api": "openai-compatible",
+        "modelId": "my-model"
+      },
+      "modalities": ["text"],
+      "caps": {
+        "contextWindow": 128000,
+        "maxOutputTokens": 8192,
+        "supportsThinking": false
+      }
+    }
+  ]
+}
+```
+
+See [config-surface.md](../references/config-surface.md) for the full override shape.
 
 ## Prompt lanes (`--mode`)
 
@@ -230,7 +311,7 @@ Bailian supports implicit context cache automatically for supported models. `glm
 For Bailian GLM-5.1, enable explicit cache markers when you want deterministic prefix reuse:
 
 ```bash
-GLM_CONTEXT_CACHE=explicit glm --provider openai-compatible --model glm-5.1
+GLM_CONTEXT_CACHE=explicit glm --provider bailian --model glm-5.1
 ```
 
 Equivalent persisted config:

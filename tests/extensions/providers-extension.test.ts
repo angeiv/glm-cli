@@ -33,7 +33,8 @@ describe("glm-providers extension", () => {
     readGlmModelProfileOverridesMock.mockReturnValue([]);
   });
 
-  test("enables zaiToolStream compat only for models that support tool streaming", async () => {
+  test("enables zaiToolStream compat only for official providers that support tool streaming", async () => {
+    process.env.GLM_PROVIDER = "bigmodel";
     process.env.GLM_API_KEY = "test-key";
     process.env.GLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/";
 
@@ -49,27 +50,25 @@ describe("glm-providers extension", () => {
     );
     registerProvidersExtension(pi as any);
 
-    const glmProvider = providers.find((p) => p.name === "glm");
-    expect(glmProvider).toBeTruthy();
+    const provider = providers.find((p) => p.name === "bigmodel");
+    expect(provider).toBeTruthy();
 
-    const models = glmProvider!.config.models as Array<{ id: string; compat?: any }>;
-    const glm51 = models.find((m) => m.id === "glm-5.1");
-    const glm45 = models.find((m) => m.id === "glm-4.5-air");
-    const glm46 = models.find((m) => m.id === "glm-4.6");
-
-    expect(glm51?.compat?.zaiToolStream).toBe(true);
-    expect(glm45?.compat?.zaiToolStream).toBe(false);
-    expect(glm46?.compat?.zaiToolStream).toBe(true);
+    const models = provider!.config.models as Array<{ id: string; compat?: any }>;
+    expect(models.find((m) => m.id === "glm-5.1")?.compat?.zaiToolStream).toBe(true);
+    expect(models.find((m) => m.id === "glm-4.5-air")?.compat?.zaiToolStream).toBe(false);
+    expect(models.find((m) => m.id === "glm-4.6")?.compat?.zaiToolStream).toBe(true);
   });
 
   test("applies override-defined modalities to provider model registration", async () => {
+    process.env.GLM_PROVIDER = "custom";
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_BASE_URL = "https://gateway.example.com/v1";
     process.env.OPENAI_MODEL = "vendor/some-custom-model";
     readGlmModelProfileOverridesMock.mockReturnValue([
       {
         match: {
-          provider: "openai-compatible",
+          provider: "custom",
+          api: "openai-compatible",
           modelId: "vendor/some-custom-model",
         },
         modalities: ["text"],
@@ -88,7 +87,7 @@ describe("glm-providers extension", () => {
     );
     registerProvidersExtension(pi as any);
 
-    const provider = providers.find((p) => p.name === "openai-compatible");
+    const provider = providers.find((p) => p.name === "custom");
     expect(provider).toBeTruthy();
 
     const model = (provider!.config.models as Array<{ id: string; input: string[] }>).find(

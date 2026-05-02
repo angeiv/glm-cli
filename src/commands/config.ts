@@ -11,9 +11,18 @@ import {
   type ToolStreamMode,
   writeConfigFile,
 } from "../app/config-store.js";
+import {
+  API_KINDS,
+  PROVIDER_NAMES,
+  normalizeApiKind,
+  normalizeProviderName,
+  type ApiKind,
+  type ProviderName,
+} from "../providers/types.js";
 
 const CONFIG_KEYS = [
   "defaultProvider",
+  "defaultApi",
   "defaultModel",
   "taskLaneDefault",
   "approvalPolicy",
@@ -24,7 +33,6 @@ const CONFIG_KEYS = [
   "notificationsEnabled",
   "notificationsOnTurnEnd",
   "notificationsOnLoopResult",
-  "glmEndpoint",
   "maxOutputTokens",
   "temperature",
   "topP",
@@ -44,7 +52,8 @@ const CONFIG_KEYS = [
 ] as const;
 type ConfigKey = (typeof CONFIG_KEYS)[number];
 
-const GLM_ENDPOINT_PRESETS = ["bigmodel", "bigmodel-coding", "zai", "zai-coding"] as const;
+const PROVIDER_VALUES = [...PROVIDER_NAMES] as const;
+const API_VALUES = [...API_KINDS] as const;
 const TASK_LANE_DEFAULTS = ["auto", "direct", "standard", "intensive"] as const;
 const THINKING_MODES = ["auto", "enabled", "disabled"] as const;
 const TOOL_STREAM_MODES = ["auto", "on", "off"] as const;
@@ -65,6 +74,12 @@ function isConfigKey(value: string): value is ConfigKey {
 }
 
 function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
+  if (key === "defaultProvider") {
+    return config.defaultProvider ?? "bigmodel-coding";
+  }
+  if (key === "defaultApi") {
+    return config.defaultApi ?? "openai-compatible";
+  }
   if (key === "defaultModel") {
     return config.defaultModel ?? "";
   }
@@ -94,9 +109,6 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   }
   if (key === "notificationsOnLoopResult") {
     return String(config.notifications.onLoopResult ?? true);
-  }
-  if (key === "glmEndpoint") {
-    return config.providers.glm.endpoint ?? CLEARABLE_VALUE;
   }
   if (key === "maxOutputTokens") {
     return config.generation.maxOutputTokens?.toString() ?? CLEARABLE_VALUE;
@@ -148,7 +160,7 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   if (key === "loopVerifyCommand") {
     return config.loop.verifyCommand ?? CLEARABLE_VALUE;
   }
-  return config.defaultProvider ?? "glm";
+  return config.defaultModel ?? "";
 }
 
 function parseConfigValue(key: ConfigKey, value: string): string | number | boolean | undefined {
@@ -158,9 +170,19 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
   }
 
   if (key === "defaultProvider") {
-    if (trimmed !== "glm" && trimmed !== "openai-compatible" && trimmed !== "openai-responses") {
-      throw new Error("defaultProvider must be glm, openai-compatible, or openai-responses");
+    const normalized = normalizeProviderName(trimmed);
+    if (!normalized || !PROVIDER_VALUES.includes(normalized)) {
+      throw new Error(`defaultProvider must be ${PROVIDER_VALUES.join(", ")}`);
     }
+    return normalized as ProviderName;
+  }
+
+  if (key === "defaultApi") {
+    const normalized = normalizeApiKind(trimmed);
+    if (!normalized || !API_VALUES.includes(normalized)) {
+      throw new Error(`defaultApi must be ${API_VALUES.join(", ")}`);
+    }
+    return normalized as ApiKind;
   }
 
   if (key === "taskLaneDefault") {
@@ -212,17 +234,6 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
       throw new Error(`${key} must be true or false`);
     }
     return trimmed === "true";
-  }
-
-  if (key === "glmEndpoint") {
-    if (trimmed === CLEARABLE_VALUE) {
-      return undefined;
-    }
-    if (!GLM_ENDPOINT_PRESETS.includes(trimmed as (typeof GLM_ENDPOINT_PRESETS)[number])) {
-      throw new Error(
-        `glmEndpoint must be ${GLM_ENDPOINT_PRESETS.join(", ")}, or ${CLEARABLE_VALUE}`,
-      );
-    }
   }
 
   if (key === "thinkingMode") {
@@ -375,6 +386,8 @@ export async function configSet(
 
   if (key === "defaultProvider") {
     config.defaultProvider = parsedValue as GlmConfigFile["defaultProvider"];
+  } else if (key === "defaultApi") {
+    config.defaultApi = parsedValue as GlmConfigFile["defaultApi"];
   } else if (key === "taskLaneDefault") {
     config.taskLaneDefault = parsedValue as GlmConfigFile["taskLaneDefault"];
   } else if (key === "approvalPolicy") {
@@ -393,12 +406,6 @@ export async function configSet(
     config.notifications.onTurnEnd = parsedValue as boolean;
   } else if (key === "notificationsOnLoopResult") {
     config.notifications.onLoopResult = parsedValue as boolean;
-  } else if (key === "glmEndpoint") {
-    if (parsedValue === undefined) {
-      delete config.providers.glm.endpoint;
-    } else {
-      config.providers.glm.endpoint = parsedValue as string;
-    }
   } else if (key === "maxOutputTokens") {
     config.generation.maxOutputTokens = parsedValue as number | undefined;
   } else if (key === "temperature") {

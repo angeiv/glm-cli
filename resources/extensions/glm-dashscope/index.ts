@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { resolveGlmProfileV2 } from "../shared/glm-profile.js";
+import { resolveRuntimeModelProfile } from "../shared/glm-profile.js";
 import { readGlmModelProfileOverrides } from "../shared/glm-user-config.js";
 
 type ContextCacheMode = "auto" | "explicit" | "off";
@@ -303,7 +303,7 @@ export default function (pi: ExtensionAPI) {
     };
     const baseUrl = typeof model.baseUrl === "string" ? model.baseUrl : "";
 
-    if (!baseUrl || !isDashscopeBaseUrl(baseUrl)) {
+    if (!baseUrl) {
       return;
     }
 
@@ -311,13 +311,21 @@ export default function (pi: ExtensionAPI) {
     const modelMaxTokens = toFiniteNumber(model.maxTokens);
     const modelId = typeof model.id === "string" ? model.id : undefined;
     const profile = modelId
-      ? resolveGlmProfileV2({
+      ? resolveRuntimeModelProfile({
           provider: model.provider,
           modelId,
           baseUrl,
           overrides: modelProfileOverrides,
         })
       : undefined;
+
+    if (profile) {
+      if (!profile.patchPipeline.dashscopeCompat) {
+        return;
+      }
+    } else if (!isDashscopeBaseUrl(baseUrl)) {
+      return;
+    }
 
     return applyDashscopePayloadPatches(event.payload, {
       ...(maxOutputTokensOverride === undefined ? {} : { maxOutputTokensOverride }),

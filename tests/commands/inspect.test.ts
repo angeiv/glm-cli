@@ -52,7 +52,7 @@ describe("inspectRuntime", () => {
     expect(status.provider).toBe("openai-compatible");
     expect(status.model).toBe("glm-openai");
     expect(status.resolvedModel).toMatchObject({
-      platform: "unknown",
+      platform: "gateway-other",
       payloadPatchPolicy: "safe-openai-compatible",
       confidence: "low",
     });

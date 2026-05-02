@@ -10,8 +10,8 @@ import { join } from "node:path";
 import { syncPackagedResources } from "../app/resource-sync.js";
 import type { ApprovalPolicy } from "../app/config-store.js";
 import { readConfigFile } from "../app/config-store.js";
-import type { ProviderName } from "../providers/types.js";
-import { isProviderName } from "../providers/types.js";
+import type { ApiKind, ProviderName } from "../providers/types.js";
+import { getProviderDefaultApi, isProviderName } from "../providers/types.js";
 import { createGlmServices, createGlmSessionManager } from "./managers.js";
 import { resolveGlmSessionPaths } from "./session-paths.js";
 import { createPlanTools } from "../tools/index.js";
@@ -32,6 +32,7 @@ export type GlmSessionInput = {
   cwd: string;
   model: string;
   provider: ProviderName;
+  api: ApiKind;
   approvalPolicy: ApprovalPolicy;
   promptMode?: PromptMode;
 };
@@ -51,6 +52,7 @@ export type GlmSessionResult = CreateAgentSessionResult & {
 
 export type GlmModelSelection = {
   provider: string;
+  api: ApiKind;
   model: string;
 };
 
@@ -89,7 +91,13 @@ function getGlmApprovalPolicy(fallback: ApprovalPolicy): ApprovalPolicy {
   return current === "ask" || current === "auto" || current === "never" ? current : fallback;
 }
 
-const MODEL_SELECTION_ENV_KEYS = ["GLM_MODEL", "OPENAI_MODEL", "ANTHROPIC_MODEL"] as const;
+const MODEL_SELECTION_ENV_KEYS = [
+  "GLM_PROVIDER",
+  "GLM_API",
+  "GLM_MODEL",
+  "OPENAI_MODEL",
+  "ANTHROPIC_MODEL",
+] as const;
 const PI_RUNTIME_ENV_KEYS = ["PI_CODING_AGENT_DIR", "PI_CODING_AGENT_SESSION_DIR"] as const;
 
 function maybeWarnOnStoredSessionModelMismatch(args: {
@@ -214,11 +222,15 @@ export function buildModelSelectionEnvironment(
     return overrides;
   }
 
-  if (input.provider === "openai-compatible" || input.provider === "openai-responses") {
+  overrides.GLM_PROVIDER = input.provider;
+  overrides.GLM_API = input.api;
+  overrides.GLM_MODEL = input.model;
+
+  if (input.api === "openai-compatible" || input.api === "openai-responses") {
     overrides.OPENAI_MODEL = input.model;
   }
 
-  if (input.provider === "anthropic") {
+  if (input.api === "anthropic") {
     overrides.ANTHROPIC_MODEL = input.model;
   }
 
@@ -281,16 +293,20 @@ export function resolveRequestedModel(
   return model;
 }
 
-export function getGlmModelSelection(model?: {
-  provider: string;
-  id: string;
-}): GlmModelSelection | undefined {
+export function getGlmModelSelection(
+  model?: {
+    provider: string;
+    id: string;
+  },
+  api?: ApiKind,
+): GlmModelSelection | undefined {
   if (!model) {
     return undefined;
   }
 
   return {
     provider: model.provider,
+    api: api ?? "openai-compatible",
     model: model.id,
   };
 }
@@ -304,6 +320,10 @@ export function resolveRuntimeModelStrategy(
     previousSessionFile?: string;
   },
 ): RuntimeModelStrategy {
+  const normalizedPreferred: GlmModelSelection = {
+    ...preferred,
+    api: preferred.api ?? getProviderDefaultApi(preferred.provider),
+  };
   const reason = sessionStartEvent?.reason;
   const shouldPinPreferredSelection =
     !reason ||
@@ -317,17 +337,18 @@ export function resolveRuntimeModelStrategy(
   // This avoids surprising behavior when users change credentials/model IDs in a new terminal
   // and then resume an older session (which may reference an outdated model ID).
   if (shouldPinPreferredSelection) {
-    return { selection: preferred, shouldPassExplicitModel: true };
+    return { selection: normalizedPreferred, shouldPassExplicitModel: true };
   }
 
   const savedModel = sessionManager.buildSessionContext().model;
   if (!savedModel || !isProviderName(savedModel.provider)) {
-    return { selection: preferred, shouldPassExplicitModel: true };
+    return { selection: normalizedPreferred, shouldPassExplicitModel: true };
   }
 
   return {
     selection: {
       provider: savedModel.provider,
+      api: normalizedPreferred.api,
       model: savedModel.modelId,
     },
     shouldPassExplicitModel: false,
@@ -417,6 +438,7 @@ async function prepareGlmSession(
       cwd: options.cwd,
       runtime: {
         provider: resolveStatusProvider(strategy.selection?.provider, options.provider),
+        api: strategy.selection?.api ?? options.api,
         model: strategy.selection?.model ?? options.model,
         approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
       },
@@ -468,6 +490,7 @@ export function buildSessionOptions(input: GlmSessionInput): GlmSessionOptions {
 
   return {
     ...input,
+    api: input.api ?? getProviderDefaultApi(input.provider),
     promptMode: input.promptMode ?? "standard",
     ...paths,
     customTools: createPlanTools(),
@@ -494,6 +517,7 @@ export async function createGlmSession(input: GlmSessionInput): Promise<GlmSessi
   const { services, sessionManager, model } = await prepareGlmSession(options, {
     selection: {
       provider: input.provider,
+      api: input.api,
       model: input.model,
     },
     shouldPassExplicitModel: true,
@@ -523,6 +547,7 @@ export async function createGlmRuntime(input: GlmSessionInput): Promise<AgentSes
   const initialOptions = buildSessionOptions(input);
   let preferredSelection: GlmModelSelection = {
     provider: input.provider,
+    api: input.api,
     model: input.model,
   };
 
@@ -556,7 +581,11 @@ export async function createGlmRuntime(input: GlmSessionInput): Promise<AgentSes
     });
     installShouldStopAfterTurn(result.session);
     enableDefaultTools(result.session);
-    const activeSelection = getGlmModelSelection(result.session.model) ?? strategy.selection;
+    const activeSelection =
+      getGlmModelSelection(
+        result.session.model,
+        strategy.selection?.api ?? preferredSelection.api,
+      ) ?? strategy.selection;
     if (activeSelection) {
       await syncPackagedResources(options.agentDir);
       const config = await readConfigFile();
@@ -564,6 +593,7 @@ export async function createGlmRuntime(input: GlmSessionInput): Promise<AgentSes
         cwd: options.cwd,
         runtime: {
           provider: resolveStatusProvider(activeSelection.provider, options.provider),
+          api: activeSelection.api,
           model: activeSelection.model,
           approvalPolicy: getGlmApprovalPolicy(options.approvalPolicy),
         },
@@ -581,7 +611,9 @@ export async function createGlmRuntime(input: GlmSessionInput): Promise<AgentSes
       });
       setRuntimeStatus(status);
     }
-    preferredSelection = getGlmModelSelection(result.session.model) ?? preferredSelection;
+    preferredSelection =
+      getGlmModelSelection(result.session.model, activeSelection?.api ?? preferredSelection.api) ??
+      preferredSelection;
 
     return {
       ...result,
@@ -598,25 +630,29 @@ export async function createGlmRuntime(input: GlmSessionInput): Promise<AgentSes
 
   const originalNewSession = runtime.newSession.bind(runtime);
   runtime.newSession = async (options) => {
-    preferredSelection = getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    preferredSelection =
+      getGlmModelSelection(runtime.session.model, preferredSelection.api) ?? preferredSelection;
     return originalNewSession(options);
   };
 
   const originalSwitchSession = runtime.switchSession.bind(runtime);
   runtime.switchSession = async (sessionPath, cwdOverride) => {
-    preferredSelection = getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    preferredSelection =
+      getGlmModelSelection(runtime.session.model, preferredSelection.api) ?? preferredSelection;
     return originalSwitchSession(sessionPath, cwdOverride);
   };
 
   const originalFork = runtime.fork.bind(runtime);
   runtime.fork = async (entryId) => {
-    preferredSelection = getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    preferredSelection =
+      getGlmModelSelection(runtime.session.model, preferredSelection.api) ?? preferredSelection;
     return originalFork(entryId);
   };
 
   const originalImportFromJsonl = runtime.importFromJsonl.bind(runtime);
   runtime.importFromJsonl = async (sessionPath, cwdOverride) => {
-    preferredSelection = getGlmModelSelection(runtime.session.model) ?? preferredSelection;
+    preferredSelection =
+      getGlmModelSelection(runtime.session.model, preferredSelection.api) ?? preferredSelection;
     return originalImportFromJsonl(sessionPath, cwdOverride);
   };
 
