@@ -21,6 +21,20 @@ import {
   resolveQwenVariantCaps,
 } from "./model-families/qwen.js";
 
+export type ModelFamilyVariantArgs = {
+  gateway: GlmPlatformRoute;
+  upstreamVendor: GlmUpstreamVendor;
+  canonicalModelId?: string;
+};
+
+export type ModelFamilyAdapter = {
+  id: Exclude<RuntimeModelFamily, "generic">;
+  listCatalogModels: () => CatalogModelProfile[];
+  getCatalogModelProfile: (id: string) => CatalogModelProfile | undefined;
+  resolveCanonicalModelId: (modelId: string) => string | undefined;
+  resolveVariantCaps: (args: ModelFamilyVariantArgs) => Partial<EffectiveModelCaps>;
+};
+
 const GENERIC_OPENAI_COMPATIBLE_CAPS: EffectiveModelCaps = {
   contextWindow: 128_000,
   maxOutputTokens: 8_192,
@@ -43,23 +57,69 @@ const GENERIC_ANTHROPIC_COMPATIBLE_CAPS: EffectiveModelCaps = {
 
 const GENERIC_OPENAI_COMPATIBLE_MODALITIES: GlmInputModality[] = ["text", "image"];
 
+const MODEL_FAMILY_ADAPTERS: ModelFamilyAdapter[] = [
+  {
+    id: "glm",
+    listCatalogModels: () => getStandardGlmModels(),
+    getCatalogModelProfile: (id) => getGlmCatalogModelProfile(id),
+    resolveCanonicalModelId: (modelId) => resolveCanonicalGlmModelId(modelId),
+    resolveVariantCaps: (args) => resolveGlmVariantCaps(args),
+  },
+  {
+    id: "qwen",
+    listCatalogModels: () => getQwenCatalogModels(),
+    getCatalogModelProfile: (id) => getQwenCatalogModelProfile(id),
+    resolveCanonicalModelId: (modelId) => resolveCanonicalQwenModelId(modelId),
+    resolveVariantCaps: (args) => resolveQwenVariantCaps(args),
+  },
+];
+
+export function listModelFamilyAdapters(): ModelFamilyAdapter[] {
+  return [...MODEL_FAMILY_ADAPTERS];
+}
+
+export function getModelFamilyAdapter(
+  family: Exclude<RuntimeModelFamily, "generic">,
+): ModelFamilyAdapter | undefined {
+  return MODEL_FAMILY_ADAPTERS.find((adapter) => adapter.id === family);
+}
+
 export function getCatalogModelProfile(id: string): CatalogModelProfile | undefined {
-  return getGlmCatalogModelProfile(id) ?? getQwenCatalogModelProfile(id);
+  for (const adapter of MODEL_FAMILY_ADAPTERS) {
+    const profile = adapter.getCatalogModelProfile(id);
+    if (profile) {
+      return profile;
+    }
+  }
+
+  return undefined;
 }
 
 export function getCatalogModelFamily(id?: string): RuntimeModelFamily {
   if (!id) return "generic";
-  if (getStandardGlmModel(id)) return "glm";
-  if (getQwenCatalogModelProfile(id)) return "qwen";
+
+  for (const adapter of MODEL_FAMILY_ADAPTERS) {
+    if (adapter.getCatalogModelProfile(id)) {
+      return adapter.id;
+    }
+  }
+
   return "generic";
 }
 
 export function getStandardCatalogModels(): CatalogModelProfile[] {
-  return [...getStandardGlmModels(), ...getQwenCatalogModels()];
+  return MODEL_FAMILY_ADAPTERS.flatMap((adapter) => adapter.listCatalogModels());
 }
 
 export function resolveCanonicalCatalogModelId(modelId: string): string | undefined {
-  return resolveCanonicalGlmModelId(modelId) ?? resolveCanonicalQwenModelId(modelId);
+  for (const adapter of MODEL_FAMILY_ADAPTERS) {
+    const canonicalModelId = adapter.resolveCanonicalModelId(modelId);
+    if (canonicalModelId) {
+      return canonicalModelId;
+    }
+  }
+
+  return undefined;
 }
 
 export function getGenericOpenAiCompatibleCaps(): EffectiveModelCaps {
@@ -80,15 +140,8 @@ export function resolveCatalogVariantCaps(args: {
   upstreamVendor: GlmUpstreamVendor;
   canonicalModelId?: string;
 }): Partial<EffectiveModelCaps> {
-  if (args.family === "glm") {
-    return resolveGlmVariantCaps(args);
-  }
-
-  if (args.family === "qwen") {
-    return resolveQwenVariantCaps(args);
-  }
-
-  return {};
+  const adapter = args.family === "generic" ? undefined : getModelFamilyAdapter(args.family);
+  return adapter?.resolveVariantCaps(args) ?? {};
 }
 
 export { getStandardGlmModel, getStandardGlmModels };
