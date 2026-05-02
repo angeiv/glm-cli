@@ -641,15 +641,26 @@ function resolveSelectedApi(provider, persisted) {
 function resolveRequestedModelId(provider, api) {
   if (api === "anthropic") {
     return (
-      resolveModelId(process.env.ANTHROPIC_MODEL, process.env.GLM_MODEL, resolveConfigDefaultModel()) ??
-      "glm-5.1"
+      resolveModelId(
+        process.env.ANTHROPIC_MODEL,
+        process.env.GLM_MODEL,
+        resolveConfigDefaultModel(),
+      ) ?? "glm-5.1"
     );
   }
 
-  if (provider === "bigmodel" || provider === "bigmodel-coding" || provider === "zai" || provider === "zai-coding") {
+  if (
+    provider === "bigmodel" ||
+    provider === "bigmodel-coding" ||
+    provider === "zai" ||
+    provider === "zai-coding"
+  ) {
     return (
-      resolveModelId(process.env.GLM_MODEL, process.env.OPENAI_MODEL, resolveConfigDefaultModel()) ??
-      "glm-5.1"
+      resolveModelId(
+        process.env.GLM_MODEL,
+        process.env.OPENAI_MODEL,
+        resolveConfigDefaultModel(),
+      ) ?? "glm-5.1"
     );
   }
 

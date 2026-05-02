@@ -156,9 +156,7 @@ function resolveRuntimeBaseUrl(
   config?: GlmConfigFile,
 ): string | undefined {
   const providerInput = resolveProviderInput(provider);
-  const canonicalProvider = isProviderName(provider)
-    ? provider
-    : providerInput?.provider;
+  const canonicalProvider = isProviderName(provider) ? provider : providerInput?.provider;
   const effectiveApi =
     normalizeApiKind(api) ??
     providerInput?.apiHint ??
@@ -237,12 +235,7 @@ export async function buildRuntimeStatus(args: {
       : runtimeProviderInput
         ? getProviderDefaultApi(runtimeProviderInput.provider)
         : "openai-compatible");
-  const baseUrl = resolveRuntimeBaseUrl(
-    args.runtime.provider,
-    effectiveApi,
-    args.env,
-    args.config,
-  );
+  const baseUrl = resolveRuntimeBaseUrl(args.runtime.provider, effectiveApi, args.env, args.config);
   const capabilitiesEnv = args.config
     ? buildCapabilityEnvironment(args.env as any, args.config)
     : {};

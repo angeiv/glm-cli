@@ -53,8 +53,9 @@ export function resolveProviderCredential(
   env: NodeJS.ProcessEnv,
   persisted?: ProviderConfigLike,
 ): string | undefined {
-  return normalizeNonEmpty(env[resolveCredentialEnvKey(provider, api)]) ?? normalizeNonEmpty(
-    persisted?.apiKey,
+  return (
+    normalizeNonEmpty(env[resolveCredentialEnvKey(provider, api)]) ??
+    normalizeNonEmpty(persisted?.apiKey)
   );
 }
 

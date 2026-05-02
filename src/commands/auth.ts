@@ -126,7 +126,9 @@ export async function authStatus(deps?: Partial<AuthStatusDependencies>): Promis
   const log = deps?.log ?? console.log;
   const env = deps?.env ?? process.env;
 
-  log(`bigmodel-coding: ${config.providers["bigmodel-coding"].apiKey.trim() ? "configured" : "missing"}`);
+  log(
+    `bigmodel-coding: ${config.providers["bigmodel-coding"].apiKey.trim() ? "configured" : "missing"}`,
+  );
   log(`custom: ${config.providers.custom.apiKey.trim() ? "configured" : "missing"}`);
   log(`anthropic (env): ${env.ANTHROPIC_AUTH_TOKEN?.trim() ? "configured" : "missing"}`);
 }

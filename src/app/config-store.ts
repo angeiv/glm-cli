@@ -422,7 +422,8 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       PROVIDER_NAMES.map((provider) => [
         provider,
         cloneProviderConfig(
-          extractLegacyProviderConfig(rawProviders, provider) ?? BASE_DEFAULT_CONFIG_FILE.providers[provider],
+          extractLegacyProviderConfig(rawProviders, provider) ??
+            BASE_DEFAULT_CONFIG_FILE.providers[provider],
         ),
       ]),
     ) as Record<StorageProviderKey, ProviderConfig>,

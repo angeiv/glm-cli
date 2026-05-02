@@ -105,8 +105,6 @@ describe("authLogout", () => {
         }),
       }),
     );
-    expect(log).toHaveBeenCalledWith(
-      "Stored credentials cleared for bigmodel-coding and custom.",
-    );
+    expect(log).toHaveBeenCalledWith("Stored credentials cleared for bigmodel-coding and custom.");
   });
 });

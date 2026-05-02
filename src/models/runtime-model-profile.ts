@@ -138,7 +138,8 @@ function matchesOverride(rule: GlmProfileOverrideRule, context: GlmResolutionCon
   if (match.provider) {
     const providerCandidates = context.providerCandidates?.filter(Boolean) ?? [];
     if (providerCandidates.length === 0) return false;
-    if (!providerCandidates.some((candidate) => matchesGlob(candidate, match.provider!))) return false;
+    if (!providerCandidates.some((candidate) => matchesGlob(candidate, match.provider!)))
+      return false;
   }
 
   if (match.api) {
@@ -432,8 +433,7 @@ export function resolveRuntimeModelProfile(
     gateway,
     patchPipeline: {
       zhipuNative: payloadPatchPolicy === "glm-native",
-      dashscopeCompat:
-        gateway === "gateway-dashscope" || detectedGateway === "gateway-dashscope",
+      dashscopeCompat: gateway === "gateway-dashscope" || detectedGateway === "gateway-dashscope",
     },
   };
 }

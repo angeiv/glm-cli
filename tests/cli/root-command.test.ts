@@ -50,14 +50,12 @@ describe("parseCliArgs", () => {
   });
 
   test("parses run command with task and global flags", () => {
-    expect(parseCliArgs(["run", "fix tests", "--provider", "openrouter", "--yolo"])).toMatchObject(
-      {
-        command: "run",
-        task: "fix tests",
-        provider: "openrouter",
-        yolo: true,
-      },
-    );
+    expect(parseCliArgs(["run", "fix tests", "--provider", "openrouter", "--yolo"])).toMatchObject({
+      command: "run",
+      task: "fix tests",
+      provider: "openrouter",
+      yolo: true,
+    });
   });
 
   test("parses run --jsonl protocol flag", () => {
@@ -76,7 +74,9 @@ describe("parseCliArgs", () => {
   });
 
   test("parses custom provider with explicit api", () => {
-    expect(parseCliArgs(["run", "fix tests", "--provider", "custom", "--api", "openai-responses"])).toMatchObject({
+    expect(
+      parseCliArgs(["run", "fix tests", "--provider", "custom", "--api", "openai-responses"]),
+    ).toMatchObject({
       command: "run",
       task: "fix tests",
       provider: "custom",

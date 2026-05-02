@@ -28,7 +28,13 @@ function createConfigFile(overrides: Partial<GlmConfigFile> = {}): GlmConfigFile
     notifications: { enabled: false, onTurnEnd: true, onLoopResult: true },
     generation: {},
     glmCapabilities: { thinkingMode: "auto", toolStream: "auto", contextCache: "auto" },
-    loop: { enabledByDefault: false, profile: "code", maxRounds: 3, failureMode: "handoff", autoVerify: true },
+    loop: {
+      enabledByDefault: false,
+      profile: "code",
+      maxRounds: 3,
+      failureMode: "handoff",
+      autoVerify: true,
+    },
     providers: { ...providers, ...(overrides.providers ?? {}) },
   };
 }

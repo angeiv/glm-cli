@@ -48,7 +48,9 @@ function resolveFallbackApi(
   envApi?: ApiKind,
   providerApiHint?: ApiKind,
 ): ApiKind {
-  return cliApi ?? envApi ?? providerApiHint ?? fallbackApi ?? getProviderDefaultApi(fallbackProvider);
+  return (
+    cliApi ?? envApi ?? providerApiHint ?? fallbackApi ?? getProviderDefaultApi(fallbackProvider)
+  );
 }
 
 export function resolveProviderSelection(
@@ -115,9 +117,13 @@ export function resolveProviderSelection(
   }
 
   if (env.OPENAI_API_KEY?.trim()) {
-    const provider = getProviderCredentialSource(fallbackProvider, fallbackApi ?? getProviderDefaultApi(fallbackProvider)) === "openai"
-      ? fallbackProvider
-      : "custom";
+    const provider =
+      getProviderCredentialSource(
+        fallbackProvider,
+        fallbackApi ?? getProviderDefaultApi(fallbackProvider),
+      ) === "openai"
+        ? fallbackProvider
+        : "custom";
     const api = resolveFallbackApi(provider, fallbackApi, cliApi, envApi);
     return {
       provider,

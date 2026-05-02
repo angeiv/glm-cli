@@ -293,10 +293,13 @@ export function resolveRequestedModel(
   return model;
 }
 
-export function getGlmModelSelection(model?: {
-  provider: string;
-  id: string;
-}, api?: ApiKind): GlmModelSelection | undefined {
+export function getGlmModelSelection(
+  model?: {
+    provider: string;
+    id: string;
+  },
+  api?: ApiKind,
+): GlmModelSelection | undefined {
   if (!model) {
     return undefined;
   }
@@ -579,8 +582,10 @@ export async function createGlmRuntime(input: GlmSessionInput): Promise<AgentSes
     installShouldStopAfterTurn(result.session);
     enableDefaultTools(result.session);
     const activeSelection =
-      getGlmModelSelection(result.session.model, strategy.selection?.api ?? preferredSelection.api) ??
-      strategy.selection;
+      getGlmModelSelection(
+        result.session.model,
+        strategy.selection?.api ?? preferredSelection.api,
+      ) ?? strategy.selection;
     if (activeSelection) {
       await syncPackagedResources(options.agentDir);
       const config = await readConfigFile();
