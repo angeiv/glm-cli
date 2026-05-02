@@ -279,10 +279,13 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
   });
   expect(initial.shouldPassExplicitModel).toBe(true);
 
-  const currentBuiltInSelection = getGlmModelSelection({
-    provider: "openai",
-    id: "gpt-5",
-  }, "openai-compatible");
+  const currentBuiltInSelection = getGlmModelSelection(
+    {
+      provider: "openai",
+      id: "gpt-5",
+    },
+    "openai-compatible",
+  );
 
   expect(currentBuiltInSelection).toEqual({
     provider: "openai",
