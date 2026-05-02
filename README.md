@@ -10,7 +10,7 @@ npm 包名：`@angeiv/glm`
 命令：`glm`
 
 ## 特性
-- 默认走 GLM 原生 provider（BigModel / z.ai），并提供 OpenAI-compatible / Anthropic-compatible 的接入路径
+- 默认使用 GLM 原生 provider（BigModel / z.ai），并提供 OpenAI-compatible / Anthropic-compatible 的接入路径
 - 交付质量 loop：多轮执行 + verifier + repair，产出可复用的验证 artifacts
 - MCP（Model Context Protocol）工具接入（支持本地 stdio 与远程 transport）
 - 危险命令强制审批（即使 `--yolo` 或更宽松的 policy）
@@ -58,7 +58,7 @@ glm inspect --json
 ## 常见用法
 
 ```bash
-# 1. 使用默认 provider（默认走已配置的 provider/api/model）
+# 1. 使用默认 provider（默认使用已配置的 provider/api/model）
 glm
 
 # 2. 显式使用 BigModel Coding
@@ -84,7 +84,7 @@ OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
 glm --provider custom --model qwen2.5-coder-32b-instruct
 ```
 
-如果只需要记住一条原则：
+如果只需记住一条使用原则：
 
 - 先选 `provider`
 - 按需覆盖 `api`
