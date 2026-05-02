@@ -1,4 +1,9 @@
 import type { ApprovalPolicy, LoopFailureMode, LoopProfileName } from "../app/config-store.js";
+import type {
+  GlmInputModality,
+  RuntimeModelFamily,
+  RuntimeTransport,
+} from "../models/model-profile-types.js";
 import type { RuntimeToolSignature } from "./tool-signature.js";
 
 export type RuntimeDiagnosticsConfig = {
@@ -82,11 +87,32 @@ export type RuntimePaths = {
 };
 
 export type RuntimeResolvedModelStatus = {
+  family: RuntimeModelFamily;
+  transport: RuntimeTransport;
+  gateway: string;
   canonicalModelId?: string;
   platform: string;
   upstreamVendor: string;
   payloadPatchPolicy: "glm-native" | "safe-openai-compatible";
   confidence: "high" | "medium" | "low";
+  modalities: GlmInputModality[];
+  patchPipeline: {
+    zhipuNative: boolean;
+    dashscopeCompat: boolean;
+  };
+  capabilityMatrix: {
+    modalities: GlmInputModality[];
+    thinking: boolean;
+    preservedThinking: boolean;
+    streaming: boolean;
+    toolCall: boolean;
+    toolStream: boolean;
+    structuredOutput: boolean;
+    cache: boolean;
+    mcp: boolean;
+    zhipuNativePatch: boolean;
+    dashscopeCompatPatch: boolean;
+  };
   contextWindow: number;
   maxOutputTokens: number;
   supportsThinking: boolean;

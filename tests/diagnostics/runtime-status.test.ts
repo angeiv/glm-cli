@@ -115,11 +115,32 @@ describe("buildRuntimeStatus", () => {
     expect(status.provider).toBe("glm");
     expect(status.model).toBe("glm-5.1");
     expect(status.resolvedModel).toMatchObject({
+      family: "glm",
+      transport: "openai-completions",
+      gateway: "native-bigmodel",
       canonicalModelId: "glm-5.1",
       platform: "native-bigmodel",
       upstreamVendor: "unknown",
       payloadPatchPolicy: "glm-native",
       confidence: "high",
+      modalities: ["text"],
+      patchPipeline: {
+        zhipuNative: true,
+        dashscopeCompat: false,
+      },
+      capabilityMatrix: {
+        modalities: ["text"],
+        thinking: true,
+        preservedThinking: true,
+        streaming: true,
+        toolCall: true,
+        toolStream: true,
+        structuredOutput: true,
+        cache: true,
+        mcp: true,
+        zhipuNativePatch: true,
+        dashscopeCompatPatch: false,
+      },
       contextWindow: 204_800,
       maxOutputTokens: 131_072,
     });
@@ -174,11 +195,64 @@ describe("buildRuntimeStatus", () => {
     expect(formatRuntimeStatusLines(status)).toEqual(
       expect.arrayContaining([
         expect.stringContaining(
+          "Capability matrix: input=text | thinking=on | preservedThinking=on",
+        ),
+        expect.stringContaining(
           `Verification: smoke | fail | pnpm test | tests failed | ${artifactPath}`,
         ),
       ]),
     );
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");
+  });
+
+  test("summarizes multimodal and dashscope capability matrix for qwen routes", async () => {
+    const status = await buildRuntimeStatus({
+      cwd: "/tmp/repo",
+      runtime: {
+        provider: "bailian",
+        model: "qwen/qwen3.5-122b-a10b",
+        approvalPolicy: "ask",
+      },
+      loop: {
+        enabled: false,
+        profile: "code",
+        maxRounds: 3,
+        failureMode: "handoff",
+        autoVerify: true,
+      },
+      diagnostics: {
+        debugRuntime: false,
+        eventLogLimit: 10,
+      },
+      notifications: {
+        enabled: false,
+        onTurnEnd: true,
+        onLoopResult: true,
+      },
+      paths: resolveGlmSessionPaths("/tmp/repo"),
+      env: {},
+    });
+
+    expect(status.resolvedModel).toMatchObject({
+      family: "qwen",
+      transport: "openai-completions",
+      gateway: "gateway-dashscope",
+      modalities: ["text", "image", "video"],
+      patchPipeline: {
+        zhipuNative: false,
+        dashscopeCompat: true,
+      },
+      capabilityMatrix: {
+        modalities: ["text", "image", "video"],
+        dashscopeCompatPatch: true,
+        zhipuNativePatch: false,
+      },
+    });
+    expect(formatRuntimeStatusLines(status)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Capability matrix: input=text,image,video"),
+      ]),
+    );
   });
 
   test("patchRuntimeLoopStatus updates the in-process runtime status store", async () => {
@@ -275,6 +349,8 @@ describe("buildRuntimeStatus", () => {
 
     expect(status.resolvedModel).toMatchObject({
       canonicalModelId: "glm-5",
+      family: "glm",
+      transport: "anthropic-messages",
       platform: "gateway-modelscope-openai",
       confidence: "medium",
     });
