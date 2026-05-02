@@ -55,6 +55,43 @@ glm verify smoke
 glm inspect --json
 ```
 
+## 常见用法
+
+```bash
+# 1. 使用默认 provider（默认走已配置的 provider/api/model）
+glm
+
+# 2. 显式使用 BigModel Coding
+GLM_API_KEY=your-key \
+glm --provider bigmodel-coding --model glm-5.1
+
+# 3. 使用 OpenRouter 上托管的 GLM 模型
+OPENAI_API_KEY=your-key \
+glm --provider openrouter --model ZhipuAI/GLM-5
+
+# 4. 接入自定义 OpenAI-compatible 网关
+OPENAI_API_KEY=your-key \
+OPENAI_BASE_URL=https://gateway.example.com/v1 \
+glm --provider custom --api openai-compatible --model my-model
+
+# 5. 接入自定义 Anthropic-compatible 网关
+ANTHROPIC_AUTH_TOKEN=your-token \
+ANTHROPIC_BASE_URL=https://gateway.example.com/v1/messages \
+glm --provider custom --api anthropic --model my-model
+
+# 6. 接入本地 OpenAI-compatible 模型服务
+OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
+glm --provider custom --model qwen2.5-coder-32b-instruct
+```
+
+如果只需要记住一条原则：
+
+- 先选 `provider`
+- 按需覆盖 `api`
+- 最后指定 `model`
+
+更深入的使用方式（如 `custom` 参数调优、`modelOverrides`、MCP、loop、验证、缓存等）请查看详细文档。
+
 ## 文档
 - 文档索引：[docs/README.zh.md](./docs/README.zh.md)
 - 使用指南（CLI）：[docs/guides/cli.zh.md](./docs/guides/cli.zh.md)

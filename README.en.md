@@ -55,6 +55,43 @@ glm verify smoke
 glm inspect --json
 ```
 
+## Common usage
+
+```bash
+# 1. Use the default configured provider/api/model
+glm
+
+# 2. Explicitly use BigModel Coding
+GLM_API_KEY=your-key \
+glm --provider bigmodel-coding --model glm-5.1
+
+# 3. Use a GLM model hosted on OpenRouter
+OPENAI_API_KEY=your-key \
+glm --provider openrouter --model ZhipuAI/GLM-5
+
+# 4. Connect to a custom OpenAI-compatible gateway
+OPENAI_API_KEY=your-key \
+OPENAI_BASE_URL=https://gateway.example.com/v1 \
+glm --provider custom --api openai-compatible --model my-model
+
+# 5. Connect to a custom Anthropic-compatible gateway
+ANTHROPIC_AUTH_TOKEN=your-token \
+ANTHROPIC_BASE_URL=https://gateway.example.com/v1/messages \
+glm --provider custom --api anthropic --model my-model
+
+# 6. Connect to a local OpenAI-compatible model server
+OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
+glm --provider custom --model qwen2.5-coder-32b-instruct
+```
+
+If you only remember one rule:
+
+- choose `provider`
+- optionally override `api`
+- then set `model`
+
+For deeper usage such as `custom` capability tuning, `modelOverrides`, MCP, loop behavior, verification, and cache controls, use the detailed docs below.
+
 ## Documentation
 - Documentation index: [docs/README.md](./docs/README.md)
 - CLI guide: [docs/guides/cli.md](./docs/guides/cli.md)
