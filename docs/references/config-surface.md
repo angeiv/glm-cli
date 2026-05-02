@@ -73,6 +73,16 @@ Supported persisted keys today:
 
 Anthropic-compatible credentials are env-only today.
 
+`modelProfiles.overrides[]` supports these fields:
+
+- `match`
+- `canonicalModelId`
+- `payloadPatchPolicy`
+- `modalities`
+- `caps`
+
+`modelProfiles.overrides[].modalities` currently accepts `text`, `image`, and `video`.
+
 ## `glm config` command surface
 
 `glm config get|set` currently exposes:

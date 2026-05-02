@@ -2,6 +2,7 @@ export type GlmThinkingMode = "auto" | "enabled" | "disabled";
 export type GlmModelSource = "official" | "compat";
 export type GlmModelTier = "flagship" | "base" | "turbo" | "flash" | "air" | "vision";
 export type GlmModelFamily = "glm-5" | "glm-4.7" | "glm-4.6" | "glm-4.5" | "glm-4";
+export type GlmInputModality = "text" | "image" | "video";
 
 export type EffectiveModelCaps = {
   contextWindow: number;
@@ -22,8 +23,14 @@ export type StandardGlmModel = EffectiveModelCaps & {
   displayName: string;
   family: GlmModelFamily;
   tier: GlmModelTier;
-  modalities: string[];
+  modalities: GlmInputModality[];
   source: GlmModelSource;
+};
+
+export type CatalogModelProfile = EffectiveModelCaps & {
+  id: string;
+  displayName: string;
+  modalities: GlmInputModality[];
 };
 
 export type GlmPlatformRoute =
@@ -58,6 +65,7 @@ export type ResolvedGlmProfile = {
   evidence: ResolutionEvidence;
   payloadPatchPolicy: PayloadPatchPolicy;
   effectiveCaps: EffectiveModelCaps;
+  effectiveModalities: GlmInputModality[];
 };
 
 export type ResolveGlmProfileInput = {
@@ -78,6 +86,8 @@ const GENERIC_OPENAI_COMPATIBLE_CAPS: EffectiveModelCaps = {
   supportsStructuredOutput: false,
   supportsMcp: false,
 };
+
+const GENERIC_OPENAI_COMPATIBLE_MODALITIES: GlmInputModality[] = ["text", "image"];
 
 const STANDARD_GLM_MODELS = [
   {
@@ -308,6 +318,195 @@ const STANDARD_GLM_MODEL_MAP: Map<string, StandardGlmModel> = new Map(
   ]),
 );
 
+const BUILTIN_COMPAT_MODELS: CatalogModelProfile[] = [
+  {
+    id: "qwen/qwen3.6-plus",
+    displayName: "Qwen 3.6 Plus",
+    modalities: ["text", "image", "video"],
+    contextWindow: 1_000_000,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.6-flash",
+    displayName: "Qwen 3.6 Flash",
+    modalities: ["text", "image", "video"],
+    contextWindow: 1_000_000,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.6-max-preview",
+    displayName: "Qwen 3.6 Max Preview",
+    modalities: ["text"],
+    contextWindow: 262_144,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.6-35b-a3b",
+    displayName: "Qwen 3.6 35B A3B",
+    modalities: ["text", "image", "video"],
+    contextWindow: 262_144,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.6-27b",
+    displayName: "Qwen 3.6 27B",
+    modalities: ["text", "image", "video"],
+    contextWindow: 256_000,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.5-plus",
+    displayName: "Qwen 3.5 Plus",
+    modalities: ["text", "image", "video"],
+    contextWindow: 1_000_000,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.5-flash",
+    displayName: "Qwen 3.5 Flash",
+    modalities: ["text", "image", "video"],
+    contextWindow: 1_000_000,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.5-397b-a17b",
+    displayName: "Qwen 3.5 397B A17B",
+    modalities: ["text", "image", "video"],
+    contextWindow: 262_144,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.5-122b-a10b",
+    displayName: "Qwen 3.5 122B A10B",
+    modalities: ["text", "image", "video"],
+    contextWindow: 262_144,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.5-27b",
+    displayName: "Qwen 3.5 27B",
+    modalities: ["text", "image", "video"],
+    contextWindow: 262_144,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+  {
+    id: "qwen/qwen3.5-35b-a3b",
+    displayName: "Qwen 3.5 35B A3B",
+    modalities: ["text", "image", "video"],
+    contextWindow: 262_144,
+    maxOutputTokens: 65_536,
+    supportsThinking: true,
+    defaultThinkingMode: "enabled",
+    supportsPreservedThinking: false,
+    supportsStreaming: true,
+    supportsToolCall: true,
+    supportsToolStream: false,
+    supportsCache: false,
+    supportsStructuredOutput: true,
+    supportsMcp: false,
+  },
+];
+
+const BUILTIN_COMPAT_MODEL_MAP: Map<string, CatalogModelProfile> = new Map(
+  BUILTIN_COMPAT_MODELS.map((model) => [
+    model.id,
+    {
+      ...model,
+      modalities: [...model.modalities],
+    } satisfies CatalogModelProfile,
+  ]),
+);
+
 const EXPLICIT_ALIAS_MAP = new Map<string, string>([
   ["glm5", "glm-5"],
   ["glm51", "glm-5.1"],
@@ -365,6 +564,20 @@ function normalizeGlmNumericForms(candidate: string): string {
   return next;
 }
 
+function normalizeBuiltinCompatNumericForms(candidate: string): string {
+  let next = candidate;
+
+  next = next.replace(/^qwen-(\d)\.(\d)(?=$|-)/, "qwen$1.$2");
+  next = next.replace(/^qwen-(\d)-(\d)(?=$|-)/, "qwen$1.$2");
+  next = next.replace(/^qwen(\d)-(\d)(?=$|-)/, "qwen$1.$2");
+  next = next.replace(
+    /^(qwen3\.(?:5|6)-(?:plus|flash))(?:-(?:\d{2}-\d{2}|\d{8}|\d{4}-\d{2}-\d{2}))$/,
+    "$1",
+  );
+
+  return next;
+}
+
 function mergeCaps(
   base: EffectiveModelCaps,
   overlay?: Partial<EffectiveModelCaps>,
@@ -396,8 +609,16 @@ export function getStandardGlmModel(id: string): StandardGlmModel | undefined {
   return STANDARD_GLM_MODEL_MAP.get(id);
 }
 
+export function getCatalogModelProfile(id: string): CatalogModelProfile | undefined {
+  return STANDARD_GLM_MODEL_MAP.get(id) ?? BUILTIN_COMPAT_MODEL_MAP.get(id);
+}
+
 export function getGenericOpenAiCompatibleCaps(): EffectiveModelCaps {
   return { ...GENERIC_OPENAI_COMPATIBLE_CAPS };
+}
+
+export function getGenericOpenAiCompatibleModalities(): GlmInputModality[] {
+  return [...GENERIC_OPENAI_COMPATIBLE_MODALITIES];
 }
 
 export function resolveCanonicalGlmModelId(modelId: string): string | undefined {
@@ -414,6 +635,26 @@ export function resolveCanonicalGlmModelId(modelId: string): string | undefined 
   }
 
   return undefined;
+}
+
+function resolveCanonicalBuiltinCompatModelId(modelId: string): string | undefined {
+  for (const rawCandidate of extractCandidateSegments(modelId)) {
+    const normalized = normalizeBuiltinCompatNumericForms(rawCandidate);
+    if (BUILTIN_COMPAT_MODEL_MAP.has(normalized)) {
+      return normalized;
+    }
+
+    const prefixed = normalized.startsWith("qwen/") ? normalized : `qwen/${normalized}`;
+    if (BUILTIN_COMPAT_MODEL_MAP.has(prefixed)) {
+      return prefixed;
+    }
+  }
+
+  return undefined;
+}
+
+export function resolveCanonicalCatalogModelId(modelId: string): string | undefined {
+  return resolveCanonicalGlmModelId(modelId) ?? resolveCanonicalBuiltinCompatModelId(modelId);
 }
 
 export function resolveGlmPlatformRoute(baseUrl?: string): GlmPlatformRoute {
@@ -506,6 +747,15 @@ export function resolveVariantOverlay(
     };
   }
 
+  if (platform === "gateway-openrouter" && canonicalModelId === "qwen/qwen3.6-35b-a3b") {
+    return {
+      upstreamVendor,
+      caps: {
+        supportsToolCall: false,
+      },
+    };
+  }
+
   return {
     upstreamVendor,
     caps: {},
@@ -514,15 +764,17 @@ export function resolveVariantOverlay(
 
 export function resolveGlmProfile(input: ResolveGlmProfileInput): ResolvedGlmProfile {
   const platform = resolveGlmPlatformRoute(input.baseUrl);
-  const canonicalModelId = resolveCanonicalGlmModelId(input.modelId);
-  const canonicalModel = canonicalModelId ? getStandardGlmModel(canonicalModelId) : undefined;
+  const canonicalModelId = resolveCanonicalCatalogModelId(input.modelId);
+  const canonicalModel = canonicalModelId ? getCatalogModelProfile(canonicalModelId) : undefined;
+  const canonicalGlmModel = canonicalModelId ? getStandardGlmModel(canonicalModelId) : undefined;
 
   const baseCaps = canonicalModel ?? getGenericOpenAiCompatibleCaps();
   const variant = resolveVariantOverlay(platform, input.modelId, canonicalModelId);
   const effectiveCaps = mergeCaps(baseCaps, variant.caps);
+  const effectiveModalities = canonicalModel?.modalities ?? getGenericOpenAiCompatibleModalities();
 
   const payloadPatchPolicy: PayloadPatchPolicy =
-    canonicalModelId && (platform === "native-bigmodel" || platform === "native-zai")
+    canonicalGlmModel && (platform === "native-bigmodel" || platform === "native-zai")
       ? "glm-native"
       : "safe-openai-compatible";
 
@@ -537,5 +789,6 @@ export function resolveGlmProfile(input: ResolveGlmProfileInput): ResolvedGlmPro
     },
     payloadPatchPolicy,
     effectiveCaps,
+    effectiveModalities,
   };
 }

@@ -60,10 +60,14 @@ describe("glm provider extension", () => {
     });
 
     expect(provider).toBeDefined();
-    const models = provider!.config.models as Array<{ id: string; contextWindow: number }>;
+    const models = provider!.config.models as Array<{
+      id: string;
+      contextWindow: number;
+      input: string[];
+    }>;
     expect(models).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "glm-5.1", contextWindow: 204_800 }),
+        expect.objectContaining({ id: "glm-5.1", contextWindow: 204_800, input: ["text"] }),
         expect.objectContaining({ id: "glm-4.5-airx", contextWindow: 131_072 }),
       ]),
     );
@@ -135,6 +139,7 @@ describe("glm provider extension", () => {
       id: string;
       contextWindow: number;
       maxTokens: number;
+      input: string[];
     }>;
 
     expect(models).toEqual([
@@ -142,6 +147,38 @@ describe("glm provider extension", () => {
         id: "vendor/some-custom-model",
         contextWindow: 128_000,
         maxTokens: 8_192,
+        input: ["text", "image"],
+      }),
+    ]);
+  });
+
+  test("registers built-in qwen metadata with multimodal input and qwen thinking compat", () => {
+    const provider = registerProviderByName("openai-compatible", {
+      OPENAI_API_KEY: "token",
+      OPENAI_MODEL: "qwen3.6-plus-2026-04-02",
+      OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+    });
+
+    expect(provider).toBeDefined();
+    const models = provider!.config.models as Array<{
+      id: string;
+      contextWindow: number;
+      maxTokens: number;
+      input: string[];
+      compat?: Record<string, unknown>;
+    }>;
+
+    expect(models).toEqual([
+      expect.objectContaining({
+        id: "qwen3.6-plus-2026-04-02",
+        contextWindow: 1_000_000,
+        maxTokens: 65_536,
+        input: ["text", "image", "video"],
+        compat: expect.objectContaining({
+          supportsDeveloperRole: false,
+          supportsReasoningEffort: false,
+          thinkingFormat: "qwen-chat-template",
+        }),
       }),
     ]);
   });

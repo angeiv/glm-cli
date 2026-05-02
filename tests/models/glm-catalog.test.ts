@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  getCatalogModelProfile,
   getStandardGlmModel,
   getGenericOpenAiCompatibleCaps,
 } from "../../src/models/glm-catalog.js";
@@ -80,6 +81,21 @@ describe("GLM catalog", () => {
       supportsToolStream: false,
       supportsCache: false,
       supportsStructuredOutput: false,
+    });
+  });
+
+  test("returns qwen 3.6 plus multimodal capabilities from the catalog", () => {
+    const model = getCatalogModelProfile("qwen/qwen3.6-plus");
+
+    expect(model).toMatchObject({
+      id: "qwen/qwen3.6-plus",
+      displayName: "Qwen 3.6 Plus",
+      contextWindow: 1_000_000,
+      maxOutputTokens: 65_536,
+      supportsThinking: true,
+      supportsToolCall: true,
+      supportsStructuredOutput: true,
+      modalities: ["text", "image", "video"],
     });
   });
 });

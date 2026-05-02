@@ -160,4 +160,54 @@ describe("openai-responses provider extension registration", () => {
     const models = provider!.config.models as Array<{ id: string }>;
     expect(models).toEqual([expect.objectContaining({ id: "glm-5.1" })]);
   });
+
+  test("keeps image input available for unknown openai-responses models", () => {
+    const provider = registerProviderByName("openai-responses", {
+      OPENAI_API_KEY: "token",
+      OPENAI_MODEL: "vendor/some-custom-model",
+      OPENAI_BASE_URL: "https://gateway.example.com/v1",
+    });
+
+    expect(provider).toBeDefined();
+    const models = provider!.config.models as Array<{
+      id: string;
+      input: string[];
+      contextWindow: number;
+      maxTokens: number;
+    }>;
+
+    expect(models).toEqual([
+      expect.objectContaining({
+        id: "vendor/some-custom-model",
+        input: ["text", "image"],
+        contextWindow: 128_000,
+        maxTokens: 8_192,
+      }),
+    ]);
+  });
+
+  test("registers qwen multimodal snapshots for openai-responses", () => {
+    const provider = registerProviderByName("openai-responses", {
+      OPENAI_API_KEY: "token",
+      OPENAI_MODEL: "qwen/qwen3.5-plus-20260420",
+      OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+    });
+
+    expect(provider).toBeDefined();
+    const models = provider!.config.models as Array<{
+      id: string;
+      input: string[];
+      contextWindow: number;
+      maxTokens: number;
+    }>;
+
+    expect(models).toEqual([
+      expect.objectContaining({
+        id: "qwen/qwen3.5-plus-20260420",
+        input: ["text", "image", "video"],
+        contextWindow: 1_000_000,
+        maxTokens: 65_536,
+      }),
+    ]);
+  });
 });

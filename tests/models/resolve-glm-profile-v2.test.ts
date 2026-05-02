@@ -53,4 +53,82 @@ describe("GLM profile resolution v2", () => {
     expect(profile.effectiveCaps.contextWindow).toBe(96_000);
     expect(profile.effectiveCaps.supportsToolStream).toBe(false);
   });
+
+  test("resolves built-in qwen multimodal metadata for qwen/qwen3.5-122b-a10b", () => {
+    const profile = resolveGlmProfileV2({
+      provider: "openai-compatible",
+      modelId: "qwen/qwen3.5-122b-a10b",
+      baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    });
+
+    expect(profile.canonicalModelId).toBe("qwen/qwen3.5-122b-a10b");
+    expect(profile.payloadPatchPolicy).toBe("safe-openai-compatible");
+    expect(profile.effectiveModalities).toEqual(["text", "image", "video"]);
+    expect(profile.effectiveCaps).toMatchObject({
+      contextWindow: 262_144,
+      maxOutputTokens: 65_536,
+      supportsThinking: true,
+      defaultThinkingMode: "enabled",
+      supportsStreaming: true,
+      supportsToolCall: true,
+    });
+  });
+
+  test("resolves qwen aliases with case and separator variations", () => {
+    const aliases = [
+      "Qwen/Qwen3.5-122B-A10B",
+      "qwen-3.5-122b-a10b",
+      "QWEN_3_5_122B_A10B",
+      "vendor/Qwen-3.5-122B-A10B",
+    ];
+
+    for (const modelId of aliases) {
+      const profile = resolveGlmProfileV2({
+        provider: "openai-compatible",
+        modelId,
+        baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      });
+
+      expect(profile.canonicalModelId, modelId).toBe("qwen/qwen3.5-122b-a10b");
+      expect(profile.effectiveModalities, modelId).toEqual(["text", "image", "video"]);
+    }
+  });
+
+  test("resolves qwen 3.5 and 3.6 stable and snapshot aliases to canonical profiles", () => {
+    const cases = [
+      ["qwen3.5-plus", "qwen/qwen3.5-plus"],
+      ["qwen/qwen3.5-plus-02-15", "qwen/qwen3.5-plus"],
+      ["qwen/qwen3.5-plus-20260420", "qwen/qwen3.5-plus"],
+      ["qwen3.6-plus-2026-04-02", "qwen/qwen3.6-plus"],
+      ["qwen3.6-flash-2026-04-16", "qwen/qwen3.6-flash"],
+    ] as const;
+
+    for (const [modelId, canonicalModelId] of cases) {
+      const profile = resolveGlmProfileV2({
+        provider: "openai-compatible",
+        modelId,
+        baseUrl: "https://openrouter.ai/api/v1",
+      });
+
+      expect(profile.canonicalModelId, modelId).toBe(canonicalModelId);
+      expect(profile.effectiveModalities, modelId).toEqual(["text", "image", "video"]);
+    }
+  });
+
+  test("applies openrouter-specific qwen 3.6 35b capability differences", () => {
+    const profile = resolveGlmProfileV2({
+      provider: "openai-compatible",
+      modelId: "qwen/qwen3.6-35b-a3b",
+      baseUrl: "https://openrouter.ai/api/v1",
+    });
+
+    expect(profile.canonicalModelId).toBe("qwen/qwen3.6-35b-a3b");
+    expect(profile.effectiveModalities).toEqual(["text", "image", "video"]);
+    expect(profile.effectiveCaps).toMatchObject({
+      contextWindow: 262_144,
+      maxOutputTokens: 65_536,
+      supportsStructuredOutput: true,
+      supportsToolCall: false,
+    });
+  });
 });

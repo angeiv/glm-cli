@@ -7,7 +7,7 @@ import {
   type SimpleStreamOptions,
 } from "@mariozechner/pi-ai";
 import {
-  getStandardGlmModel,
+  getCatalogModelProfile,
   getStandardGlmModels,
   resolveGlmProfileV2,
 } from "../shared/glm-profile.js";
@@ -30,6 +30,13 @@ const ZHIPU_OPENAI_COMPAT = {
   thinkingFormat: "zai",
   // Enable tool streaming only when the resolved model profile supports it.
   zaiToolStream: false,
+} as const;
+
+const QWEN_OPENAI_COMPAT = {
+  supportsDeveloperRole: false,
+  supportsReasoningEffort: false,
+  maxTokensField: "max_tokens",
+  thinkingFormat: "qwen-chat-template",
 } as const;
 
 const GLM_BASE_URL_PRESETS = {
@@ -613,6 +620,18 @@ function resolveModelId(...candidates: Array<string | undefined>): string | unde
   return undefined;
 }
 
+function resolveOpenAiCompat(profile: ReturnType<typeof resolveGlmProfileV2>) {
+  if (profile.payloadPatchPolicy === "glm-native") {
+    return { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream };
+  }
+
+  if (profile.canonicalModelId?.startsWith("qwen/")) {
+    return { ...OPENAI_COMPAT, ...QWEN_OPENAI_COMPAT };
+  }
+
+  return OPENAI_COMPAT;
+}
+
 function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string) {
   const profile = resolveGlmProfileV2({
     provider: "openai-compatible",
@@ -621,22 +640,18 @@ function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string
     overrides: modelProfileOverrides,
   });
   const canonical = profile.canonicalModelId
-    ? getStandardGlmModel(profile.canonicalModelId)
+    ? getCatalogModelProfile(profile.canonicalModelId)
     : undefined;
-  const compat =
-    profile.payloadPatchPolicy === "glm-native"
-      ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
-      : OPENAI_COMPAT;
 
   return {
     id: modelId,
     name: canonical?.displayName ?? modelId,
     reasoning: profile.effectiveCaps.supportsThinking,
-    input: ["text"],
+    input: profile.effectiveModalities,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: profile.effectiveCaps.contextWindow,
     maxTokens: profile.effectiveCaps.maxOutputTokens,
-    compat,
+    compat: resolveOpenAiCompat(profile),
   };
 }
 
@@ -648,14 +663,14 @@ function resolveOpenAiResponsesModelDefinition(modelId: string, baseUrl: string)
     overrides: modelProfileOverrides,
   });
   const canonical = profile.canonicalModelId
-    ? getStandardGlmModel(profile.canonicalModelId)
+    ? getCatalogModelProfile(profile.canonicalModelId)
     : undefined;
 
   return {
     id: modelId,
     name: canonical?.displayName ?? modelId,
     reasoning: profile.effectiveCaps.supportsThinking,
-    input: ["text"],
+    input: profile.effectiveModalities,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: profile.effectiveCaps.contextWindow,
     maxTokens: profile.effectiveCaps.maxOutputTokens,
@@ -675,7 +690,7 @@ export function resolveAnthropicModels(options: { requestedModelId: string; base
       id: model.id,
       name: model.displayName,
       reasoning: profile.effectiveCaps.supportsThinking,
-      input: model.modalities,
+      input: profile.effectiveModalities,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: profile.effectiveCaps.contextWindow,
       maxTokens: profile.effectiveCaps.maxOutputTokens,
@@ -693,7 +708,7 @@ export function resolveAnthropicModels(options: { requestedModelId: string; base
     overrides: modelProfileOverrides,
   });
   const canonical = profile.canonicalModelId
-    ? getStandardGlmModel(profile.canonicalModelId)
+    ? getCatalogModelProfile(profile.canonicalModelId)
     : undefined;
 
   return [
@@ -702,7 +717,7 @@ export function resolveAnthropicModels(options: { requestedModelId: string; base
       id: options.requestedModelId,
       name: canonical?.displayName ?? options.requestedModelId,
       reasoning: profile.canonicalModelId ? profile.effectiveCaps.supportsThinking : true,
-      input: ["text"],
+      input: profile.effectiveModalities,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: profile.effectiveCaps.contextWindow,
       maxTokens: profile.effectiveCaps.maxOutputTokens,
@@ -812,7 +827,7 @@ export default function (pi: ExtensionAPI) {
           id: model.id,
           name: model.displayName,
           reasoning: profile.effectiveCaps.supportsThinking,
-          input: model.modalities,
+          input: profile.effectiveModalities,
           cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
           contextWindow: profile.effectiveCaps.contextWindow,
           maxTokens: profile.effectiveCaps.maxOutputTokens,
