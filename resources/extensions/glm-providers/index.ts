@@ -7,37 +7,12 @@ import {
   type SimpleStreamOptions,
 } from "@mariozechner/pi-ai";
 import {
-  getCatalogModelProfile,
-  getStandardGlmModels,
-  resolveGlmProfileV2,
+  resolveAnthropicModels,
+  resolveNativeGlmProviderModels,
+  resolveOpenAiCompatibleModelDefinition,
+  resolveOpenAiResponsesModelDefinition,
 } from "../shared/glm-profile.js";
 import { readGlmModelProfileOverrides, readGlmUserConfig } from "../shared/glm-user-config.js";
-
-const OPENAI_COMPAT = {
-  // Many OpenAI-compatible servers reject the newer "developer" role.
-  supportsDeveloperRole: false,
-} as const;
-
-const ZHIPU_OPENAI_COMPAT = {
-  // BigModel / z.ai OpenAI-compatible endpoints are close to OpenAI Chat Completions, but
-  // differ in a few fields (tokens/thinking/streaming-tool).
-  supportsDeveloperRole: false,
-  supportsStore: false,
-  supportsUsageInStreaming: false,
-  supportsStrictMode: false,
-  supportsReasoningEffort: false,
-  maxTokensField: "max_tokens",
-  thinkingFormat: "zai",
-  // Enable tool streaming only when the resolved model profile supports it.
-  zaiToolStream: false,
-} as const;
-
-const QWEN_OPENAI_COMPAT = {
-  supportsDeveloperRole: false,
-  supportsReasoningEffort: false,
-  maxTokensField: "max_tokens",
-  thinkingFormat: "qwen-chat-template",
-} as const;
 
 const GLM_BASE_URL_PRESETS = {
   // BigModel
@@ -123,8 +98,6 @@ type AnthropicMessagesResponse = {
   error?: { message?: string };
   detail?: string;
 };
-
-type ThinkingLevelMap = Record<string, string | null>;
 
 function isModelscopeAnthropicBaseUrl(baseUrl: string): boolean {
   const normalized = baseUrl.trim().toLowerCase();
@@ -622,149 +595,6 @@ function resolveModelId(...candidates: Array<string | undefined>): string | unde
   return undefined;
 }
 
-function resolveOpenAiCompat(profile: ReturnType<typeof resolveGlmProfileV2>) {
-  if (profile.payloadPatchPolicy === "glm-native") {
-    return { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream };
-  }
-
-  if (profile.canonicalModelId?.startsWith("qwen/")) {
-    return { ...OPENAI_COMPAT, ...QWEN_OPENAI_COMPAT };
-  }
-
-  return OPENAI_COMPAT;
-}
-
-function isKnownThinkingFamily(profile: ReturnType<typeof resolveGlmProfileV2>): boolean {
-  const canonical = profile.canonicalModelId?.trim().toLowerCase() ?? "";
-  return canonical.startsWith("glm-") || canonical.startsWith("qwen/");
-}
-
-function resolveThinkingLevelMap(
-  profile: ReturnType<typeof resolveGlmProfileV2>,
-): ThinkingLevelMap | undefined {
-  if (!profile.effectiveCaps.supportsThinking) {
-    return undefined;
-  }
-
-  if (!isKnownThinkingFamily(profile)) {
-    return undefined;
-  }
-
-  // Current GLM / Qwen gateway integrations exposed by glm-cli behave like an
-  // on/off thinking switch in practice. Limit the selectable levels to those
-  // the transport can express today and keep room for future richer mappings.
-  return {
-    minimal: null,
-    low: null,
-    medium: null,
-  };
-}
-
-function resolveOpenAiCompatibleModelDefinition(modelId: string, baseUrl: string) {
-  const profile = resolveGlmProfileV2({
-    provider: "openai-compatible",
-    modelId,
-    baseUrl,
-    overrides: modelProfileOverrides,
-  });
-  const canonical = profile.canonicalModelId
-    ? getCatalogModelProfile(profile.canonicalModelId)
-    : undefined;
-
-  return {
-    id: modelId,
-    name: canonical?.displayName ?? modelId,
-    reasoning: profile.effectiveCaps.supportsThinking,
-    input: profile.effectiveModalities,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: profile.effectiveCaps.contextWindow,
-    maxTokens: profile.effectiveCaps.maxOutputTokens,
-    compat: resolveOpenAiCompat(profile),
-    ...(resolveThinkingLevelMap(profile)
-      ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-      : {}),
-  };
-}
-
-function resolveOpenAiResponsesModelDefinition(modelId: string, baseUrl: string) {
-  const profile = resolveGlmProfileV2({
-    provider: "openai-responses",
-    modelId,
-    baseUrl,
-    overrides: modelProfileOverrides,
-  });
-  const canonical = profile.canonicalModelId
-    ? getCatalogModelProfile(profile.canonicalModelId)
-    : undefined;
-
-  return {
-    id: modelId,
-    name: canonical?.displayName ?? modelId,
-    reasoning: profile.effectiveCaps.supportsThinking,
-    input: profile.effectiveModalities,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: profile.effectiveCaps.contextWindow,
-    maxTokens: profile.effectiveCaps.maxOutputTokens,
-    ...(resolveThinkingLevelMap(profile)
-      ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-      : {}),
-  };
-}
-
-export function resolveAnthropicModels(options: { requestedModelId: string; baseUrl: string }) {
-  const standardModels = getStandardGlmModels().map((model) => {
-    const profile = resolveGlmProfileV2({
-      provider: "anthropic",
-      modelId: model.id,
-      baseUrl: options.baseUrl,
-      overrides: modelProfileOverrides,
-    });
-
-    return {
-      id: model.id,
-      name: model.displayName,
-      reasoning: profile.effectiveCaps.supportsThinking,
-      input: profile.effectiveModalities,
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: profile.effectiveCaps.contextWindow,
-      maxTokens: profile.effectiveCaps.maxOutputTokens,
-      ...(resolveThinkingLevelMap(profile)
-        ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-        : {}),
-    };
-  });
-
-  if (standardModels.some((model) => model.id === options.requestedModelId)) {
-    return standardModels;
-  }
-
-  const profile = resolveGlmProfileV2({
-    provider: "anthropic",
-    modelId: options.requestedModelId,
-    baseUrl: options.baseUrl,
-    overrides: modelProfileOverrides,
-  });
-  const canonical = profile.canonicalModelId
-    ? getCatalogModelProfile(profile.canonicalModelId)
-    : undefined;
-
-  return [
-    ...standardModels,
-    {
-      id: options.requestedModelId,
-      name: canonical?.displayName ?? options.requestedModelId,
-      reasoning: profile.canonicalModelId ? profile.effectiveCaps.supportsThinking : true,
-      input: profile.effectiveModalities,
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: profile.effectiveCaps.contextWindow,
-      maxTokens: profile.effectiveCaps.maxOutputTokens,
-      ...(resolveThinkingLevelMap(profile)
-        ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-        : {}),
-    },
-  ];
-}
-
 type PersistedProviderConfig = {
   apiKey?: string;
   baseURL?: string;
@@ -852,31 +682,9 @@ export default function (pi: ExtensionAPI) {
       baseUrl: glmSettings.baseUrl,
       apiKey: glmSettings.apiKey,
       api: "openai-completions",
-      models: getStandardGlmModels().map((model) => {
-        const profile = resolveGlmProfileV2({
-          provider: "glm",
-          modelId: model.id,
-          baseUrl: glmSettings.baseUrl,
-          overrides: modelProfileOverrides,
-        });
-        const compat =
-          profile.payloadPatchPolicy === "glm-native"
-            ? { ...ZHIPU_OPENAI_COMPAT, zaiToolStream: profile.effectiveCaps.supportsToolStream }
-            : OPENAI_COMPAT;
-
-        return {
-          id: model.id,
-          name: model.displayName,
-          reasoning: profile.effectiveCaps.supportsThinking,
-          input: profile.effectiveModalities,
-          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-          contextWindow: profile.effectiveCaps.contextWindow,
-          maxTokens: profile.effectiveCaps.maxOutputTokens,
-          compat,
-          ...(resolveThinkingLevelMap(profile)
-            ? { thinkingLevelMap: resolveThinkingLevelMap(profile) }
-            : {}),
-        };
+      models: resolveNativeGlmProviderModels({
+        baseUrl: glmSettings.baseUrl,
+        overrides: modelProfileOverrides,
       }),
     });
   }
@@ -900,7 +708,13 @@ export default function (pi: ExtensionAPI) {
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-completions",
-      models: [resolveOpenAiCompatibleModelDefinition(openaiModelId, openaiSettings.baseUrl)],
+      models: [
+        resolveOpenAiCompatibleModelDefinition({
+          modelId: openaiModelId,
+          baseUrl: openaiSettings.baseUrl,
+          overrides: modelProfileOverrides,
+        }),
+      ],
     });
 
     pi.registerProvider("openai-responses", {
@@ -908,7 +722,13 @@ export default function (pi: ExtensionAPI) {
       baseUrl: openaiSettings.baseUrl,
       apiKey: openaiSettings.apiKey,
       api: "openai-responses",
-      models: [resolveOpenAiResponsesModelDefinition(openaiModelId, openaiSettings.baseUrl)],
+      models: [
+        resolveOpenAiResponsesModelDefinition({
+          modelId: openaiModelId,
+          baseUrl: openaiSettings.baseUrl,
+          overrides: modelProfileOverrides,
+        }),
+      ],
     });
   }
 
@@ -936,7 +756,11 @@ export default function (pi: ExtensionAPI) {
       // to a non-streaming request to surface real HTTP errors without Pi's retry UI.
       api: isModelscope ? "anthropic-messages-modelscope" : "anthropic-messages",
       ...(isModelscope ? { streamSimple: createStreamFirstModelscopeAnthropicApi() } : {}),
-      models: resolveAnthropicModels({ requestedModelId: anthropicModelId, baseUrl }),
+      models: resolveAnthropicModels({
+        requestedModelId: anthropicModelId,
+        baseUrl,
+        overrides: modelProfileOverrides,
+      }),
     });
   }
 }

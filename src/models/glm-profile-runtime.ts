@@ -3,3 +3,17 @@
 
 export * from "./glm-profile-core.js";
 export { resolveGlmProfileV2 } from "./resolve-glm-profile-v2.js";
+export {
+  resolveAnthropicModels,
+  resolveNativeGlmProviderModels,
+  resolveOpenAiCompatibleModelDefinition,
+  resolveOpenAiResponsesModelDefinition,
+} from "./provider-model-definitions.js";
+export {
+  collectRequestedModalities,
+  resolveCapabilityRouteDecision,
+} from "./capability-router.js";
+export {
+  resolveProviderTransport,
+  resolveRuntimeModelProfile,
+} from "./runtime-model-profile.js";
