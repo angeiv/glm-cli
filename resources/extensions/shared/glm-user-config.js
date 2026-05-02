@@ -16,6 +16,7 @@ function normalizeOverrideMatch(value) {
   let selectors = 0;
   for (const key of [
     "provider",
+    "upstreamProvider",
     "baseUrl",
     "modelId",
     "platform",
@@ -80,39 +81,6 @@ function normalizeOverrideRule(value) {
   return rule;
 }
 
-function normalizeVisionFallback(value) {
-  if (!value || typeof value !== "object") return undefined;
-  const maybe = value;
-
-  const mode = normalizeNonEmptyString(maybe.mode)?.toLowerCase();
-  const provider = normalizeNonEmptyString(maybe.provider);
-  const model = normalizeNonEmptyString(maybe.model);
-
-  if (mode !== undefined && mode !== "off" && mode !== "suggest" && mode !== "route") {
-    return undefined;
-  }
-
-  if (
-    provider !== undefined &&
-    provider !== "glm" &&
-    provider !== "openai-compatible" &&
-    provider !== "openai-responses" &&
-    provider !== "anthropic"
-  ) {
-    return undefined;
-  }
-
-  if (mode === undefined && provider === undefined && model === undefined) {
-    return undefined;
-  }
-
-  return {
-    ...(mode ? { mode } : {}),
-    ...(provider ? { provider } : {}),
-    ...(model ? { model } : {}),
-  };
-}
-
 export function readGlmUserConfig() {
   const configPath = join(homedir(), ".glm", "config.json");
   try {
@@ -141,17 +109,4 @@ export function readGlmModelProfileOverrides() {
   }
 
   return rules.length > 0 ? rules : undefined;
-}
-
-export function readGlmModelRoutingConfig() {
-  const config = readGlmUserConfig();
-  const modelRouting = config?.modelRouting;
-  if (!modelRouting || typeof modelRouting !== "object") return undefined;
-
-  const visionFallback = normalizeVisionFallback(modelRouting.visionFallback);
-  if (!visionFallback) return undefined;
-
-  return {
-    visionFallback,
-  };
 }

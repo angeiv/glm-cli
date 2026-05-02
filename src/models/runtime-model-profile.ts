@@ -22,6 +22,7 @@ import {
 
 export type GlmProfileRuleMatch = {
   provider?: string;
+  upstreamProvider?: string;
   baseUrl?: string;
   modelId?: string;
   canonicalModelId?: string;
@@ -123,6 +124,7 @@ function matchesAnyCandidate(candidates: string[], pattern: string): boolean {
 
 type GlmResolutionContext = {
   provider?: string;
+  upstreamProvider?: string;
   baseUrl?: string;
   modelId: string;
   platform: GlmPlatformRoute;
@@ -136,6 +138,11 @@ function matchesOverride(rule: GlmProfileOverrideRule, context: GlmResolutionCon
   if (match.provider) {
     if (!context.provider) return false;
     if (!matchesGlob(normalize(context.provider), match.provider)) return false;
+  }
+
+  if (match.upstreamProvider) {
+    if (!context.upstreamProvider) return false;
+    if (!matchesGlob(context.upstreamProvider, match.upstreamProvider)) return false;
   }
 
   if (match.baseUrl) {
@@ -236,7 +243,53 @@ export function resolveProviderTransport(provider?: string): RuntimeTransport {
   return "openai-completions";
 }
 
-export function resolveGlmPlatformRoute(baseUrl?: string): GlmPlatformRoute {
+function normalizeUpstreamProvider(value?: string): string | undefined {
+  if (!value?.trim()) {
+    return undefined;
+  }
+
+  const normalized = normalize(value);
+  const aliases: Record<string, string> = {
+    glm: "bigmodel",
+    zhipu: "bigmodel",
+    "bigmodel-coding": "bigmodel",
+    "z.ai": "zai",
+    "z-ai": "zai",
+    "zai-coding": "zai",
+    bailian: "dashscope",
+  };
+
+  return aliases[normalized] ?? normalized;
+}
+
+function resolveExplicitPlatform(upstreamProvider?: string): GlmPlatformRoute | undefined {
+  switch (normalizeUpstreamProvider(upstreamProvider)) {
+    case "bigmodel":
+      return "native-bigmodel";
+    case "zai":
+      return "native-zai";
+    case "openrouter":
+      return "gateway-openrouter";
+    case "modelscope":
+      return "gateway-modelscope-openai";
+    case "dashscope":
+      return "gateway-dashscope";
+    case "other":
+      return "gateway-other";
+    default:
+      return undefined;
+  }
+}
+
+export function resolveGlmPlatformRoute(
+  baseUrl?: string,
+  upstreamProvider?: string,
+): GlmPlatformRoute {
+  const explicitPlatform = resolveExplicitPlatform(upstreamProvider);
+  if (explicitPlatform) {
+    return explicitPlatform;
+  }
+
   if (!baseUrl?.trim()) {
     return "unknown";
   }
@@ -298,13 +351,16 @@ export function resolveGlmUpstreamVendor(
 export function resolveRuntimeModelProfile(
   input: ResolveRuntimeModelProfileInput,
 ): ResolvedRuntimeModelProfile {
-  const gateway = resolveGlmPlatformRoute(input.baseUrl);
+  const upstreamProvider = normalizeUpstreamProvider(input.upstreamProvider);
+  const detectedGateway = resolveGlmPlatformRoute(input.baseUrl);
+  const gateway = resolveGlmPlatformRoute(input.baseUrl, upstreamProvider);
   const transport = resolveProviderTransport(input.provider);
   const upstreamVendor = resolveGlmUpstreamVendor(gateway, input.modelId);
   const baseCanonical = resolveCanonicalCatalogModelId(input.modelId);
 
   const baseContext: GlmResolutionContext = {
     provider: input.provider ? normalize(input.provider) : undefined,
+    upstreamProvider,
     baseUrl: input.baseUrl,
     modelId: input.modelId,
     platform: gateway,
@@ -335,10 +391,16 @@ export function resolveRuntimeModelProfile(
     overrides.modalities,
   );
 
-  const defaultPayloadPolicy: PayloadPatchPolicy =
-    canonicalGlmModel && (gateway === "native-bigmodel" || gateway === "native-zai")
-      ? "glm-native"
-      : "safe-openai-compatible";
+  const payloadGateway = input.provider === "glm" ? gateway : detectedGateway;
+  const shouldUseNativePayloadPolicy =
+    canonicalGlmModel &&
+    ((input.provider === "glm" &&
+      (payloadGateway === "native-bigmodel" || payloadGateway === "native-zai")) ||
+      (input.provider === undefined &&
+        (detectedGateway === "native-bigmodel" || detectedGateway === "native-zai")));
+  const defaultPayloadPolicy: PayloadPatchPolicy = shouldUseNativePayloadPolicy
+    ? "glm-native"
+    : "safe-openai-compatible";
   const payloadPatchPolicy = overrides.payloadPatchPolicy ?? defaultPayloadPolicy;
 
   return {
@@ -358,7 +420,7 @@ export function resolveRuntimeModelProfile(
     gateway,
     patchPipeline: {
       zhipuNative: payloadPatchPolicy === "glm-native",
-      dashscopeCompat: gateway === "gateway-dashscope",
+      dashscopeCompat: detectedGateway === "gateway-dashscope",
     },
   };
 }

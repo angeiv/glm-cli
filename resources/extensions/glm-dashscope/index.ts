@@ -300,6 +300,7 @@ export default function (pi: ExtensionAPI) {
       id?: string;
       maxTokens?: number;
       provider?: string;
+      upstreamProvider?: string;
     };
     const baseUrl = typeof model.baseUrl === "string" ? model.baseUrl : "";
 
@@ -315,6 +316,7 @@ export default function (pi: ExtensionAPI) {
           provider: model.provider,
           modelId,
           baseUrl,
+          upstreamProvider: model.upstreamProvider,
           overrides: modelProfileOverrides,
         })
       : undefined;

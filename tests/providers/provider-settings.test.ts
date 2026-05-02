@@ -40,4 +40,18 @@ describe("resolveProviderSettings", () => {
 
     expect(resolved.baseUrl).toBe("https://env.example.com");
   });
+
+  test("prefers explicit upstream provider hints from env over persisted config", () => {
+    const resolved = resolveProviderSettings({
+      envUpstreamProvider: "  dashscope  ",
+      persisted: {
+        apiKey: "persisted-key",
+        baseURL: "https://persisted.example.com",
+        upstreamProvider: "openrouter",
+      },
+      defaultBaseUrl: "https://default.example.com",
+    });
+
+    expect(resolved.upstreamProvider).toBe("dashscope");
+  });
 });

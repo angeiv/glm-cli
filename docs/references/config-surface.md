@@ -65,14 +65,13 @@ Supported persisted keys today:
 - `loop.autoVerify`
 - `loop.verifyCommand`
 - `modelProfiles.overrides`
-- `modelRouting.visionFallback.mode`
-- `modelRouting.visionFallback.provider`
-- `modelRouting.visionFallback.model`
 - `providers.glm.apiKey`
 - `providers.glm.baseURL`
 - `providers.glm.endpoint`
+- `providers.glm.upstreamProvider`
 - `providers["openai-compatible"].apiKey`
 - `providers["openai-compatible"].baseURL`
+- `providers["openai-compatible"].upstreamProvider`
 
 Anthropic-compatible credentials are env-only today.
 
@@ -86,6 +85,8 @@ Anthropic-compatible credentials are env-only today.
 
 `modelProfiles.overrides[].modalities` currently accepts `text`, `image`, and `video`.
 
+`modelProfiles.overrides[].match` can target transport (`provider`), explicit upstream routing (`upstreamProvider`), base URL globs, model aliases, canonical IDs, platform, and upstream vendor hints.
+
 ## `glm config` command surface
 
 `glm config get|set` currently exposes:
@@ -97,6 +98,8 @@ Anthropic-compatible credentials are env-only today.
 - `debugRuntime`
 - `eventLogLimit`
 - `glmEndpoint`
+- `glmUpstreamProvider`
+- `openaiUpstreamProvider`
 - `maxOutputTokens`
 - `temperature`
 - `topP`
@@ -113,9 +116,6 @@ Anthropic-compatible credentials are env-only today.
 - `loopFailureMode`
 - `loopAutoVerify`
 - `loopVerifyCommand`
-- `visionFallbackMode`
-- `visionFallbackProvider`
-- `visionFallbackModel`
 
 When adding a new config key, update all of:
 
@@ -141,9 +141,6 @@ Capability and loop env inputs currently include:
 - `GLM_TOOL_STREAM`
 - `GLM_RESPONSE_FORMAT`
 - `GLM_CONTEXT_CACHE`
-- `GLM_VISION_FALLBACK_MODE`
-- `GLM_VISION_FALLBACK_PROVIDER`
-- `GLM_VISION_FALLBACK_MODEL`
 - `GLM_LOOP_ENABLED`
 - `GLM_LOOP_PROFILE`
 - `GLM_LOOP_MAX_ROUNDS`
@@ -157,12 +154,15 @@ Credential env inputs:
 
 - `GLM_API_KEY`
 - `GLM_BASE_URL`
+- `GLM_UPSTREAM_PROVIDER`
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`
 - `OPENAI_MODEL`
+- `OPENAI_UPSTREAM_PROVIDER`
 - `ANTHROPIC_AUTH_TOKEN`
 - `ANTHROPIC_BASE_URL`
 - `ANTHROPIC_MODEL`
+- `ANTHROPIC_UPSTREAM_PROVIDER`
 
 MCP env inputs:
 

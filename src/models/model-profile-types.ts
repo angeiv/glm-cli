@@ -5,6 +5,13 @@ export type GlmModelFamily = "glm-5" | "glm-4.7" | "glm-4.6" | "glm-4.5" | "glm-
 export type GlmInputModality = "text" | "image" | "video";
 export type RuntimeModelFamily = "glm" | "qwen" | "generic";
 export type RuntimeTransport = "openai-completions" | "openai-responses" | "anthropic-messages";
+export type UpstreamProviderHint =
+  | "bigmodel"
+  | "zai"
+  | "dashscope"
+  | "modelscope"
+  | "openrouter"
+  | "other";
 
 export type EffectiveModelCaps = {
   contextWindow: number;
@@ -74,6 +81,7 @@ export type ResolvedGlmProfile = {
 export type ResolveGlmProfileInput = {
   modelId: string;
   baseUrl?: string;
+  upstreamProvider?: UpstreamProviderHint | string;
 };
 
 export type RuntimePatchPipeline = {

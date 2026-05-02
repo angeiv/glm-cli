@@ -10,10 +10,6 @@ export {
   resolveOpenAiResponsesModelDefinition,
 } from "./provider-model-definitions.js";
 export {
-  collectRequestedModalities,
-  resolveCapabilityRouteDecision,
-} from "./capability-router.js";
-export {
   resolveProviderTransport,
   resolveRuntimeModelProfile,
 } from "./runtime-model-profile.js";

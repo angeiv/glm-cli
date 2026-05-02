@@ -205,6 +205,18 @@ describe("configSet", () => {
     expect(updated.providers.glm.endpoint).toBe("zai-coding");
   });
 
+  test("supports upstream provider hints via config set", async () => {
+    const writeConfigFile = vi.fn(async () => undefined);
+
+    const updated = await configSet("openaiUpstreamProvider", "openrouter", {
+      readConfigFile: async () => getDefaultConfigFile(),
+      writeConfigFile,
+      log: vi.fn(),
+    });
+
+    expect(updated.providers["openai-compatible"].upstreamProvider).toBe("openrouter");
+  });
+
   test("updates loop keys and persists them", async () => {
     const writeConfigFile = vi.fn(async () => undefined);
 

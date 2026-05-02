@@ -599,6 +599,7 @@ type PersistedProviderConfig = {
   apiKey?: string;
   baseURL?: string;
   endpoint?: string;
+  upstreamProvider?: string;
 };
 
 type PersistedConfig = {
@@ -615,8 +616,10 @@ function normalizeProvider(value: unknown): PersistedProviderConfig | undefined 
   const apiKey = typeof maybe.apiKey === "string" ? maybe.apiKey : undefined;
   const baseURL = typeof maybe.baseURL === "string" ? maybe.baseURL : undefined;
   const endpoint = typeof maybe.endpoint === "string" ? maybe.endpoint : undefined;
-  if (!apiKey && !baseURL && !endpoint) return undefined;
-  return { apiKey, baseURL, endpoint };
+  const upstreamProvider =
+    typeof maybe.upstreamProvider === "string" ? maybe.upstreamProvider : undefined;
+  if (!apiKey && !baseURL && !endpoint && !upstreamProvider) return undefined;
+  return { apiKey, baseURL, endpoint, upstreamProvider };
 }
 
 function readPersistedConfig(): PersistedConfig {
@@ -647,6 +650,7 @@ const modelProfileOverrides = readGlmModelProfileOverrides();
 export function resolveProviderSettings(options: {
   envApiKey?: string;
   envBaseUrl?: string;
+  envUpstreamProvider?: string;
   persisted?: PersistedProviderConfig;
   defaultBaseUrl: string;
 }) {
@@ -654,10 +658,13 @@ export function resolveProviderSettings(options: {
   const persistedApiKey = options.persisted?.apiKey?.trim();
   const envBaseUrl = options.envBaseUrl?.trim();
   const persistedBaseUrl = options.persisted?.baseURL?.trim();
+  const envUpstreamProvider = options.envUpstreamProvider?.trim();
+  const persistedUpstreamProvider = options.persisted?.upstreamProvider?.trim();
 
   const apiKey = envApiKey || persistedApiKey;
   const baseUrl = envBaseUrl || persistedBaseUrl || options.defaultBaseUrl;
-  return { apiKey, baseUrl };
+  const upstreamProvider = envUpstreamProvider || persistedUpstreamProvider;
+  return { apiKey, baseUrl, upstreamProvider };
 }
 
 function resolveConfigDefaultModel(): string | undefined {
@@ -672,6 +679,7 @@ export default function (pi: ExtensionAPI) {
   const glmSettings = resolveProviderSettings({
     envApiKey: process.env.GLM_API_KEY,
     envBaseUrl: process.env.GLM_BASE_URL,
+    envUpstreamProvider: process.env.GLM_UPSTREAM_PROVIDER,
     persisted: persistedConfig.providers?.glm,
     defaultBaseUrl: glmPresetBaseUrl ?? GLM_BASE_URL_PRESETS["bigmodel-coding"],
   });
@@ -684,6 +692,7 @@ export default function (pi: ExtensionAPI) {
       api: "openai-completions",
       models: resolveNativeGlmProviderModels({
         baseUrl: glmSettings.baseUrl,
+        upstreamProvider: glmSettings.upstreamProvider,
         overrides: modelProfileOverrides,
       }),
     });
@@ -692,6 +701,7 @@ export default function (pi: ExtensionAPI) {
   const openaiSettings = resolveProviderSettings({
     envApiKey: process.env.OPENAI_API_KEY,
     envBaseUrl: process.env.OPENAI_BASE_URL,
+    envUpstreamProvider: process.env.OPENAI_UPSTREAM_PROVIDER,
     persisted: persistedConfig.providers?.["openai-compatible"],
     defaultBaseUrl: "https://api.openai.com/v1",
   });
@@ -712,6 +722,7 @@ export default function (pi: ExtensionAPI) {
         resolveOpenAiCompatibleModelDefinition({
           modelId: openaiModelId,
           baseUrl: openaiSettings.baseUrl,
+          upstreamProvider: openaiSettings.upstreamProvider,
           overrides: modelProfileOverrides,
         }),
       ],
@@ -726,6 +737,7 @@ export default function (pi: ExtensionAPI) {
         resolveOpenAiResponsesModelDefinition({
           modelId: openaiModelId,
           baseUrl: openaiSettings.baseUrl,
+          upstreamProvider: openaiSettings.upstreamProvider,
           overrides: modelProfileOverrides,
         }),
       ],
@@ -745,6 +757,7 @@ export default function (pi: ExtensionAPI) {
       ) ?? "glm-5.1";
 
     const baseUrl = process.env.ANTHROPIC_BASE_URL ?? "https://open.bigmodel.cn/api/anthropic";
+    const upstreamProvider = process.env.ANTHROPIC_UPSTREAM_PROVIDER;
     const isModelscope = isModelscopeAnthropicBaseUrl(baseUrl);
 
     pi.registerProvider("anthropic", {
@@ -759,6 +772,7 @@ export default function (pi: ExtensionAPI) {
       models: resolveAnthropicModels({
         requestedModelId: anthropicModelId,
         baseUrl,
+        upstreamProvider,
         overrides: modelProfileOverrides,
       }),
     });

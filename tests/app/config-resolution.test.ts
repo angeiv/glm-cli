@@ -218,6 +218,7 @@ describe("config store normalization", () => {
           {
             match: {
               provider: "anthropic",
+              upstreamProvider: "modelscope",
               baseUrl: "*modelscope.cn*",
               modelId: "ZhipuAI/GLM-5*",
             },
@@ -240,6 +241,7 @@ describe("config store normalization", () => {
       modalities: ["text", "image", "video"],
       match: {
         provider: "anthropic",
+        upstreamProvider: "modelscope",
         baseUrl: "*modelscope.cn*",
         modelId: "ZhipuAI/GLM-5*",
       },
@@ -250,30 +252,20 @@ describe("config store normalization", () => {
     });
   });
 
-  test("readConfigFile accepts model routing vision fallback config", async () => {
+  test("readConfigFile accepts provider upstream provider hints", async () => {
     const payload = JSON.stringify({
       defaultProvider: "glm",
       approvalPolicy: "ask",
       providers: {
-        glm: { apiKey: "", baseURL: "" },
-        "openai-compatible": { apiKey: "", baseURL: "" },
-      },
-      modelRouting: {
-        visionFallback: {
-          mode: "route",
-          provider: "openai-compatible",
-          model: "qwen/qwen3.5-122b-a10b",
-        },
+        glm: { apiKey: "", baseURL: "", upstreamProvider: "bigmodel" },
+        "openai-compatible": { apiKey: "", baseURL: "", upstreamProvider: "openrouter" },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
     const config = await readConfigFile();
-    expect(config.modelRouting?.visionFallback).toEqual({
-      mode: "route",
-      provider: "openai-compatible",
-      model: "qwen/qwen3.5-122b-a10b",
-    });
+    expect(config.providers.glm.upstreamProvider).toBe("bigmodel");
+    expect(config.providers["openai-compatible"].upstreamProvider).toBe("openrouter");
   });
 
   test("readConfigFile rejects invalid model profile override rules", async () => {
@@ -322,23 +314,18 @@ describe("config store normalization", () => {
     await expect(readConfigFile()).rejects.toThrow(/modalities/i);
   });
 
-  test("readConfigFile rejects invalid model routing vision fallback mode", async () => {
+  test("readConfigFile rejects invalid provider upstream provider values", async () => {
     const payload = JSON.stringify({
       defaultProvider: "glm",
       approvalPolicy: "ask",
       providers: {
-        glm: { apiKey: "", baseURL: "" },
+        glm: { apiKey: "", baseURL: "", upstreamProvider: "aihub" },
         "openai-compatible": { apiKey: "", baseURL: "" },
-      },
-      modelRouting: {
-        visionFallback: {
-          mode: "auto",
-        },
       },
     });
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
-    await expect(readConfigFile()).rejects.toThrow(/visionFallback/i);
+    await expect(readConfigFile()).rejects.toThrow(/upstreamProvider/i);
   });
 
   test("readConfigFile rejects invalid glm capability values", async () => {

@@ -6,9 +6,11 @@ const trackedEnvKeys = [
   "GLM_API_KEY",
   "GLM_BASE_URL",
   "GLM_ENDPOINT",
+  "GLM_UPSTREAM_PROVIDER",
   "OPENAI_API_KEY",
   "OPENAI_BASE_URL",
   "OPENAI_MODEL",
+  "OPENAI_UPSTREAM_PROVIDER",
   "GLM_MODEL",
 ] as const;
 
@@ -129,6 +131,40 @@ describe("glm provider extension", () => {
         id: "z-ai/glm-5.1",
         contextWindow: 202_752,
         maxTokens: 131_072,
+        compat: expect.objectContaining({
+          supportsDeveloperRole: false,
+        }),
+      }),
+    ]);
+    expect(models[0].compat).not.toMatchObject({
+      thinkingFormat: "zai",
+      zaiToolStream: true,
+    });
+  });
+
+  test("uses explicit upstream provider hints when the base url is a proxy", () => {
+    const provider = registerProviderByName("openai-compatible", {
+      OPENAI_API_KEY: "token",
+      OPENAI_MODEL: "z-ai/glm-5.1",
+      OPENAI_BASE_URL: "https://aihub.internal.example/v1",
+      OPENAI_UPSTREAM_PROVIDER: "openrouter",
+    });
+
+    expect(provider).toBeDefined();
+    const models = provider!.config.models as Array<{
+      id: string;
+      contextWindow: number;
+      maxTokens: number;
+      compat?: Record<string, unknown>;
+      upstreamProvider?: string;
+    }>;
+
+    expect(models).toEqual([
+      expect.objectContaining({
+        id: "z-ai/glm-5.1",
+        contextWindow: 202_752,
+        maxTokens: 131_072,
+        upstreamProvider: "openrouter",
         compat: expect.objectContaining({
           supportsDeveloperRole: false,
         }),

@@ -8,10 +8,12 @@ const trackedEnvKeys = [
   "OPENAI_API_KEY",
   "OPENAI_BASE_URL",
   "OPENAI_MODEL",
+  "OPENAI_UPSTREAM_PROVIDER",
   "GLM_MODEL",
   "ANTHROPIC_AUTH_TOKEN",
   "ANTHROPIC_BASE_URL",
   "ANTHROPIC_MODEL",
+  "ANTHROPIC_UPSTREAM_PROVIDER",
 ] as const;
 
 const originalEnv = Object.fromEntries(
@@ -144,6 +146,32 @@ describe("anthropic provider extension model registration", () => {
     expect(anthropic).toBeDefined();
     expect(anthropic!.config.api).toBe("anthropic-messages-modelscope");
     expect(typeof anthropic!.config.streamSimple).toBe("function");
+  });
+
+  test("uses explicit upstream provider hints for proxied anthropic-compatible glm models", () => {
+    const requestedModelId = "glm-5.1";
+    const anthropic = registerAnthropicProvider({
+      ANTHROPIC_AUTH_TOKEN: "token",
+      ANTHROPIC_MODEL: requestedModelId,
+      ANTHROPIC_BASE_URL: "https://aihub.internal.example/v1/messages",
+      ANTHROPIC_UPSTREAM_PROVIDER: "modelscope",
+    });
+
+    expect(anthropic).toBeDefined();
+    const models = anthropic!.config.models as Array<{
+      id: string;
+      contextWindow: number;
+      maxTokens: number;
+      upstreamProvider?: string;
+    }>;
+    const requested = models.find((model) => model.id === requestedModelId);
+
+    expect(requested).toMatchObject({
+      id: requestedModelId,
+      contextWindow: 204_800,
+      maxTokens: 131_072,
+      upstreamProvider: "modelscope",
+    });
   });
 });
 

@@ -81,4 +81,37 @@ describe("runtime model profile", () => {
     expect(profile.effectiveCaps.supportsThinking).toBe(true);
     expect(profile.effectiveCaps.defaultThinkingMode).toBe("enabled");
   });
+
+  test("uses explicit upstream provider hints for capability matching without switching payload patches", () => {
+    const profile = resolveRuntimeModelProfile({
+      provider: "openai-compatible",
+      modelId: "z-ai/glm-5.1",
+      baseUrl: "https://aihub.internal.example/v1",
+      upstreamProvider: "openrouter",
+    });
+
+    expect(profile.gateway).toBe("gateway-openrouter");
+    expect(profile.effectiveCaps.contextWindow).toBe(202_752);
+    expect(profile.payloadPatchPolicy).toBe("safe-openai-compatible");
+    expect(profile.patchPipeline).toEqual({
+      zhipuNative: false,
+      dashscopeCompat: false,
+    });
+  });
+
+  test("allows explicit upstream provider hints to keep native glm payload semantics on proxies", () => {
+    const profile = resolveRuntimeModelProfile({
+      provider: "glm",
+      modelId: "glm-5.1",
+      baseUrl: "https://aihub.internal.example/v1",
+      upstreamProvider: "bigmodel",
+    });
+
+    expect(profile.gateway).toBe("native-bigmodel");
+    expect(profile.payloadPatchPolicy).toBe("glm-native");
+    expect(profile.patchPipeline).toEqual({
+      zhipuNative: true,
+      dashscopeCompat: false,
+    });
+  });
 });

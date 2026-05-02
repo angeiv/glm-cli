@@ -65,14 +65,13 @@ Compaction（上下文压缩）配置项（展示默认值）：
 - `loop.autoVerify`
 - `loop.verifyCommand`
 - `modelProfiles.overrides`
-- `modelRouting.visionFallback.mode`
-- `modelRouting.visionFallback.provider`
-- `modelRouting.visionFallback.model`
 - `providers.glm.apiKey`
 - `providers.glm.baseURL`
 - `providers.glm.endpoint`
+- `providers.glm.upstreamProvider`
 - `providers["openai-compatible"].apiKey`
 - `providers["openai-compatible"].baseURL`
+- `providers["openai-compatible"].upstreamProvider`
 
 Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 
@@ -86,6 +85,8 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 
 `modelProfiles.overrides[].modalities` 当前支持 `text`、`image`、`video`。
 
+`modelProfiles.overrides[].match` 可同时按 transport (`provider`)、显式上游路由 (`upstreamProvider`)、base URL 通配、模型别名、canonical ID、platform 以及 upstream vendor 进行匹配。
+
 ## `glm config` 命令面
 
 `glm config get|set` 当前暴露以下 key：
@@ -97,6 +98,8 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `debugRuntime`
 - `eventLogLimit`
 - `glmEndpoint`
+- `glmUpstreamProvider`
+- `openaiUpstreamProvider`
 - `maxOutputTokens`
 - `temperature`
 - `topP`
@@ -113,9 +116,6 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `loopFailureMode`
 - `loopAutoVerify`
 - `loopVerifyCommand`
-- `visionFallbackMode`
-- `visionFallbackProvider`
-- `visionFallbackModel`
 
 当新增配置项时，需要同步更新：
 
@@ -141,9 +141,6 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `GLM_TOOL_STREAM`
 - `GLM_RESPONSE_FORMAT`
 - `GLM_CONTEXT_CACHE`
-- `GLM_VISION_FALLBACK_MODE`
-- `GLM_VISION_FALLBACK_PROVIDER`
-- `GLM_VISION_FALLBACK_MODEL`
 - `GLM_LOOP_ENABLED`
 - `GLM_LOOP_PROFILE`
 - `GLM_LOOP_MAX_ROUNDS`
@@ -157,12 +154,15 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 
 - `GLM_API_KEY`
 - `GLM_BASE_URL`
+- `GLM_UPSTREAM_PROVIDER`
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`
 - `OPENAI_MODEL`
+- `OPENAI_UPSTREAM_PROVIDER`
 - `ANTHROPIC_AUTH_TOKEN`
 - `ANTHROPIC_BASE_URL`
 - `ANTHROPIC_MODEL`
+- `ANTHROPIC_UPSTREAM_PROVIDER`
 
 MCP 相关环境变量：
 
