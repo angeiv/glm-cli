@@ -94,7 +94,10 @@ function setStatus(
   ctx.ui?.setStatus?.(ROUTING_STATUS_KEY, formatRoutingStatus(config));
 }
 
-function getRequestedModalities(event: { text?: string; images?: Array<unknown> }): Array<"text" | "image"> {
+function getRequestedModalities(event: {
+  text?: string;
+  images?: Array<unknown>;
+}): Array<"text" | "image"> {
   const requested = new Set<"text" | "image">();
   if (typeof event.text === "string" && event.text.trim()) {
     requested.add("text");
@@ -180,9 +183,9 @@ export default function (pi: ExtensionAPI) {
 
     const decision = resolveCapabilityRouteDecision({
       requestedModalities,
-      supportedModalities: (currentModel.input as Array<"text" | "image" | "video"> | undefined) ?? [
-        "text",
-      ],
+      supportedModalities: (currentModel.input as
+        | Array<"text" | "image" | "video">
+        | undefined) ?? ["text"],
       current: {
         provider: currentModel.provider,
         model: currentModel.id,
@@ -217,11 +220,10 @@ export default function (pi: ExtensionAPI) {
       });
 
       if (ctx.hasUI && shouldNotify(`${signature}:suggest`)) {
-        const suffix = decision.target ? ` Suggested fallback: ${formatTarget(decision.target)}.` : "";
-        ctx.ui?.notify?.(
-          `Current model does not support image input.${suffix}`,
-          "warning",
-        );
+        const suffix = decision.target
+          ? ` Suggested fallback: ${formatTarget(decision.target)}.`
+          : "";
+        ctx.ui?.notify?.(`Current model does not support image input.${suffix}`, "warning");
       }
 
       return { action: "continue" as const };

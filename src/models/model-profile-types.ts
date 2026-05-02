@@ -4,10 +4,7 @@ export type GlmModelTier = "flagship" | "base" | "turbo" | "flash" | "air" | "vi
 export type GlmModelFamily = "glm-5" | "glm-4.7" | "glm-4.6" | "glm-4.5" | "glm-4";
 export type GlmInputModality = "text" | "image" | "video";
 export type RuntimeModelFamily = "glm" | "qwen" | "generic";
-export type RuntimeTransport =
-  | "openai-completions"
-  | "openai-responses"
-  | "anthropic-messages";
+export type RuntimeTransport = "openai-completions" | "openai-responses" | "anthropic-messages";
 
 export type EffectiveModelCaps = {
   contextWindow: number;

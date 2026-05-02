@@ -38,7 +38,10 @@ describe("runtime model profile", () => {
   });
 
   test("resolves anthropic transport for modelscope anthropic-compatible routes", () => {
-    const transport = resolveProviderTransport("anthropic", "https://api-inference.modelscope.cn/v1");
+    const transport = resolveProviderTransport(
+      "anthropic",
+      "https://api-inference.modelscope.cn/v1",
+    );
     expect(transport).toBe("anthropic-messages");
 
     const profile = resolveRuntimeModelProfile({

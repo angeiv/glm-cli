@@ -124,7 +124,8 @@ export function resolveCapabilityRouteDecision(args: {
       return {
         action: "blocked",
         missingModalities,
-        reason: "configured vision fallback matches the current model but image input is unsupported",
+        reason:
+          "configured vision fallback matches the current model but image input is unsupported",
       };
     }
 

@@ -370,9 +370,7 @@ function cloneModelRoutingConfig(config?: ModelRoutingConfig): ModelRoutingConfi
   return {
     visionFallback: {
       ...(maybe.mode === undefined ? {} : { mode: maybe.mode as VisionFallbackMode }),
-      ...(maybe.provider === undefined
-        ? {}
-        : { provider: maybe.provider as RoutingProviderName }),
+      ...(maybe.provider === undefined ? {} : { provider: maybe.provider as RoutingProviderName }),
       ...(maybe.model === undefined ? {} : { model: maybe.model as string }),
     },
   };
@@ -614,9 +612,7 @@ function validateModelRoutingConfig(config?: ModelRoutingConfig): void {
   }
 
   if (typeof visionFallback !== "object" || visionFallback === null) {
-    throw new Error(
-      `Invalid modelRouting.visionFallback in config file: ${typeof visionFallback}`,
-    );
+    throw new Error(`Invalid modelRouting.visionFallback in config file: ${typeof visionFallback}`);
   }
 
   const record = visionFallback as Record<string, unknown>;
