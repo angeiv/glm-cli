@@ -43,6 +43,40 @@ describe("glm-runtime extension", () => {
       cwd: "/tmp/repo",
       provider: "glm",
       model: "glm-5.1",
+      api: "openai-compatible",
+      baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4/",
+      resolvedModel: {
+        canonicalModelId: "glm-5.1",
+        platform: "native-bigmodel",
+        upstreamVendor: "unknown",
+        payloadPatchPolicy: "glm-native",
+        confidence: "high",
+        contextWindow: 204_800,
+        maxOutputTokens: 131_072,
+        supportsThinking: true,
+        supportsPreservedThinking: true,
+        supportsStreaming: true,
+        supportsToolCall: true,
+        supportsToolStream: true,
+        supportsCache: true,
+        supportsStructuredOutput: true,
+        supportsMcp: true,
+      },
+      modelDiscovery: {
+        enabled: true,
+        supported: true,
+        cachePath: "/tmp/.glm/agent/discovered-models.json",
+        cacheKey: "glm::openai-compatible::https://open.bigmodel.cn/api/coding/paas/v4",
+        source: "miss",
+      },
+      generation: {},
+      glmCapabilities: {},
+      toolSignature: {
+        hash: "0".repeat(64),
+        builtinTools: [],
+        customTools: [],
+        mcp: { configPath: "" },
+      },
       approvalPolicy: "ask",
       loop: {
         enabled: false,
@@ -89,7 +123,7 @@ describe("glm-runtime extension", () => {
         authPath: "/tmp/.glm/agent/auth.json",
         modelsPath: "/tmp/.glm/agent/models.json",
       },
-    });
+    } as any);
 
     await inspectHandler?.("", {
       hasUI: true,

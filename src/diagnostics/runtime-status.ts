@@ -13,6 +13,10 @@ import {
   resolveMcpToolMode,
 } from "../mcp/config.js";
 import { readLatestVerificationArtifact } from "../harness/artifact-index.js";
+import {
+  resolveDiscoveryCachePath,
+  resolveModelDiscoveryStatus,
+} from "../models/model-discovery.js";
 import { resolveProviderBaseUrl } from "../providers/settings.js";
 import {
   getProviderDefaultApi,
@@ -236,6 +240,13 @@ export async function buildRuntimeStatus(args: {
         ? getProviderDefaultApi(runtimeProviderInput.provider)
         : "openai-compatible");
   const baseUrl = resolveRuntimeBaseUrl(args.runtime.provider, effectiveApi, args.env, args.config);
+  const modelDiscovery = await resolveModelDiscoveryStatus({
+    provider: args.runtime.provider,
+    api: effectiveApi,
+    baseUrl: baseUrl ?? "",
+    cachePath: resolveDiscoveryCachePath(args.paths.agentDir),
+    config: args.config?.modelDiscovery,
+  });
   const capabilitiesEnv = args.config
     ? buildCapabilityEnvironment(args.env as any, args.config)
     : {};
@@ -298,6 +309,7 @@ export async function buildRuntimeStatus(args: {
         supportsMcp: profile.effectiveCaps.supportsMcp,
       };
     })(),
+    modelDiscovery,
     generation,
     glmCapabilities,
     toolSignature,
@@ -443,6 +455,16 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
   const loopModePart = status.loop.mode ? ` | mode ${status.loop.mode}` : "";
   const loopPhasePart = status.loop.phase ? ` | phase ${status.loop.phase}` : "";
   const loopSpendPart = loopSpendParts.length > 0 ? ` | ${loopSpendParts.join(" | ")}` : "";
+  const modelDiscoveryParts = [status.modelDiscovery.source];
+  if (status.modelDiscovery.modelCount !== undefined) {
+    modelDiscoveryParts.push(`models ${status.modelDiscovery.modelCount}`);
+  }
+  if (status.modelDiscovery.stale) {
+    modelDiscoveryParts.push("stale");
+  }
+  if (status.modelDiscovery.error) {
+    modelDiscoveryParts.push(`error ${status.modelDiscovery.error}`);
+  }
 
   return [
     `Cwd: ${status.cwd}`,
@@ -454,6 +476,7 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens} | thinking=${status.resolvedModel.supportsThinking ? "on" : "off"} | preservedThinking=${status.resolvedModel.supportsPreservedThinking ? "on" : "off"} | toolCall=${status.resolvedModel.supportsToolCall ? "on" : "off"} | toolStream=${status.resolvedModel.supportsToolStream ? "on" : "off"} | struct=${status.resolvedModel.supportsStructuredOutput ? "on" : "off"} | cache=${status.resolvedModel.supportsCache ? "on" : "off"} | mcp=${status.resolvedModel.supportsMcp ? "on" : "off"}`,
     generationLine,
     glmLine,
+    `Model discovery: ${modelDiscoveryParts.join(" | ")}`,
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds}${
       status.loop.maxToolCalls === undefined ? "" : ` | tools<=${status.loop.maxToolCalls}`

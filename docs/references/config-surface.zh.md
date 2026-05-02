@@ -15,6 +15,7 @@
 - `~/.glm/agent/prompts/system.md`：同步后的 base contract prompt
 - `~/.glm/agent/auth.json`：runtime 维护的认证信息文件路径
 - `~/.glm/agent/models.json`：runtime 维护的模型注册表缓存路径
+- `~/.glm/agent/discovered-models.json`：OpenAI 风格网关 `/models` 发现缓存
 - `~/.glm/agent/settings.json`：全局运行时设置文件（`/compact`、retry、steering 等）
 - `~/.glm/sessions/`：按 cwd 派生的 session 目录
 - `~/.glm/logs/`：预留日志目录
@@ -49,6 +50,9 @@ Compaction（上下文压缩）配置项（展示默认值）：
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
+- `modelDiscovery.enabled`
+- `modelDiscovery.cacheTtlMs`
+- `modelDiscovery.allowStaleOnError`
 - `generation.maxOutputTokens`
 - `generation.temperature`
 - `generation.topP`
@@ -117,6 +121,9 @@ Anthropic 兼容模式的凭据目前仅支持通过环境变量配置。
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
+- `modelDiscoveryEnabled`
+- `modelDiscoveryCacheTtlMs`
+- `modelDiscoveryAllowStaleOnError`
 - `glmEndpoint`
 - `maxOutputTokens`
 - `temperature`
@@ -202,6 +209,7 @@ CLI 会通过 flags 影响 runtime 行为。排查时建议直接运行 `glm ins
 - Provider/API/model 会从 CLI flags、环境变量和持久化配置综合解析，逻辑在 `src/providers/index.ts` 与 `src/app/env.ts`。
 - 推荐的操作流程是：先选 `provider`，按需覆盖 `api`，再指定 `model`。
 - `custom` 适用于代理网关、本地模型和未知模型。可以先用模型名直接试跑，再通过 `modelOverrides` 细化能力参数；默认 generic 能力是保守兜底，不代表最佳参数。
+- `modelDiscovery.*` 仅作用于 OpenAI 风格网关 provider（`openai-compatible` / `openai-responses`）。BigModel 与 z.ai 原生路径继续使用内置模型目录。
 - Loop options 解析在 `src/app/env.ts`。
 - Session 路径派生在 `src/session/session-paths.ts`。
 - 打包的 prompts/extensions 同步逻辑在 `src/app/resource-sync.ts`。

@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { getDefaultConfigFile, normalizeConfigFile } from "../../src/app/config-store.js";
 
-const readGlmUserConfigMock = vi.fn(() => ({}));
-const readGlmModelProfileOverridesMock = vi.fn(() => []);
+const { readConfigFileMock, resolveDiscoveredModelsMock } = vi.hoisted(() => ({
+  readConfigFileMock: vi.fn(),
+  resolveDiscoveredModelsMock: vi.fn(),
+}));
 
 type RegisteredProvider = {
   name: string;
@@ -18,21 +21,42 @@ beforeEach(() => {
   vi.restoreAllMocks();
   vi.resetModules();
   process.env = { ...ORIGINAL_ENV };
+  readConfigFileMock.mockReset();
+  resolveDiscoveredModelsMock.mockReset();
+  readConfigFileMock.mockResolvedValue(getDefaultConfigFile());
+  resolveDiscoveredModelsMock.mockResolvedValue({
+    models: [],
+    status: {
+      enabled: true,
+      supported: true,
+      source: "fallback",
+    },
+  });
 });
 
-vi.mock("../../resources/extensions/shared/glm-user-config.js", () => {
+vi.mock("../../src/app/config-store.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/app/config-store.js")>(
+    "../../src/app/config-store.js",
+  );
+
   return {
-    readGlmUserConfig: readGlmUserConfigMock,
-    readGlmModelProfileOverrides: readGlmModelProfileOverridesMock,
+    ...actual,
+    readConfigFile: readConfigFileMock,
+  };
+});
+
+vi.mock("../../src/models/model-discovery.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/models/model-discovery.js")>(
+    "../../src/models/model-discovery.js",
+  );
+
+  return {
+    ...actual,
+    resolveDiscoveredModels: resolveDiscoveredModelsMock,
   };
 });
 
 describe("glm-providers extension", () => {
-  beforeEach(() => {
-    readGlmUserConfigMock.mockReturnValue({});
-    readGlmModelProfileOverridesMock.mockReturnValue([]);
-  });
-
   test("enables zaiToolStream compat only for official providers that support tool streaming", async () => {
     process.env.GLM_PROVIDER = "bigmodel";
     process.env.GLM_API_KEY = "test-key";
@@ -48,7 +72,7 @@ describe("glm-providers extension", () => {
     const { default: registerProvidersExtension } = await import(
       "../../resources/extensions/glm-providers/index.ts"
     );
-    registerProvidersExtension(pi as any);
+    await registerProvidersExtension(pi as any);
 
     const provider = providers.find((p) => p.name === "bigmodel");
     expect(provider).toBeTruthy();
@@ -64,16 +88,20 @@ describe("glm-providers extension", () => {
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_BASE_URL = "https://gateway.example.com/v1";
     process.env.OPENAI_MODEL = "vendor/some-custom-model";
-    readGlmModelProfileOverridesMock.mockReturnValue([
-      {
-        match: {
-          provider: "custom",
-          api: "openai-compatible",
-          modelId: "vendor/some-custom-model",
-        },
-        modalities: ["text"],
-      },
-    ]);
+    readConfigFileMock.mockResolvedValue(
+      normalizeConfigFile({
+        modelOverrides: [
+          {
+            match: {
+              provider: "custom",
+              api: "openai-compatible",
+              modelId: "vendor/some-custom-model",
+            },
+            modalities: ["text"],
+          },
+        ],
+      }),
+    );
 
     const providers: RegisteredProvider[] = [];
     const pi: PiMock = {
@@ -85,7 +113,7 @@ describe("glm-providers extension", () => {
     const { default: registerProvidersExtension } = await import(
       "../../resources/extensions/glm-providers/index.ts"
     );
-    registerProvidersExtension(pi as any);
+    await registerProvidersExtension(pi as any);
 
     const provider = providers.find((p) => p.name === "custom");
     expect(provider).toBeTruthy();
@@ -94,5 +122,42 @@ describe("glm-providers extension", () => {
       (entry) => entry.id === "vendor/some-custom-model",
     );
     expect(model?.input).toEqual(["text"]);
+  });
+
+  test("registers discovered OpenAI-style models in addition to the requested model", async () => {
+    process.env.GLM_PROVIDER = "custom";
+    process.env.GLM_API = "openai-compatible";
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_BASE_URL = "https://gateway.example.com/v1";
+    process.env.OPENAI_MODEL = "manual-model";
+    resolveDiscoveredModelsMock.mockResolvedValue({
+      models: [{ id: "glm-5.1" }, { id: "qwen/qwen3.5-122b-a10b" }],
+      status: {
+        enabled: true,
+        supported: true,
+        source: "live",
+        modelCount: 2,
+      },
+    });
+
+    const providers: RegisteredProvider[] = [];
+    const pi: PiMock = {
+      registerProvider: (name, config) => {
+        providers.push({ name, config });
+      },
+    };
+
+    const { default: registerProvidersExtension } = await import(
+      "../../resources/extensions/glm-providers/index.ts"
+    );
+    await registerProvidersExtension(pi as any);
+
+    expect(resolveDiscoveredModelsMock).toHaveBeenCalledTimes(1);
+
+    const provider = providers.find((p) => p.name === "custom");
+    expect(provider).toBeTruthy();
+
+    const models = (provider!.config.models as Array<{ id: string }>).map((entry) => entry.id);
+    expect(models).toEqual(["glm-5.1", "manual-model", "qwen/qwen3.5-122b-a10b"]);
   });
 });

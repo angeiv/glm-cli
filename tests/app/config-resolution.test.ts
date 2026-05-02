@@ -55,6 +55,7 @@ describe("config store normalization", () => {
 
     expect(first.generation).not.toBe(second.generation);
     expect(first.glmCapabilities).not.toBe(second.glmCapabilities);
+    expect(first.modelDiscovery).not.toBe(second.modelDiscovery);
     expect(first.loop).not.toBe(second.loop);
     expect(first.notifications).not.toBe(second.notifications);
   });
@@ -203,6 +204,23 @@ describe("config store normalization", () => {
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
     await expect(readConfigFile()).rejects.toThrow(/Invalid api/i);
+  });
+
+  test("readConfigFile validates model discovery settings", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "custom",
+      approvalPolicy: "ask",
+      modelDiscovery: {
+        enabled: true,
+        cacheTtlMs: 0,
+      },
+      providers: {
+        custom: { apiKey: "", baseURL: "" },
+      },
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    await expect(readConfigFile()).rejects.toThrow(/modelDiscovery\.cacheTtlMs/i);
   });
 
   test("buildCapabilityEnvironment prefers explicit env and falls back to config", () => {

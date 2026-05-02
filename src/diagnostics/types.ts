@@ -1,4 +1,5 @@
 import type { ApprovalPolicy, LoopFailureMode, LoopProfileName } from "../app/config-store.js";
+import type { ModelDiscoveryStatus } from "../models/model-discovery.js";
 import type { RuntimeToolSignature } from "./tool-signature.js";
 
 export type RuntimeDiagnosticsConfig = {
@@ -119,6 +120,7 @@ export type RuntimeStatus = {
   model: string;
   baseUrl?: string;
   resolvedModel: RuntimeResolvedModelStatus;
+  modelDiscovery: ModelDiscoveryStatus;
   generation: RuntimeGenerationStatus;
   glmCapabilities: RuntimeGlmCapabilitiesStatus;
   toolSignature: RuntimeToolSignature;

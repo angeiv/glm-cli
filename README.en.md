@@ -82,6 +82,9 @@ glm --provider custom --api anthropic --model my-model
 # 6. Connect to a local OpenAI-compatible model server
 OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
 glm --provider custom --model qwen2.5-coder-32b-instruct
+
+# 7. Disable gateway /models discovery and use only the explicit model plus curated catalog
+glm config set modelDiscoveryEnabled false
 ```
 
 If you only remember one rule:
@@ -90,7 +93,7 @@ If you only remember one rule:
 - optionally override `api`
 - then set `model`
 
-For deeper usage such as `custom` capability tuning, `modelOverrides`, MCP, loop behavior, verification, and cache controls, use the detailed docs below.
+For deeper usage such as `custom` capability tuning, `modelOverrides`, MCP, loop behavior, verification, and `/models` discovery cache controls, use the detailed docs below.
 
 ## Documentation
 - Documentation index: [docs/README.md](./docs/README.md)

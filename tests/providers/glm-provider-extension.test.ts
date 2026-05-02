@@ -1,5 +1,34 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { getDefaultConfigFile } from "../../src/app/config-store.js";
+
+const { readConfigFileMock, resolveDiscoveredModelsMock } = vi.hoisted(() => ({
+  readConfigFileMock: vi.fn(),
+  resolveDiscoveredModelsMock: vi.fn(),
+}));
+
+vi.mock("../../src/app/config-store.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/app/config-store.js")>(
+    "../../src/app/config-store.js",
+  );
+
+  return {
+    ...actual,
+    readConfigFile: readConfigFileMock,
+  };
+});
+
+vi.mock("../../src/models/model-discovery.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/models/model-discovery.js")>(
+    "../../src/models/model-discovery.js",
+  );
+
+  return {
+    ...actual,
+    resolveDiscoveredModels: resolveDiscoveredModelsMock,
+  };
+});
+
 import registerGlmProviders from "../../resources/extensions/glm-providers/index.ts";
 
 const trackedEnvKeys = [
@@ -27,14 +56,14 @@ function withEnv(overrides: Partial<Record<(typeof trackedEnvKeys)[number], stri
   }
 }
 
-function registerProviderByName(
+async function registerProviderByName(
   name: string,
   overrides: Partial<Record<(typeof trackedEnvKeys)[number], string>>,
 ) {
   withEnv(overrides);
 
   const registrations: Array<{ name: string; config: Record<string, unknown> }> = [];
-  registerGlmProviders({
+  await registerGlmProviders({
     registerProvider(providerName: string, config: Record<string, unknown>) {
       registrations.push({ name: providerName, config });
     },
@@ -54,9 +83,23 @@ afterEach(() => {
   }
 });
 
+beforeEach(() => {
+  readConfigFileMock.mockReset();
+  resolveDiscoveredModelsMock.mockReset();
+  readConfigFileMock.mockResolvedValue(getDefaultConfigFile());
+  resolveDiscoveredModelsMock.mockResolvedValue({
+    models: [],
+    status: {
+      enabled: true,
+      supported: true,
+      source: "fallback",
+    },
+  });
+});
+
 describe("provider extension registration", () => {
-  test("registers the broader GLM family catalog for official bigmodel providers", () => {
-    const provider = registerProviderByName("bigmodel-coding", {
+  test("registers the broader GLM family catalog for official bigmodel providers", async () => {
+    const provider = await registerProviderByName("bigmodel-coding", {
       GLM_PROVIDER: "bigmodel-coding",
       GLM_API_KEY: "token",
     });
@@ -82,8 +125,8 @@ describe("provider extension registration", () => {
     });
   });
 
-  test("uses canonical GLM metadata for third-party aliases on openrouter", () => {
-    const provider = registerProviderByName("openrouter", {
+  test("uses canonical GLM metadata for third-party aliases on openrouter", async () => {
+    const provider = await registerProviderByName("openrouter", {
       GLM_PROVIDER: "openrouter",
       OPENAI_API_KEY: "token",
       OPENAI_MODEL: "ZhipuAI/GLM-5",
@@ -107,8 +150,8 @@ describe("provider extension registration", () => {
     ]);
   });
 
-  test("keeps gateway payload semantics for openrouter-hosted aliases", () => {
-    const provider = registerProviderByName("openrouter", {
+  test("keeps gateway payload semantics for openrouter-hosted aliases", async () => {
+    const provider = await registerProviderByName("openrouter", {
       GLM_PROVIDER: "openrouter",
       OPENAI_API_KEY: "token",
       OPENAI_MODEL: "z-ai/glm-5.1",
@@ -139,8 +182,8 @@ describe("provider extension registration", () => {
     });
   });
 
-  test("registers qwen metadata with multimodal input on custom responses mode", () => {
-    const provider = registerProviderByName("custom", {
+  test("registers qwen metadata with multimodal input on custom responses mode", async () => {
+    const provider = await registerProviderByName("custom", {
       GLM_PROVIDER: "custom",
       GLM_API: "openai-responses",
       OPENAI_API_KEY: "token",

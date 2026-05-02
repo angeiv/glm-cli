@@ -33,6 +33,9 @@ const CONFIG_KEYS = [
   "notificationsEnabled",
   "notificationsOnTurnEnd",
   "notificationsOnLoopResult",
+  "modelDiscoveryEnabled",
+  "modelDiscoveryCacheTtlMs",
+  "modelDiscoveryAllowStaleOnError",
   "maxOutputTokens",
   "temperature",
   "topP",
@@ -109,6 +112,15 @@ function getConfigValue(config: GlmConfigFile, key: ConfigKey): string {
   }
   if (key === "notificationsOnLoopResult") {
     return String(config.notifications.onLoopResult ?? true);
+  }
+  if (key === "modelDiscoveryEnabled") {
+    return String(config.modelDiscovery.enabled ?? true);
+  }
+  if (key === "modelDiscoveryCacheTtlMs") {
+    return String(config.modelDiscovery.cacheTtlMs ?? 3600000);
+  }
+  if (key === "modelDiscoveryAllowStaleOnError") {
+    return String(config.modelDiscovery.allowStaleOnError ?? true);
   }
   if (key === "maxOutputTokens") {
     return config.generation.maxOutputTokens?.toString() ?? CLEARABLE_VALUE;
@@ -228,12 +240,22 @@ function parseConfigValue(key: ConfigKey, value: string): string | number | bool
   if (
     key === "notificationsEnabled" ||
     key === "notificationsOnTurnEnd" ||
-    key === "notificationsOnLoopResult"
+    key === "notificationsOnLoopResult" ||
+    key === "modelDiscoveryEnabled" ||
+    key === "modelDiscoveryAllowStaleOnError"
   ) {
     if (trimmed !== "true" && trimmed !== "false") {
       throw new Error(`${key} must be true or false`);
     }
     return trimmed === "true";
+  }
+
+  if (key === "modelDiscoveryCacheTtlMs") {
+    const parsed = Number(trimmed);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error("modelDiscoveryCacheTtlMs must be a positive integer");
+    }
+    return parsed;
   }
 
   if (key === "thinkingMode") {
@@ -406,6 +428,12 @@ export async function configSet(
     config.notifications.onTurnEnd = parsedValue as boolean;
   } else if (key === "notificationsOnLoopResult") {
     config.notifications.onLoopResult = parsedValue as boolean;
+  } else if (key === "modelDiscoveryEnabled") {
+    config.modelDiscovery.enabled = parsedValue as boolean;
+  } else if (key === "modelDiscoveryCacheTtlMs") {
+    config.modelDiscovery.cacheTtlMs = parsedValue as number;
+  } else if (key === "modelDiscoveryAllowStaleOnError") {
+    config.modelDiscovery.allowStaleOnError = parsedValue as boolean;
   } else if (key === "maxOutputTokens") {
     config.generation.maxOutputTokens = parsedValue as number | undefined;
   } else if (key === "temperature") {

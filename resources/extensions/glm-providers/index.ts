@@ -17,7 +17,8 @@ import {
   resolveOpenAiResponsesModelDefinition,
   resolveProviderSettings as resolveSharedProviderSettings,
 } from "../shared/glm-profile.js";
-import { readGlmModelProfileOverrides, readGlmUserConfig } from "../shared/glm-user-config.js";
+import { readConfigFile } from "../../../src/app/config-store.js";
+import { resolveDiscoveredModels } from "../../../src/models/model-discovery.js";
 
 type AnthropicContentBlock =
   | { type: "text"; text: string }
@@ -558,94 +559,31 @@ function resolveModelId(...candidates: Array<string | undefined>): string | unde
   return undefined;
 }
 
-type PersistedProviderConfig = {
-  apiKey?: string;
-  baseURL?: string;
-  api?: string;
-};
-
-type PersistedConfig = {
-  defaultApi?: string;
-  defaultModel?: string;
-  defaultProvider?: string;
-  providers?: Record<string, PersistedProviderConfig | undefined>;
-};
-
-function normalizeProvider(value: unknown): PersistedProviderConfig | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  const maybe = value as Record<string, unknown>;
-  const apiKey = typeof maybe.apiKey === "string" ? maybe.apiKey : undefined;
-  const baseURL = typeof maybe.baseURL === "string" ? maybe.baseURL : undefined;
-  const api = typeof maybe.api === "string" ? maybe.api : undefined;
-  if (!apiKey && !baseURL && !api) return undefined;
-  return { apiKey, baseURL, api };
-}
-
-function readPersistedConfig(): PersistedConfig {
-  try {
-    const parsed = readGlmUserConfig();
-    if (typeof parsed !== "object" || parsed === null) {
-      return {};
-    }
-    const providers = (parsed as { providers?: Record<string, unknown> }).providers;
-    return {
-      defaultApi:
-        typeof (parsed as { defaultApi?: string }).defaultApi === "string"
-          ? (parsed as { defaultApi?: string }).defaultApi
-          : undefined,
-      defaultModel:
-        typeof (parsed as { defaultModel?: string }).defaultModel === "string"
-          ? (parsed as { defaultModel?: string }).defaultModel
-          : undefined,
-      defaultProvider:
-        typeof (parsed as { defaultProvider?: string }).defaultProvider === "string"
-          ? (parsed as { defaultProvider?: string }).defaultProvider
-          : undefined,
-      providers: Object.fromEntries(
-        Object.entries(providers ?? {}).map(([key, value]) => [key, normalizeProvider(value)]),
-      ),
-    };
-  } catch {
-    return {};
-  }
-}
-
-const persistedConfig = readPersistedConfig();
-const modelProfileOverrides = readGlmModelProfileOverrides();
-
 export function resolveProviderSettings(options) {
   return resolveSharedProviderSettings(options);
 }
 
-function resolveConfigDefaultModel(): string | undefined {
-  return persistedConfig.defaultModel;
-}
-
-function resolveSelectedProvider() {
+function resolveSelectedProvider(defaultProvider) {
   return (
     normalizeProviderName(process.env.GLM_PROVIDER) ??
-    normalizeProviderName(persistedConfig.defaultProvider) ??
+    normalizeProviderName(defaultProvider) ??
     "bigmodel-coding"
   );
 }
 
-function resolveSelectedApi(provider, persisted) {
+function resolveSelectedApi(provider, persisted, defaultApi) {
   return (
     normalizeApiKind(process.env.GLM_API) ??
     normalizeApiKind(persisted?.api) ??
-    normalizeApiKind(persistedConfig.defaultApi) ??
+    normalizeApiKind(defaultApi) ??
     getProviderDefaultApi(provider)
   );
 }
 
-function resolveRequestedModelId(provider, api) {
+function resolveRequestedModelId(provider, api, defaultModel) {
   if (api === "anthropic") {
     return (
-      resolveModelId(
-        process.env.ANTHROPIC_MODEL,
-        process.env.GLM_MODEL,
-        resolveConfigDefaultModel(),
-      ) ?? "glm-5.1"
+      resolveModelId(process.env.ANTHROPIC_MODEL, process.env.GLM_MODEL, defaultModel) ?? "glm-5.1"
     );
   }
 
@@ -656,18 +594,11 @@ function resolveRequestedModelId(provider, api) {
     provider === "zai-coding"
   ) {
     return (
-      resolveModelId(
-        process.env.GLM_MODEL,
-        process.env.OPENAI_MODEL,
-        resolveConfigDefaultModel(),
-      ) ?? "glm-5.1"
+      resolveModelId(process.env.GLM_MODEL, process.env.OPENAI_MODEL, defaultModel) ?? "glm-5.1"
     );
   }
 
-  return (
-    resolveModelId(process.env.OPENAI_MODEL, process.env.GLM_MODEL, resolveConfigDefaultModel()) ??
-    "glm-5.1"
-  );
+  return resolveModelId(process.env.OPENAI_MODEL, process.env.GLM_MODEL, defaultModel) ?? "glm-5.1";
 }
 
 function shouldRegisterProvider(provider, persisted) {
@@ -683,10 +614,50 @@ function shouldRegisterProvider(provider, persisted) {
   );
 }
 
-export default function (pi: ExtensionAPI) {
-  const provider = resolveSelectedProvider();
-  const persisted = persistedConfig.providers?.[provider];
-  const api = resolveSelectedApi(provider, persisted);
+function isNativeOfficialProvider(provider) {
+  return (
+    provider === "bigmodel" ||
+    provider === "bigmodel-coding" ||
+    provider === "zai" ||
+    provider === "zai-coding"
+  );
+}
+
+function mergeRequestedModelId(models, requestedModelId) {
+  if (models.some((model) => model.id === requestedModelId)) {
+    return models;
+  }
+
+  return [...models, { id: requestedModelId }];
+}
+
+function buildGatewayModelDefinitions({ provider, api, baseUrl, modelIds, overrides }) {
+  const uniqueModelIds = [
+    ...new Set(modelIds.map((modelId) => modelId.trim()).filter(Boolean)),
+  ].sort((left, right) => left.localeCompare(right));
+
+  return uniqueModelIds.map((modelId) =>
+    api === "openai-responses"
+      ? resolveOpenAiResponsesModelDefinition({
+          provider,
+          modelId,
+          baseUrl,
+          overrides,
+        })
+      : resolveOpenAiCompatibleModelDefinition({
+          provider,
+          modelId,
+          baseUrl,
+          overrides,
+        }),
+  );
+}
+
+export default async function (pi: ExtensionAPI) {
+  const config = await readConfigFile();
+  const provider = resolveSelectedProvider(config.defaultProvider);
+  const persisted = config.providers?.[provider];
+  const api = resolveSelectedApi(provider, persisted, config.defaultApi);
 
   if (!shouldRegisterProvider(provider, persisted)) {
     return;
@@ -698,8 +669,22 @@ export default function (pi: ExtensionAPI) {
     env: process.env,
     persisted,
   });
-  const modelId = resolveRequestedModelId(provider, api);
+  const modelId = resolveRequestedModelId(provider, api, config.defaultModel);
   const isModelscope = api === "anthropic" && isModelscopeAnthropicBaseUrl(settings.baseUrl);
+  const modelProfileOverrides = config.modelOverrides;
+
+  const discoveredModels =
+    api === "anthropic" || isNativeOfficialProvider(provider)
+      ? []
+      : (
+          await resolveDiscoveredModels({
+            provider,
+            api,
+            baseUrl: settings.baseUrl,
+            apiKey: settings.apiKey,
+            config: config.modelDiscovery,
+          })
+        ).models;
 
   const models =
     api === "anthropic"
@@ -711,30 +696,27 @@ export default function (pi: ExtensionAPI) {
         })
       : api === "openai-responses"
         ? [
-            resolveOpenAiResponsesModelDefinition({
+            ...buildGatewayModelDefinitions({
               provider,
-              modelId,
+              api,
               baseUrl: settings.baseUrl,
+              modelIds: mergeRequestedModelId(discoveredModels, modelId).map((model) => model.id),
               overrides: modelProfileOverrides,
             }),
           ]
-        : provider === "bigmodel" ||
-            provider === "bigmodel-coding" ||
-            provider === "zai" ||
-            provider === "zai-coding"
+        : isNativeOfficialProvider(provider)
           ? resolveNativeGlmProviderModels({
               provider,
               baseUrl: settings.baseUrl,
               overrides: modelProfileOverrides,
             })
-          : [
-              resolveOpenAiCompatibleModelDefinition({
-                provider,
-                modelId,
-                baseUrl: settings.baseUrl,
-                overrides: modelProfileOverrides,
-              }),
-            ];
+          : buildGatewayModelDefinitions({
+              provider,
+              api,
+              baseUrl: settings.baseUrl,
+              modelIds: mergeRequestedModelId(discoveredModels, modelId).map((model) => model.id),
+              overrides: modelProfileOverrides,
+            });
 
   pi.registerProvider(provider, {
     name: getProviderDisplayName(provider),

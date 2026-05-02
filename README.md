@@ -82,6 +82,9 @@ glm --provider custom --api anthropic --model my-model
 # 6. 接入本地 OpenAI-compatible 模型服务
 OPENAI_BASE_URL=http://127.0.0.1:8000/v1 \
 glm --provider custom --model qwen2.5-coder-32b-instruct
+
+# 7. 关闭网关 /models 动态发现，仅使用显式 model 与内置目录
+glm config set modelDiscoveryEnabled false
 ```
 
 如果只需记住一条使用原则：
@@ -90,7 +93,7 @@ glm --provider custom --model qwen2.5-coder-32b-instruct
 - 按需覆盖 `api`
 - 最后指定 `model`
 
-更深入的使用方式（如 `custom` 参数调优、`modelOverrides`、MCP、loop、验证、缓存等）请查看详细文档。
+更深入的使用方式（如 `custom` 参数调优、`modelOverrides`、MCP、loop、验证、`/models` 发现缓存等）请查看详细文档。
 
 ## 文档
 - 文档索引：[docs/README.zh.md](./docs/README.zh.md)
