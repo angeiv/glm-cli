@@ -115,6 +115,7 @@ export type RuntimeGlmCapabilitiesStatus = {
 export type RuntimeStatus = {
   cwd: string;
   provider: string;
+  api: string;
   model: string;
   baseUrl?: string;
   resolvedModel: RuntimeResolvedModelStatus;

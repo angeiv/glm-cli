@@ -30,7 +30,6 @@ import type {
   ResolutionConfidence,
   RuntimeModelFamily,
   StandardGlmModel,
-  UpstreamProviderHint,
   VariantOverlay,
 } from "./model-profile-types.js";
 
@@ -52,7 +51,6 @@ export type {
   ResolutionConfidence,
   RuntimeModelFamily,
   StandardGlmModel,
-  UpstreamProviderHint,
   VariantOverlay,
 };
 

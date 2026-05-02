@@ -14,15 +14,7 @@ function normalizeOverrideMatch(value) {
 
   const match = {};
   let selectors = 0;
-  for (const key of [
-    "provider",
-    "upstreamProvider",
-    "baseUrl",
-    "modelId",
-    "platform",
-    "upstreamVendor",
-    "canonicalModelId",
-  ]) {
+  for (const key of ["provider", "api", "baseUrl", "modelId", "platform", "upstreamVendor", "canonicalModelId"]) {
     const normalized = normalizeNonEmptyString(maybe[key]);
     if (!normalized) continue;
     match[key] = normalized;

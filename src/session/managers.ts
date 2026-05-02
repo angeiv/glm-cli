@@ -7,11 +7,13 @@ import {
   SettingsManager,
 } from "@mariozechner/pi-coding-agent";
 import type { ProviderName } from "../providers/types.js";
+import type { ApiKind } from "../providers/types.js";
 import { readConfigFile } from "../app/config-store.js";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildRuntimePromptStack } from "../runtime/prompt.js";
 import type { PromptMode } from "../prompt/mode-overlays.js";
+import { resolveProviderCredential } from "../providers/settings.js";
 
 export type CreateGlmManagersInput = {
   cwd: string;
@@ -20,6 +22,7 @@ export type CreateGlmManagersInput = {
   authPath: string;
   modelsPath: string;
   provider: ProviderName;
+  api: ApiKind;
   model: string;
   promptMode: PromptMode;
 };
@@ -101,25 +104,17 @@ export async function createGlmServices(input: CreateGlmManagersInput): Promise<
     mode: input.promptMode,
   });
   const config = await readConfigFile();
-  const glmApiKey = (process.env.GLM_API_KEY ?? config.providers.glm.apiKey ?? "").trim();
-  const openAiCompatApiKey = (
-    process.env.OPENAI_API_KEY ??
-    config.providers["openai-compatible"].apiKey ??
-    ""
-  ).trim();
-  const anthropicApiKey = (process.env.ANTHROPIC_AUTH_TOKEN ?? "").trim();
+  const resolvedApiKey = resolveProviderCredential(
+    input.provider,
+    input.api,
+    process.env,
+    config.providers[input.provider],
+  );
 
   // Make env/config credentials take precedence over any stale ~/.glm/agent/auth.json entries.
   // This is important when resuming older sessions from a new terminal with updated credentials.
-  if (glmApiKey) {
-    managers.authStorage.setRuntimeApiKey("glm", glmApiKey);
-  }
-  if (openAiCompatApiKey) {
-    managers.authStorage.setRuntimeApiKey("openai-compatible", openAiCompatApiKey);
-    managers.authStorage.setRuntimeApiKey("openai-responses", openAiCompatApiKey);
-  }
-  if (anthropicApiKey) {
-    managers.authStorage.setRuntimeApiKey("anthropic", anthropicApiKey);
+  if (resolvedApiKey) {
+    managers.authStorage.setRuntimeApiKey(input.provider, resolvedApiKey);
   }
 
   const registerMcpExtension = (

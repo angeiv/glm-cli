@@ -62,17 +62,17 @@ function resolveOpenAiCompat(profile: ReturnType<typeof resolveRuntimeModelProfi
 
 function buildDefinition(args: {
   provider: string;
+  api: "openai-compatible" | "openai-responses" | "anthropic";
   modelId: string;
   baseUrl: string;
-  upstreamProvider?: string;
   overrides?: GlmProfileOverrideRule[];
   includeCompat?: boolean;
 }) {
   const profile = resolveRuntimeModelProfile({
     provider: args.provider,
+    api: args.api,
     modelId: args.modelId,
     baseUrl: args.baseUrl,
-    upstreamProvider: args.upstreamProvider,
     overrides: args.overrides,
   });
   const canonical = profile.canonicalModelId
@@ -85,7 +85,6 @@ function buildDefinition(args: {
     name: canonical?.displayName ?? args.modelId,
     reasoning: profile.effectiveCaps.supportsThinking,
     input: profile.effectiveModalities,
-    ...(args.upstreamProvider ? { upstreamProvider: args.upstreamProvider } : {}),
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: profile.effectiveCaps.contextWindow,
     maxTokens: profile.effectiveCaps.maxOutputTokens,
@@ -95,16 +94,16 @@ function buildDefinition(args: {
 }
 
 export function resolveNativeGlmProviderModels(args: {
+  provider: string;
   baseUrl: string;
-  upstreamProvider?: string;
   overrides?: GlmProfileOverrideRule[];
 }) {
   return getStandardGlmModels().map((model) =>
     buildDefinition({
-      provider: "glm",
+      provider: args.provider,
+      api: "openai-compatible",
       modelId: model.id,
       baseUrl: args.baseUrl,
-      upstreamProvider: args.upstreamProvider,
       overrides: args.overrides,
       includeCompat: true,
     }),
@@ -112,48 +111,48 @@ export function resolveNativeGlmProviderModels(args: {
 }
 
 export function resolveOpenAiCompatibleModelDefinition(args: {
+  provider: string;
   modelId: string;
   baseUrl: string;
-  upstreamProvider?: string;
   overrides?: GlmProfileOverrideRule[];
 }) {
   return buildDefinition({
-    provider: "openai-compatible",
+    provider: args.provider,
+    api: "openai-compatible",
     modelId: args.modelId,
     baseUrl: args.baseUrl,
-    upstreamProvider: args.upstreamProvider,
     overrides: args.overrides,
     includeCompat: true,
   });
 }
 
 export function resolveOpenAiResponsesModelDefinition(args: {
+  provider: string;
   modelId: string;
   baseUrl: string;
-  upstreamProvider?: string;
   overrides?: GlmProfileOverrideRule[];
 }) {
   return buildDefinition({
-    provider: "openai-responses",
+    provider: args.provider,
+    api: "openai-responses",
     modelId: args.modelId,
     baseUrl: args.baseUrl,
-    upstreamProvider: args.upstreamProvider,
     overrides: args.overrides,
   });
 }
 
 export function resolveAnthropicModels(args: {
+  provider: string;
   requestedModelId: string;
   baseUrl: string;
-  upstreamProvider?: string;
   overrides?: GlmProfileOverrideRule[];
 }) {
   const standardModels = getStandardGlmModels().map((model) =>
     buildDefinition({
-      provider: "anthropic",
+      provider: args.provider,
+      api: "anthropic",
       modelId: model.id,
       baseUrl: args.baseUrl,
-      upstreamProvider: args.upstreamProvider,
       overrides: args.overrides,
     }),
   );
@@ -165,10 +164,10 @@ export function resolveAnthropicModels(args: {
   return [
     ...standardModels,
     buildDefinition({
-      provider: "anthropic",
+      provider: args.provider,
+      api: "anthropic",
       modelId: args.requestedModelId,
       baseUrl: args.baseUrl,
-      upstreamProvider: args.upstreamProvider,
       overrides: args.overrides,
     }),
   ];

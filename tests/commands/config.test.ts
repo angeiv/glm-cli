@@ -193,28 +193,28 @@ describe("configSet", () => {
     expect(log).toHaveBeenCalledWith("Updated toolStream=on");
   });
 
-  test("supports provider endpoint presets via config set", async () => {
+  test("supports default api selection via config set", async () => {
     const writeConfigFile = vi.fn(async () => undefined);
 
-    const updated = await configSet("glmEndpoint", "zai-coding", {
+    const updated = await configSet("defaultApi", "anthropic", {
       readConfigFile: async () => getDefaultConfigFile(),
       writeConfigFile,
       log: vi.fn(),
     });
 
-    expect(updated.providers.glm.endpoint).toBe("zai-coding");
+    expect(updated.defaultApi).toBe("anthropic");
   });
 
-  test("supports upstream provider hints via config set", async () => {
+  test("supports canonical provider ids via config set", async () => {
     const writeConfigFile = vi.fn(async () => undefined);
 
-    const updated = await configSet("openaiUpstreamProvider", "openrouter", {
+    const updated = await configSet("defaultProvider", "openrouter", {
       readConfigFile: async () => getDefaultConfigFile(),
       writeConfigFile,
       log: vi.fn(),
     });
 
-    expect(updated.providers["openai-compatible"].upstreamProvider).toBe("openrouter");
+    expect(updated.defaultProvider).toBe("openrouter");
   });
 
   test("updates loop keys and persists them", async () => {

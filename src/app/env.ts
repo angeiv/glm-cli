@@ -4,12 +4,13 @@ import type {
   LoopProfileName,
   NotificationsConfig,
 } from "./config-store.js";
-import type { ProviderName } from "../providers/types.js";
-import { isProviderName } from "../providers/types.js";
+import type { ApiKind, ProviderName } from "../providers/types.js";
+import { getProviderDefaultApi, isProviderName, normalizeApiKind } from "../providers/types.js";
 import { resolveProviderSelection } from "../providers/index.js";
 
 export type RuntimeCliFlags = {
   provider?: ProviderName;
+  api?: ApiKind;
   model?: string;
   yolo?: boolean;
   loop?: boolean;
@@ -22,8 +23,8 @@ export type RuntimeCliFlags = {
 
 export type RuntimeEnvVars = Partial<{
   GLM_PROVIDER: string;
+  GLM_API: string;
   GLM_MODEL: string;
-  GLM_ENDPOINT: string;
   GLM_MAX_OUTPUT_TOKENS: string;
   GLM_TEMPERATURE: string;
   GLM_TOP_P: string;
@@ -45,13 +46,16 @@ export type RuntimeEnvVars = Partial<{
   GLM_NOTIFY_ON_TURN_END: string;
   GLM_NOTIFY_ON_LOOP_RESULT: string;
   OPENAI_API_KEY: string;
+  OPENAI_BASE_URL: string;
   OPENAI_MODEL: string;
   ANTHROPIC_AUTH_TOKEN: string;
+  ANTHROPIC_BASE_URL: string;
   ANTHROPIC_MODEL: string;
 }>;
 
 export type RuntimeConfig = {
   provider: ProviderName;
+  api: ApiKind;
   model: string;
   approvalPolicy: "ask" | "auto" | "never";
 };
@@ -88,19 +92,24 @@ export function resolveRuntimeConfig(
 ): RuntimeConfig {
   const fallbackProvider = isProviderName(fileConfig.defaultProvider)
     ? fileConfig.defaultProvider
-    : "glm";
+    : "bigmodel-coding";
   const fallbackModel = fileConfig.defaultModel ?? "glm-5.1";
+  const fallbackApi =
+    normalizeApiKind(fileConfig.defaultApi) ??
+    normalizeApiKind(fileConfig.providers?.[fallbackProvider]?.api) ??
+    getProviderDefaultApi(fallbackProvider);
 
-  const { provider, model } = resolveProviderSelection(
-    { provider: cli.provider, model: cli.model },
+  const { provider, api, model } = resolveProviderSelection(
+    { provider: cli.provider, api: cli.api, model: cli.model },
     env as NodeJS.ProcessEnv,
     fallbackProvider,
     fallbackModel,
+    fallbackApi,
   );
 
   const approvalPolicy = cli.yolo ? "never" : (fileConfig.approvalPolicy ?? "ask");
 
-  return { provider, model, approvalPolicy };
+  return { provider, api, model, approvalPolicy };
 }
 
 function readConfiguredEnvValue(
@@ -119,14 +128,6 @@ export function buildCapabilityEnvironment(
   fileConfig: GlmConfigFile,
 ): Partial<NodeJS.ProcessEnv> {
   return {
-    ...(readConfiguredEnvValue(env.GLM_ENDPOINT, fileConfig.providers?.glm?.endpoint) === undefined
-      ? {}
-      : {
-          GLM_ENDPOINT: readConfiguredEnvValue(
-            env.GLM_ENDPOINT,
-            fileConfig.providers?.glm?.endpoint,
-          )!,
-        }),
     ...(readConfiguredEnvValue(
       env.GLM_MAX_OUTPUT_TOKENS,
       fileConfig.generation?.maxOutputTokens?.toString(),

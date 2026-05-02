@@ -2,8 +2,8 @@ import { createInterface } from "node:readline";
 import { readConfigFile, type StorageProviderKey, writeConfigFile } from "../app/config-store.js";
 import { normalizeProviderName, type ProviderName } from "../providers/types.js";
 
-type ProviderOptions = Extract<ProviderName, "glm" | "openai-compatible">;
-const DEFAULT_PROVIDER: ProviderOptions = "glm";
+type ProviderOptions = Extract<ProviderName, "bigmodel-coding" | "custom">;
+const DEFAULT_PROVIDER: ProviderOptions = "bigmodel-coding";
 
 type PromptFn = (question: string) => Promise<string>;
 
@@ -79,11 +79,11 @@ function createPromptSession(): { prompt: PromptFn; close: () => void } {
 
 async function runAuthLogin(deps: AuthDependencies): Promise<void> {
   const providerValue = await deps.prompt(
-    `Provider (${DEFAULT_PROVIDER}/openai-compatible) [${DEFAULT_PROVIDER}]: `,
+    `Provider (${DEFAULT_PROVIDER}/custom) [${DEFAULT_PROVIDER}]: `,
   );
   const selected = normalizeProviderName(providerValue?.trim() || DEFAULT_PROVIDER);
-  if (!selected || selected === "anthropic" || selected === "openai-responses") {
-    throw new Error("Only glm and openai-compatible providers are supported for auth login.");
+  if (!selected || (selected !== "bigmodel-coding" && selected !== "custom")) {
+    throw new Error("Only bigmodel-coding and custom providers are supported for auth login.");
   }
 
   const provider = selected as ProviderOptions;
@@ -126,25 +126,23 @@ export async function authStatus(deps?: Partial<AuthStatusDependencies>): Promis
   const log = deps?.log ?? console.log;
   const env = deps?.env ?? process.env;
 
-  log(`glm: ${config.providers.glm.apiKey.trim() ? "configured" : "missing"}`);
-  log(
-    `openai-compatible: ${config.providers["openai-compatible"].apiKey.trim() ? "configured" : "missing"}`,
-  );
+  log(`bigmodel-coding: ${config.providers["bigmodel-coding"].apiKey.trim() ? "configured" : "missing"}`);
+  log(`custom: ${config.providers.custom.apiKey.trim() ? "configured" : "missing"}`);
   log(`anthropic (env): ${env.ANTHROPIC_AUTH_TOKEN?.trim() ? "configured" : "missing"}`);
 }
 
 export async function authLogout(deps?: Partial<AuthLogoutDependencies>): Promise<void> {
   const config = await (deps?.readConfigFile ?? readConfigFile)();
 
-  config.providers.glm = {
-    ...config.providers.glm,
+  config.providers["bigmodel-coding"] = {
+    ...config.providers["bigmodel-coding"],
     apiKey: "",
   };
-  config.providers["openai-compatible"] = {
-    ...config.providers["openai-compatible"],
+  config.providers.custom = {
+    ...config.providers.custom,
     apiKey: "",
   };
 
   await (deps?.writeConfigFile ?? writeConfigFile)(config);
-  (deps?.log ?? console.log)("Stored credentials cleared for glm and openai-compatible.");
+  (deps?.log ?? console.log)("Stored credentials cleared for bigmodel-coding and custom.");
 }

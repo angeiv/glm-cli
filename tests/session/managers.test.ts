@@ -101,7 +101,8 @@ test("createGlmServices injects the prompt stack through resource loader overrid
     sessionDir: join(agentDir, "sessions"),
     authPath: join(agentDir, "auth.json"),
     modelsPath: join(agentDir, "models.json"),
-    provider: "glm",
+    provider: "bigmodel-coding",
+    api: "openai-compatible",
     model: "glm-5.1",
     promptMode: "standard",
   });

@@ -11,7 +11,8 @@ import {
 } from "../app/env.js";
 import { getGlmAgentDir } from "../app/dirs.js";
 import { readConfigFile, type GlmConfigFile } from "../app/config-store.js";
-import type { ProviderName } from "../providers/types.js";
+import type { ApiKind, ProviderName } from "../providers/types.js";
+import { getProviderCredentialSource } from "../providers/types.js";
 import { buildRuntimeStatus, formatRuntimeStatusLines } from "../diagnostics/runtime-status.js";
 import type { RuntimeStatus } from "../diagnostics/types.js";
 import { resolveGlmSessionPaths } from "../session/session-paths.js";
@@ -65,7 +66,7 @@ async function checkCwd(
   };
 }
 
-function hasConfigCredential(config: GlmConfigFile, storageKey: "glm" | "openai-compatible") {
+function hasConfigCredential(config: GlmConfigFile, storageKey: ProviderName) {
   const stored = config.providers[storageKey]?.apiKey ?? "";
   return Boolean(stored?.trim());
 }
@@ -76,37 +77,27 @@ function hasEnvCredential(env: NodeJS.ProcessEnv, key: string): boolean {
 
 function credentialDetails(
   provider: ProviderName,
+  api: ApiKind,
   env: NodeJS.ProcessEnv,
   config: GlmConfigFile,
 ): DoctorCheck {
-  let ok = false;
+  const source = getProviderCredentialSource(provider, api);
+  const envKey =
+    source === "anthropic"
+      ? "ANTHROPIC_AUTH_TOKEN"
+      : source === "openai"
+        ? "OPENAI_API_KEY"
+        : "GLM_API_KEY";
+  let ok = hasEnvCredential(env, envKey);
   let details = "";
 
-  if (provider === "anthropic") {
-    ok = hasEnvCredential(env, "ANTHROPIC_AUTH_TOKEN");
-    details = ok
-      ? "anthropic auth token detected"
-      : "missing ANTHROPIC_AUTH_TOKEN for anthropic compatibility";
-  } else if (provider === "openai-compatible" || provider === "openai-responses") {
-    ok = hasEnvCredential(env, "OPENAI_API_KEY");
-    if (!ok && hasConfigCredential(config, "openai-compatible")) {
-      ok = true;
-      details = `${provider} api key stored in config`;
-    } else if (ok) {
-      details = `${provider} api key detected via environment`;
-    } else {
-      details = `missing OPENAI_API_KEY or stored ${provider} credentials`;
-    }
+  if (!ok && hasConfigCredential(config, provider)) {
+    ok = true;
+    details = `${provider} api key stored in config`;
+  } else if (ok) {
+    details = `${provider} api key detected via ${envKey}`;
   } else {
-    ok = hasEnvCredential(env, "GLM_API_KEY");
-    if (!ok && hasConfigCredential(config, "glm")) {
-      ok = true;
-      details = "glm api key stored in config";
-    } else if (ok) {
-      details = "glm api key detected via environment";
-    } else {
-      details = "missing GLM_API_KEY or stored glm credentials";
-    }
+    details = `missing ${envKey} or stored ${provider} credentials`;
   }
 
   return {
@@ -140,7 +131,7 @@ export async function runDoctor(options: DoctorDependencies): Promise<DoctorResu
 
   const checks = await Promise.all([
     checkCwd(options.cwd, options.pathExists),
-    Promise.resolve(credentialDetails(runtime.provider, options.env, config)),
+    Promise.resolve(credentialDetails(runtime.provider, runtime.api, options.env, config)),
     checkResources(options.agentDir, options.pathExists),
   ]);
 

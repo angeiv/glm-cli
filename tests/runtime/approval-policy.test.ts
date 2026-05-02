@@ -241,10 +241,10 @@ test("approval auto shows a risk warning when toggled", async () => {
 
 test("resolveProviderSettings prefers persisted config when env vars missing", () => {
   const settings = resolveProviderSettings({
-    envApiKey: undefined,
-    envBaseUrl: undefined,
+    provider: "custom",
+    api: "openai-compatible",
+    env: {},
     persisted: { apiKey: "persisted-key", baseURL: "https://persisted.url" },
-    defaultBaseUrl: "https://default.url",
   });
   expect(settings.apiKey).toBe("persisted-key");
   expect(settings.baseUrl).toBe("https://persisted.url");
@@ -252,10 +252,13 @@ test("resolveProviderSettings prefers persisted config when env vars missing", (
 
 test("resolveProviderSettings lets env override persisted config", () => {
   const settings = resolveProviderSettings({
-    envApiKey: "env-key",
-    envBaseUrl: "https://env.url",
+    provider: "custom",
+    api: "openai-compatible",
+    env: {
+      OPENAI_API_KEY: "env-key",
+      OPENAI_BASE_URL: "https://env.url",
+    },
     persisted: { apiKey: "persisted-key", baseURL: "https://persisted.url" },
-    defaultBaseUrl: "https://default.url",
   });
   expect(settings.apiKey).toBe("env-key");
   expect(settings.baseUrl).toBe("https://env.url");

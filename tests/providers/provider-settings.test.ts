@@ -4,9 +4,10 @@ import { resolveProviderSettings } from "../../resources/extensions/glm-provider
 describe("resolveProviderSettings", () => {
   test("prefers env api key over persisted and trims whitespace", () => {
     const resolved = resolveProviderSettings({
-      envApiKey: "  env-key  ",
+      provider: "custom",
+      api: "openai-compatible",
+      env: { OPENAI_API_KEY: "  env-key  " },
       persisted: { apiKey: "persisted-key", baseURL: "https://persisted.example.com" },
-      defaultBaseUrl: "https://default.example.com",
     });
 
     expect(resolved.apiKey).toBe("env-key");
@@ -14,44 +15,46 @@ describe("resolveProviderSettings", () => {
 
   test("treats whitespace-only env api key as missing and falls back to persisted", () => {
     const resolved = resolveProviderSettings({
-      envApiKey: "   ",
+      provider: "custom",
+      api: "openai-compatible",
+      env: { OPENAI_API_KEY: "   " },
       persisted: { apiKey: "persisted-key", baseURL: "https://persisted.example.com" },
-      defaultBaseUrl: "https://default.example.com",
     });
 
     expect(resolved.apiKey).toBe("persisted-key");
   });
 
-  test("treats empty/whitespace persisted baseURL as missing and falls back to default base url", () => {
+  test("treats empty persisted baseURL as missing and falls back to provider defaults", () => {
     const resolved = resolveProviderSettings({
+      provider: "openrouter",
+      api: "openai-compatible",
+      env: {},
       persisted: { apiKey: "persisted-key", baseURL: "   " },
-      defaultBaseUrl: "https://default.example.com",
     });
 
-    expect(resolved.baseUrl).toBe("https://default.example.com");
+    expect(resolved.baseUrl).toBe("https://openrouter.ai/api/v1");
   });
 
   test("prefers env base url over persisted and trims whitespace", () => {
     const resolved = resolveProviderSettings({
-      envBaseUrl: "  https://env.example.com  ",
-      persisted: { apiKey: "persisted-key", baseURL: "https://persisted.example.com" },
-      defaultBaseUrl: "https://default.example.com",
+      provider: "custom",
+      api: "anthropic",
+      env: { ANTHROPIC_BASE_URL: "  https://env.example.com/v1  " },
+      persisted: { apiKey: "persisted-key", baseURL: "https://persisted.example.com/v1" },
     });
 
-    expect(resolved.baseUrl).toBe("https://env.example.com");
+    expect(resolved.baseUrl).toBe("https://env.example.com/v1");
   });
 
-  test("prefers explicit upstream provider hints from env over persisted config", () => {
+  test("uses glm credential sources for official providers", () => {
     const resolved = resolveProviderSettings({
-      envUpstreamProvider: "  dashscope  ",
-      persisted: {
-        apiKey: "persisted-key",
-        baseURL: "https://persisted.example.com",
-        upstreamProvider: "openrouter",
-      },
-      defaultBaseUrl: "https://default.example.com",
+      provider: "bigmodel-coding",
+      api: "openai-compatible",
+      env: { GLM_API_KEY: "glm-key" },
+      persisted: { apiKey: "persisted-key", baseURL: "" },
     });
 
-    expect(resolved.upstreamProvider).toBe("dashscope");
+    expect(resolved.apiKey).toBe("glm-key");
+    expect(resolved.credentialSource).toBe("glm");
   });
 });

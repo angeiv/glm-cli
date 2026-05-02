@@ -1,7 +1,14 @@
 import { getGlmConfigPath, getGlmRootDir } from "./dirs.js";
 import * as fsPromises from "node:fs/promises";
 import type { GlmProfileOverrideRule } from "../models/resolve-glm-profile-v2.js";
-import type { GlmInputModality, UpstreamProviderHint } from "../models/glm-profile-core.js";
+import type { GlmInputModality } from "../models/glm-profile-core.js";
+import {
+  API_KINDS,
+  PROVIDER_NAMES,
+  type ApiKind,
+  type ProviderName,
+  resolveProviderInput,
+} from "../providers/types.js";
 
 export const fileSystem = {
   readFile: fsPromises.readFile,
@@ -12,26 +19,15 @@ export const fileSystem = {
 export type ProviderConfig = {
   apiKey: string;
   baseURL: string;
-  /**
-   * Optional shorthand for selecting one of GLM's official endpoints without
-   * having to specify the full baseURL. This is currently only used for the
-   * `glm` provider by our bundled Pi extension.
-   */
-  endpoint?: string;
-  /**
-   * Optional explicit upstream provider hint used for model capability/profile
-   * resolution when the baseURL is a proxy or AI HUB endpoint.
-   */
-  upstreamProvider?: UpstreamProviderName;
+  api?: ApiKind;
 };
 
-export type StorageProviderKey = "glm" | "openai-compatible";
+export type StorageProviderKey = ProviderName;
 export type ApprovalPolicy = "ask" | "auto" | "never";
 export type ThinkingMode = "auto" | "enabled" | "disabled";
 export type ToolStreamMode = "auto" | "on" | "off";
 export type ResponseFormatType = "json_object";
 export type ContextCacheMode = "auto" | "explicit" | "off";
-export type UpstreamProviderName = UpstreamProviderHint;
 export type TaskLaneDefault = "auto" | "direct" | "standard" | "intensive";
 export type LoopProfileName = "code";
 export type LoopFailureMode = "handoff" | "fail";
@@ -82,26 +78,15 @@ export type LoopConfig = {
   verifyCommand?: string;
 };
 
-type PersistedProviderName = StorageProviderKey | "openai-responses";
-const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = [
-  "glm",
-  "openai-compatible",
-  "openai-responses",
-];
+type PersistedProviderName = ProviderName;
+const PERSISTED_PROVIDER_NAMES: PersistedProviderName[] = [...PROVIDER_NAMES];
 
 const VALID_APPROVAL_POLICIES: ApprovalPolicy[] = ["ask", "auto", "never"];
 const VALID_THINKING_MODES: ThinkingMode[] = ["auto", "enabled", "disabled"];
 const VALID_TOOL_STREAM_MODES: ToolStreamMode[] = ["auto", "on", "off"];
 const VALID_RESPONSE_FORMAT_TYPES: ResponseFormatType[] = ["json_object"];
 const VALID_CONTEXT_CACHE_MODES: ContextCacheMode[] = ["auto", "explicit", "off"];
-const VALID_UPSTREAM_PROVIDER_NAMES: UpstreamProviderName[] = [
-  "bigmodel",
-  "zai",
-  "dashscope",
-  "modelscope",
-  "openrouter",
-  "other",
-];
+const VALID_API_KINDS: ApiKind[] = [...API_KINDS];
 const VALID_TASK_LANE_DEFAULTS: TaskLaneDefault[] = ["auto", "direct", "standard", "intensive"];
 const VALID_LOOP_PROFILES: LoopProfileName[] = ["code"];
 const VALID_LOOP_FAILURE_MODES: LoopFailureMode[] = ["handoff", "fail"];
@@ -111,6 +96,12 @@ const BASE_DEFAULT_CONFIG_FILE = buildDefaultConfigFile();
 
 function createEmptyProviderConfig(): ProviderConfig {
   return { apiKey: "", baseURL: "" };
+}
+
+function createDefaultProvidersConfig(): Record<StorageProviderKey, ProviderConfig> {
+  return Object.fromEntries(
+    PROVIDER_NAMES.map((provider) => [provider, createEmptyProviderConfig()]),
+  ) as Record<StorageProviderKey, ProviderConfig>;
 }
 
 function createDefaultGenerationConfig(): GenerationConfig {
@@ -145,8 +136,9 @@ function createDefaultLoopConfig(): LoopConfig {
 
 function buildDefaultConfigFile(): GlmConfigFile {
   return {
-    defaultProvider: "glm",
+    defaultProvider: "bigmodel-coding",
     defaultModel: "glm-5.1",
+    defaultApi: "openai-compatible",
     taskLaneDefault: "auto",
     approvalPolicy: "ask",
     debugRuntime: false,
@@ -157,15 +149,13 @@ function buildDefaultConfigFile(): GlmConfigFile {
     generation: createDefaultGenerationConfig(),
     glmCapabilities: createDefaultGlmCapabilitiesConfig(),
     loop: createDefaultLoopConfig(),
-    providers: {
-      glm: createEmptyProviderConfig(),
-      "openai-compatible": createEmptyProviderConfig(),
-    },
+    providers: createDefaultProvidersConfig(),
   };
 }
 
 export type GlmConfigFile = {
   defaultProvider?: PersistedProviderName;
+  defaultApi?: ApiKind;
   defaultModel?: string;
   taskLaneDefault?: TaskLaneDefault;
   approvalPolicy?: ApprovalPolicy;
@@ -187,34 +177,43 @@ function cloneProviderConfig(config?: ProviderConfig): ProviderConfig {
     baseURL: config?.baseURL ?? "",
   };
 
-  const endpointRaw = (config as unknown as { endpoint?: unknown })?.endpoint;
-  let next: ProviderConfig = { ...base };
-  if (endpointRaw !== undefined) {
-    // Preserve invalid endpoint values so validation can reject them.
-    if (typeof endpointRaw !== "string") {
-      next = { ...(next as any), endpoint: endpointRaw } as ProviderConfig;
-    } else {
-      const endpoint = endpointRaw.trim();
-      if (endpoint) {
-        next = { ...next, endpoint };
-      }
+  const apiRaw = (config as unknown as { api?: unknown })?.api;
+  if (apiRaw === undefined) {
+    return base;
+  }
+
+  if (typeof apiRaw !== "string") {
+    return { ...(base as any), api: apiRaw } as ProviderConfig;
+  }
+
+  const api = apiRaw.trim();
+  if (!api) return base;
+
+  return { ...base, api: api as ApiKind };
+}
+
+function extractLegacyProviderConfig(
+  providers: Record<string, unknown> | undefined,
+  provider: ProviderName,
+): ProviderConfig | undefined {
+  if (!providers) return undefined;
+
+  const direct = providers[provider];
+  if (direct !== undefined) {
+    return cloneProviderConfig(direct as ProviderConfig);
+  }
+
+  for (const [key, value] of Object.entries(providers)) {
+    const resolved = resolveProviderInput(key);
+    if (resolved?.provider !== provider) continue;
+    const cloned = cloneProviderConfig(value as ProviderConfig);
+    if (cloned.api === undefined && resolved.apiHint) {
+      cloned.api = resolved.apiHint;
     }
+    return cloned;
   }
 
-  const upstreamProviderRaw = (config as unknown as { upstreamProvider?: unknown })
-    ?.upstreamProvider;
-  if (upstreamProviderRaw === undefined) {
-    return next;
-  }
-
-  if (typeof upstreamProviderRaw !== "string") {
-    return { ...(next as any), upstreamProvider: upstreamProviderRaw } as ProviderConfig;
-  }
-
-  const upstreamProvider = upstreamProviderRaw.trim();
-  if (!upstreamProvider) return next;
-
-  return { ...next, upstreamProvider: upstreamProvider as UpstreamProviderName };
+  return undefined;
 }
 
 function cloneGenerationConfig(config?: GenerationConfig): GenerationConfig {
@@ -357,21 +356,30 @@ function cloneModelProfilesConfig(config?: ModelProfilesConfig): ModelProfilesCo
 
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
   const rawDefaultProvider = (config as unknown as { defaultProvider?: unknown })?.defaultProvider;
+  const rawDefaultApi = (config as unknown as { defaultApi?: unknown })?.defaultApi;
   const rawTaskLaneDefault = (config as unknown as { taskLaneDefault?: unknown })?.taskLaneDefault;
   const rawDebugRuntime = (config as unknown as { debugRuntime?: unknown })?.debugRuntime;
   const rawEventLogLimit = (config as unknown as { eventLogLimit?: unknown })?.eventLogLimit;
   const rawHooksEnabled = (config as unknown as { hooksEnabled?: unknown })?.hooksEnabled;
   const rawHookTimeoutMs = (config as unknown as { hookTimeoutMs?: unknown })?.hookTimeoutMs;
+  const defaultProviderInput =
+    typeof rawDefaultProvider === "string" ? resolveProviderInput(rawDefaultProvider) : undefined;
   const defaultProvider =
-    rawDefaultProvider === undefined
+    defaultProviderInput?.provider ??
+    (rawDefaultProvider === undefined
       ? BASE_DEFAULT_CONFIG_FILE.defaultProvider
-      : (rawDefaultProvider as PersistedProviderName);
+      : (rawDefaultProvider as PersistedProviderName));
+  const rawProviders = (config as unknown as { providers?: Record<string, unknown> })?.providers;
   const modelProfiles = cloneModelProfilesConfig(
     (config as unknown as { modelProfiles?: ModelProfilesConfig })?.modelProfiles,
   );
 
   return {
     defaultProvider,
+    defaultApi:
+      rawDefaultApi === undefined
+        ? (defaultProviderInput?.apiHint ?? BASE_DEFAULT_CONFIG_FILE.defaultApi)
+        : (rawDefaultApi as ApiKind),
     defaultModel: config?.defaultModel ?? BASE_DEFAULT_CONFIG_FILE.defaultModel,
     taskLaneDefault:
       rawTaskLaneDefault === undefined
@@ -410,13 +418,14 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       (config as unknown as { loop?: LoopConfig })?.loop ?? BASE_DEFAULT_CONFIG_FILE.loop,
     ),
     ...(modelProfiles ? { modelProfiles } : {}),
-    providers: {
-      glm: cloneProviderConfig(config?.providers?.glm ?? BASE_DEFAULT_CONFIG_FILE.providers.glm),
-      "openai-compatible": cloneProviderConfig(
-        config?.providers?.["openai-compatible"] ??
-          BASE_DEFAULT_CONFIG_FILE.providers["openai-compatible"],
-      ),
-    },
+    providers: Object.fromEntries(
+      PROVIDER_NAMES.map((provider) => [
+        provider,
+        cloneProviderConfig(
+          extractLegacyProviderConfig(rawProviders, provider) ?? BASE_DEFAULT_CONFIG_FILE.providers[provider],
+        ),
+      ]),
+    ) as Record<StorageProviderKey, ProviderConfig>,
   };
 }
 
@@ -448,8 +457,8 @@ function isContextCacheMode(value?: string): value is ContextCacheMode {
   return VALID_CONTEXT_CACHE_MODES.includes(value as ContextCacheMode);
 }
 
-function isUpstreamProviderName(value?: string): value is UpstreamProviderName {
-  return VALID_UPSTREAM_PROVIDER_NAMES.includes(value as UpstreamProviderName);
+function isApiKind(value?: string): value is ApiKind {
+  return VALID_API_KINDS.includes(value as ApiKind);
 }
 
 function isTaskLaneDefault(value?: string): value is TaskLaneDefault {
@@ -471,6 +480,10 @@ function isGlmInputModality(value: unknown): value is GlmInputModality {
 function validateConfigFile(config: GlmConfigFile): void {
   if (!isPersistedProviderName(config.defaultProvider)) {
     throw new Error(`Invalid default provider in config file: ${config.defaultProvider}`);
+  }
+
+  if (config.defaultApi !== undefined && !isApiKind(config.defaultApi)) {
+    throw new Error(`Invalid defaultApi in config file: ${config.defaultApi}`);
   }
 
   if (typeof config.defaultModel !== "string") {
@@ -656,7 +669,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     const matchRecord = match as Record<string, unknown>;
     const matchKeys = [
       "provider",
-      "upstreamProvider",
+      "api",
       "baseUrl",
       "modelId",
       "canonicalModelId",
@@ -776,17 +789,9 @@ function validateProviderConfig(config: ProviderConfig, key: StorageProviderKey)
     throw new Error(`Invalid baseURL for provider ${key}: ${typeof config.baseURL}`);
   }
 
-  const endpoint = (config as unknown as { endpoint?: unknown })?.endpoint;
-  if (endpoint !== undefined && typeof endpoint !== "string") {
-    throw new Error(`Invalid endpoint for provider ${key}: ${typeof endpoint}`);
-  }
-
-  const upstreamProvider = (config as unknown as { upstreamProvider?: unknown })?.upstreamProvider;
-  if (
-    upstreamProvider !== undefined &&
-    (typeof upstreamProvider !== "string" || !isUpstreamProviderName(upstreamProvider))
-  ) {
-    throw new Error(`Invalid upstreamProvider for provider ${key}: ${String(upstreamProvider)}`);
+  const api = (config as unknown as { api?: unknown })?.api;
+  if (api !== undefined && (typeof api !== "string" || !isApiKind(api))) {
+    throw new Error(`Invalid api for provider ${key}: ${String(api)}`);
   }
 }
 

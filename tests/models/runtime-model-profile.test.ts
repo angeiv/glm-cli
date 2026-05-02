@@ -5,9 +5,10 @@ import {
 } from "../../src/models/runtime-model-profile.js";
 
 describe("runtime model profile", () => {
-  test("resolves native GLM runtime profile metadata", () => {
+  test("resolves native BigModel runtime profile metadata", () => {
     const profile = resolveRuntimeModelProfile({
-      provider: "glm",
+      provider: "bigmodel",
+      api: "openai-compatible",
       modelId: "glm-5.1",
       baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
     });
@@ -21,9 +22,10 @@ describe("runtime model profile", () => {
     });
   });
 
-  test("resolves dashscope-hosted qwen runtime profile metadata", () => {
+  test("resolves Bailian-hosted qwen runtime profile metadata", () => {
     const profile = resolveRuntimeModelProfile({
-      provider: "openai-compatible",
+      provider: "bailian",
+      api: "openai-compatible",
       modelId: "qwen/qwen3.5-122b-a10b",
       baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     });
@@ -38,20 +40,18 @@ describe("runtime model profile", () => {
   });
 
   test("resolves anthropic transport for modelscope anthropic-compatible routes", () => {
-    const transport = resolveProviderTransport(
-      "anthropic",
-      "https://api-inference.modelscope.cn/v1",
-    );
-    expect(transport).toBe("anthropic-messages");
+    expect(resolveProviderTransport("anthropic")).toBe("anthropic-messages");
 
     const profile = resolveRuntimeModelProfile({
-      provider: "anthropic",
+      provider: "custom",
+      api: "anthropic",
       modelId: "ZhipuAI/GLM-5",
       baseUrl: "https://api-inference.modelscope.cn/v1/messages",
       overrides: [
         {
           match: {
-            provider: "anthropic",
+            provider: "custom",
+            api: "anthropic",
             baseUrl: "*modelscope.cn*",
             modelId: "ZhipuAI/GLM-5*",
           },
@@ -71,7 +71,8 @@ describe("runtime model profile", () => {
 
   test("uses anthropic-oriented generic defaults for unknown anthropic models", () => {
     const profile = resolveRuntimeModelProfile({
-      provider: "anthropic",
+      provider: "custom",
+      api: "anthropic",
       modelId: "claude-3-7-sonnet-20250219",
       baseUrl: "https://api.anthropic.com/v1/messages",
     });
@@ -82,12 +83,12 @@ describe("runtime model profile", () => {
     expect(profile.effectiveCaps.defaultThinkingMode).toBe("enabled");
   });
 
-  test("uses explicit upstream provider hints for capability matching without switching payload patches", () => {
+  test("uses provider selection to classify openrouter-hosted aliases", () => {
     const profile = resolveRuntimeModelProfile({
-      provider: "openai-compatible",
+      provider: "openrouter",
+      api: "openai-compatible",
       modelId: "z-ai/glm-5.1",
       baseUrl: "https://aihub.internal.example/v1",
-      upstreamProvider: "openrouter",
     });
 
     expect(profile.gateway).toBe("gateway-openrouter");
@@ -99,12 +100,12 @@ describe("runtime model profile", () => {
     });
   });
 
-  test("allows explicit upstream provider hints to keep native glm payload semantics on proxies", () => {
+  test("allows provider selection to keep native glm payload semantics on proxies", () => {
     const profile = resolveRuntimeModelProfile({
-      provider: "glm",
+      provider: "bigmodel",
+      api: "openai-compatible",
       modelId: "glm-5.1",
       baseUrl: "https://aihub.internal.example/v1",
-      upstreamProvider: "bigmodel",
     });
 
     expect(profile.gateway).toBe("native-bigmodel");

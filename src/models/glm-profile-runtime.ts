@@ -13,3 +13,18 @@ export {
   resolveProviderTransport,
   resolveRuntimeModelProfile,
 } from "./runtime-model-profile.js";
+export {
+  API_KINDS,
+  PROVIDER_NAMES,
+  getProviderDefaultApi,
+  getProviderDefaultBaseUrl,
+  getProviderDisplayName,
+  normalizeApiKind,
+  normalizeProviderName,
+  resolveProviderInput,
+} from "../providers/types.js";
+export {
+  resolveProviderBaseUrl,
+  resolveProviderCredential,
+  resolveProviderSettings,
+} from "../providers/settings.js";

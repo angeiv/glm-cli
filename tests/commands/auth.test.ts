@@ -3,7 +3,7 @@ import { authLogin, authLogout, authStatus } from "../../src/commands/auth.js";
 import { getDefaultConfigFile } from "../../src/app/config-store.js";
 
 describe("authLogin", () => {
-  test("persists glm credentials from sequential prompts", async () => {
+  test("persists bigmodel-coding credentials from sequential prompts", async () => {
     const prompts = ["", "glm-secret", ""];
     const writeConfigFile = vi.fn(async () => undefined);
     const log = vi.fn();
@@ -18,17 +18,17 @@ describe("authLogin", () => {
     expect(writeConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
         providers: expect.objectContaining({
-          glm: expect.objectContaining({
+          "bigmodel-coding": expect.objectContaining({
             apiKey: "glm-secret",
           }),
         }),
       }),
     );
-    expect(log).toHaveBeenCalledWith("Credentials saved for provider glm.");
+    expect(log).toHaveBeenCalledWith("Credentials saved for provider bigmodel-coding.");
   });
 
-  test("persists openai-compatible credentials and base URL", async () => {
-    const prompts = ["openai-compatible", "openai-secret", "https://gateway.example.com"];
+  test("persists custom credentials and base URL", async () => {
+    const prompts = ["custom", "openai-secret", "https://gateway.example.com"];
     const writeConfigFile = vi.fn(async () => undefined);
 
     await authLogin({
@@ -41,7 +41,7 @@ describe("authLogin", () => {
     expect(writeConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
         providers: expect.objectContaining({
-          "openai-compatible": expect.objectContaining({
+          custom: expect.objectContaining({
             apiKey: "openai-secret",
             baseURL: "https://gateway.example.com",
           }),
@@ -59,15 +59,16 @@ describe("authStatus", () => {
       readConfigFile: async () => ({
         ...getDefaultConfigFile(),
         providers: {
-          glm: { apiKey: "glm-secret", baseURL: "" },
-          "openai-compatible": { apiKey: "", baseURL: "" },
+          ...getDefaultConfigFile().providers,
+          "bigmodel-coding": { apiKey: "glm-secret", baseURL: "" },
+          custom: { apiKey: "", baseURL: "" },
         },
       }),
       env: { ANTHROPIC_AUTH_TOKEN: "anthropic-token" },
     });
 
-    expect(log).toHaveBeenCalledWith("glm: configured");
-    expect(log).toHaveBeenCalledWith("openai-compatible: missing");
+    expect(log).toHaveBeenCalledWith("bigmodel-coding: configured");
+    expect(log).toHaveBeenCalledWith("custom: missing");
     expect(log).toHaveBeenCalledWith("anthropic (env): configured");
   });
 });
@@ -81,8 +82,9 @@ describe("authLogout", () => {
       readConfigFile: async () => ({
         ...getDefaultConfigFile(),
         providers: {
-          glm: { apiKey: "glm-secret", baseURL: "https://glm.example.com" },
-          "openai-compatible": { apiKey: "openai-secret", baseURL: "https://gateway.example.com" },
+          ...getDefaultConfigFile().providers,
+          "bigmodel-coding": { apiKey: "glm-secret", baseURL: "https://glm.example.com" },
+          custom: { apiKey: "openai-secret", baseURL: "https://gateway.example.com" },
         },
       }),
       writeConfigFile,
@@ -91,18 +93,20 @@ describe("authLogout", () => {
 
     expect(writeConfigFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        providers: {
-          glm: {
+        providers: expect.objectContaining({
+          "bigmodel-coding": {
             apiKey: "",
             baseURL: "https://glm.example.com",
           },
-          "openai-compatible": {
+          custom: {
             apiKey: "",
             baseURL: "https://gateway.example.com",
           },
-        },
+        }),
       }),
     );
-    expect(log).toHaveBeenCalledWith("Stored credentials cleared for glm and openai-compatible.");
+    expect(log).toHaveBeenCalledWith(
+      "Stored credentials cleared for bigmodel-coding and custom.",
+    );
   });
 });

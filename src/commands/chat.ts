@@ -6,7 +6,7 @@ import {
   resolveRuntimeConfig,
 } from "../app/env.js";
 import type { LoopFailureMode } from "../app/config-store.js";
-import type { ProviderName } from "../providers/types.js";
+import type { ApiKind, ProviderName } from "../providers/types.js";
 import type { PromptMode } from "../prompt/mode-overlays.js";
 import { runChatSession } from "../runtime/chat-runtime.js";
 import {
@@ -19,6 +19,7 @@ export type ChatCommandInput = {
   cwd: string;
   model?: string;
   provider?: ProviderName;
+  api?: ApiKind;
   promptMode?: PromptMode;
   yolo?: boolean;
   loop?: boolean;
@@ -35,6 +36,7 @@ export async function runChatCommand(input: ChatCommandInput): Promise<void> {
     {
       model: input.model,
       provider: input.provider,
+      api: input.api,
       yolo: input.yolo,
     },
     process.env,

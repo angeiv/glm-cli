@@ -50,7 +50,7 @@ test("uses ~/.glm/agent and never policy when yolo is enabled", async () => {
 
 test("createGlmSession resolves the requested model explicitly and restores model env", async () => {
   const requestedModel = {
-    provider: "openai-compatible",
+    provider: "custom",
     id: "glm-openai-test",
   };
   const prompt = vi.fn(async () => {
@@ -79,8 +79,10 @@ test("createGlmSession resolves the requested model explicitly and restores mode
 
   const createGlmServices = vi.fn(async () => {
     expect(process.env.OPENAI_MODEL).toBe(requestedModel.id);
-    expect(process.env.GLM_MODEL).toBeUndefined();
+    expect(process.env.GLM_MODEL).toBe(requestedModel.id);
     expect(process.env.ANTHROPIC_MODEL).toBeUndefined();
+    expect(process.env.GLM_PROVIDER).toBe("custom");
+    expect(process.env.GLM_API).toBe("openai-compatible");
     expect(process.env.PI_CODING_AGENT_DIR?.endsWith("/.glm/agent")).toBe(true);
     expect(process.env.PI_CODING_AGENT_SESSION_DIR?.endsWith("/.glm/sessions/--tmp-demo--")).toBe(
       true,
@@ -129,7 +131,8 @@ test("createGlmSession resolves the requested model explicitly and restores mode
   const result = await createGlmSession({
     cwd: "/tmp/demo",
     model: requestedModel.id,
-    provider: "openai-compatible",
+    provider: "custom",
+    api: "openai-compatible",
     approvalPolicy: "never",
   });
   await result.session.prompt("test approval policy");
@@ -150,7 +153,7 @@ test("createGlmSession resolves the requested model explicitly and restores mode
 
 test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restores env", async () => {
   const requestedModel = {
-    provider: "anthropic",
+    provider: "custom",
     id: "claude-3-7-sonnet-20250219",
   };
 
@@ -176,7 +179,9 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
   const createGlmServices = vi.fn(async () => {
     expect(process.env.ANTHROPIC_MODEL).toBe(requestedModel.id);
     expect(process.env.OPENAI_MODEL).toBeUndefined();
-    expect(process.env.GLM_MODEL).toBeUndefined();
+    expect(process.env.GLM_MODEL).toBe(requestedModel.id);
+    expect(process.env.GLM_PROVIDER).toBe("custom");
+    expect(process.env.GLM_API).toBe("anthropic");
     expect(process.env.GLM_APPROVAL_POLICY).toBe("never");
     expect(process.env.PI_CODING_AGENT_DIR?.endsWith("/.glm/agent")).toBe(true);
     expect(process.env.PI_CODING_AGENT_SESSION_DIR?.endsWith("/.glm/sessions/--tmp-demo--")).toBe(
@@ -228,7 +233,8 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
   await createGlmSession({
     cwd: "/tmp/demo",
     model: requestedModel.id,
-    provider: "anthropic",
+    provider: "custom",
+    api: "anthropic",
     approvalPolicy: "never",
   });
 
@@ -253,7 +259,8 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
 
   const initial = resolveRuntimeModelStrategy(
     {
-      provider: "openai-compatible",
+      provider: "openai",
+      api: "openai-compatible",
       model: "glm-openai-test",
     },
     {
@@ -266,7 +273,8 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
   );
 
   expect(initial.selection).toEqual({
-    provider: "openai-compatible",
+    provider: "openai",
+    api: "openai-compatible",
     model: "glm-openai-test",
   });
   expect(initial.shouldPassExplicitModel).toBe(true);
@@ -274,10 +282,11 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
   const currentBuiltInSelection = getGlmModelSelection({
     provider: "openai",
     id: "gpt-5",
-  });
+  }, "openai-compatible");
 
   expect(currentBuiltInSelection).toEqual({
     provider: "openai",
+    api: "openai-compatible",
     model: "gpt-5",
   });
 
@@ -301,6 +310,7 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
 
   expect(resumed.selection).toEqual({
     provider: "openai-compatible",
+    api: "openai-compatible",
     model: "glm-openai-test",
   });
   expect(resumed.shouldPassExplicitModel).toBe(true);
@@ -325,6 +335,7 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
 
   expect(startupResume.selection).toEqual({
     provider: "openai-compatible",
+    api: "openai-compatible",
     model: "glm-openai-test",
   });
   expect(startupResume.shouldPassExplicitModel).toBe(true);
@@ -349,6 +360,7 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
 
   expect(reloaded.selection).toEqual({
     provider: "openai-compatible",
+    api: "openai-compatible",
     model: "glm-openai-test",
   });
   expect(reloaded.shouldPassExplicitModel).toBe(true);
@@ -367,6 +379,7 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
 
   expect(freshNewSession.selection).toEqual({
     provider: "openai",
+    api: "openai-compatible",
     model: "gpt-5",
   });
   expect(freshNewSession.shouldPassExplicitModel).toBe(true);
@@ -388,6 +401,7 @@ test("runtime model strategy keeps preferred selection across resumes", async ()
 
   expect(emptyResume.selection).toEqual({
     provider: "openai-compatible",
+    api: "openai-compatible",
     model: "glm-openai-test",
   });
   expect(emptyResume.shouldPassExplicitModel).toBe(true);

@@ -11,8 +11,8 @@ import type {
 } from "./model-profile-types.js";
 import {
   getCatalogModelFamily,
-  getGenericAnthropicCompatibleCaps,
   getCatalogModelProfile,
+  getGenericAnthropicCompatibleCaps,
   getGenericOpenAiCompatibleCaps,
   getGenericOpenAiCompatibleModalities,
   getStandardGlmModel,
@@ -22,7 +22,7 @@ import {
 
 export type GlmProfileRuleMatch = {
   provider?: string;
-  upstreamProvider?: string;
+  api?: string;
   baseUrl?: string;
   modelId?: string;
   canonicalModelId?: string;
@@ -39,7 +39,6 @@ export type GlmProfileOverrideRule = {
 };
 
 export type ResolveRuntimeModelProfileInput = ResolveGlmProfileInput & {
-  provider?: string;
   overrides?: GlmProfileOverrideRule[];
 };
 
@@ -124,7 +123,8 @@ function matchesAnyCandidate(candidates: string[], pattern: string): boolean {
 
 type GlmResolutionContext = {
   provider?: string;
-  upstreamProvider?: string;
+  providerCandidates?: string[];
+  api?: string;
   baseUrl?: string;
   modelId: string;
   platform: GlmPlatformRoute;
@@ -136,13 +136,14 @@ function matchesOverride(rule: GlmProfileOverrideRule, context: GlmResolutionCon
   const match = rule.match;
 
   if (match.provider) {
-    if (!context.provider) return false;
-    if (!matchesGlob(normalize(context.provider), match.provider)) return false;
+    const providerCandidates = context.providerCandidates?.filter(Boolean) ?? [];
+    if (providerCandidates.length === 0) return false;
+    if (!providerCandidates.some((candidate) => matchesGlob(candidate, match.provider!))) return false;
   }
 
-  if (match.upstreamProvider) {
-    if (!context.upstreamProvider) return false;
-    if (!matchesGlob(context.upstreamProvider, match.upstreamProvider)) return false;
+  if (match.api) {
+    if (!context.api) return false;
+    if (!matchesGlob(normalize(context.api), match.api)) return false;
   }
 
   if (match.baseUrl) {
@@ -231,47 +232,39 @@ function resolveConfidence(
   return "low";
 }
 
-export function resolveProviderTransport(provider?: string): RuntimeTransport {
-  if (provider === "openai-responses") {
+export function resolveProviderTransport(api?: string): RuntimeTransport {
+  if (api === "openai-responses") {
     return "openai-responses";
   }
 
-  if (provider === "anthropic") {
+  if (api === "anthropic" || api === "anthropic-messages") {
     return "anthropic-messages";
   }
 
   return "openai-completions";
 }
 
-function normalizeUpstreamProvider(value?: string): string | undefined {
-  if (!value?.trim()) {
+function resolveExplicitPlatform(provider?: string): GlmPlatformRoute | undefined {
+  if (!provider?.trim()) {
     return undefined;
   }
 
-  const normalized = normalize(value);
-  const aliases: Record<string, string> = {
-    glm: "bigmodel",
-    zhipu: "bigmodel",
-    "bigmodel-coding": "bigmodel",
-    "z.ai": "zai",
-    "z-ai": "zai",
-    "zai-coding": "zai",
-    bailian: "dashscope",
-  };
-
-  return aliases[normalized] ?? normalized;
-}
-
-function resolveExplicitPlatform(upstreamProvider?: string): GlmPlatformRoute | undefined {
-  switch (normalizeUpstreamProvider(upstreamProvider)) {
+  switch (normalize(provider)) {
     case "bigmodel":
+    case "bigmodel-coding":
+    case "glm":
       return "native-bigmodel";
     case "zai":
+    case "zai-coding":
+    case "z.ai":
+    case "z-ai":
       return "native-zai";
     case "openrouter":
       return "gateway-openrouter";
     case "modelscope":
       return "gateway-modelscope-openai";
+    case "bailian":
+    case "bailian-coding":
     case "dashscope":
       return "gateway-dashscope";
     case "other":
@@ -282,10 +275,14 @@ function resolveExplicitPlatform(upstreamProvider?: string): GlmPlatformRoute | 
 }
 
 export function resolveGlmPlatformRoute(
-  baseUrl?: string,
-  upstreamProvider?: string,
+  providerOrBaseUrl?: string,
+  maybeBaseUrl?: string,
 ): GlmPlatformRoute {
-  const explicitPlatform = resolveExplicitPlatform(upstreamProvider);
+  const provider =
+    providerOrBaseUrl && providerOrBaseUrl.includes("://") ? maybeBaseUrl : providerOrBaseUrl;
+  const baseUrl =
+    providerOrBaseUrl && providerOrBaseUrl.includes("://") ? providerOrBaseUrl : maybeBaseUrl;
+  const explicitPlatform = resolveExplicitPlatform(provider);
   if (explicitPlatform) {
     return explicitPlatform;
   }
@@ -351,16 +348,36 @@ export function resolveGlmUpstreamVendor(
 export function resolveRuntimeModelProfile(
   input: ResolveRuntimeModelProfileInput,
 ): ResolvedRuntimeModelProfile {
-  const upstreamProvider = normalizeUpstreamProvider(input.upstreamProvider);
-  const detectedGateway = resolveGlmPlatformRoute(input.baseUrl);
-  const gateway = resolveGlmPlatformRoute(input.baseUrl, upstreamProvider);
-  const transport = resolveProviderTransport(input.provider);
+  const api =
+    input.api ??
+    (input.provider === "anthropic"
+      ? "anthropic"
+      : input.provider === "openai-responses"
+        ? "openai-responses"
+        : "openai-compatible");
+  const providerForPlatform =
+    input.provider === "anthropic" ||
+    input.provider === "openai-compatible" ||
+    input.provider === "openai-responses"
+      ? undefined
+      : input.provider;
+  const providerCandidates = new Set<string>();
+  if (providerForPlatform) {
+    providerCandidates.add(normalize(providerForPlatform));
+  }
+  if (input.provider) {
+    providerCandidates.add(normalize(input.provider));
+  }
+  const detectedGateway = resolveGlmPlatformRoute(undefined, input.baseUrl);
+  const gateway = resolveGlmPlatformRoute(providerForPlatform, input.baseUrl);
+  const transport = resolveProviderTransport(api);
   const upstreamVendor = resolveGlmUpstreamVendor(gateway, input.modelId);
   const baseCanonical = resolveCanonicalCatalogModelId(input.modelId);
 
   const baseContext: GlmResolutionContext = {
-    provider: input.provider ? normalize(input.provider) : undefined,
-    upstreamProvider,
+    provider: providerForPlatform ? normalize(providerForPlatform) : undefined,
+    providerCandidates: [...providerCandidates],
+    api: api ? normalize(api) : undefined,
     baseUrl: input.baseUrl,
     modelId: input.modelId,
     platform: gateway,
@@ -391,13 +408,8 @@ export function resolveRuntimeModelProfile(
     overrides.modalities,
   );
 
-  const payloadGateway = input.provider === "glm" ? gateway : detectedGateway;
   const shouldUseNativePayloadPolicy =
-    canonicalGlmModel &&
-    ((input.provider === "glm" &&
-      (payloadGateway === "native-bigmodel" || payloadGateway === "native-zai")) ||
-      (input.provider === undefined &&
-        (detectedGateway === "native-bigmodel" || detectedGateway === "native-zai")));
+    Boolean(canonicalGlmModel) && (gateway === "native-bigmodel" || gateway === "native-zai");
   const defaultPayloadPolicy: PayloadPatchPolicy = shouldUseNativePayloadPolicy
     ? "glm-native"
     : "safe-openai-compatible";
@@ -420,7 +432,8 @@ export function resolveRuntimeModelProfile(
     gateway,
     patchPipeline: {
       zhipuNative: payloadPatchPolicy === "glm-native",
-      dashscopeCompat: detectedGateway === "gateway-dashscope",
+      dashscopeCompat:
+        gateway === "gateway-dashscope" || detectedGateway === "gateway-dashscope",
     },
   };
 }
