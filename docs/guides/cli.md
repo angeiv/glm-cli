@@ -72,7 +72,8 @@ See [config-surface.md](../references/config-surface.md) for the full list of su
 
 These flags apply to `glm`, `glm chat`, and `glm run`:
 
-- `--provider <name>`: `glm`, `openai-compatible`, `openai-responses`, `anthropic`
+- `--provider <name>`: `bigmodel`, `bigmodel-coding`, `zai`, `zai-coding`, `bailian`, `bailian-coding`, `openrouter`, `custom`
+- `--api <name>`: optional protocol override, defaults to `openai-compatible` (`openai-responses` and `anthropic` are also supported)
 - `--model <id>`: model ID (supports GLM aliases like `ZhipuAI/GLM-5`)
 - `--cwd <path>`: working directory override
 - `--mode <direct|standard|intensive>`: prompt lane override
@@ -230,7 +231,7 @@ Bailian supports implicit context cache automatically for supported models. `glm
 For Bailian GLM-5.1, enable explicit cache markers when you want deterministic prefix reuse:
 
 ```bash
-GLM_CONTEXT_CACHE=explicit glm --provider openai-compatible --model glm-5.1
+GLM_CONTEXT_CACHE=explicit glm --provider bailian --model glm-5.1
 ```
 
 Equivalent persisted config:

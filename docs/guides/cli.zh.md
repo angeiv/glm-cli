@@ -72,7 +72,8 @@ glm inspect --json
 
 以下 flags 同时适用于 `glm`、`glm chat`、`glm run`：
 
-- `--provider <name>`：`glm`、`openai-compatible`、`openai-responses`、`anthropic`
+- `--provider <name>`：`bigmodel`、`bigmodel-coding`、`zai`、`zai-coding`、`bailian`、`bailian-coding`、`openrouter`、`custom`
+- `--api <name>`：可选协议覆盖，默认 `openai-compatible`，也支持 `openai-responses` 和 `anthropic`
 - `--model <id>`：模型 ID（支持 `ZhipuAI/GLM-5` 等别名）
 - `--cwd <path>`：覆盖工作目录
 - `--mode <direct|standard|intensive>`：覆盖 prompt lane
@@ -230,7 +231,7 @@ BigModel 与 z.ai 的 OpenAI Compatible 接口和标准 OpenAI Chat Completions 
 对于百炼 GLM-5.1，如需确定性复用稳定前缀，可以开启显式缓存标记：
 
 ```bash
-GLM_CONTEXT_CACHE=explicit glm --provider openai-compatible --model glm-5.1
+GLM_CONTEXT_CACHE=explicit glm --provider bailian --model glm-5.1
 ```
 
 对应持久化配置：

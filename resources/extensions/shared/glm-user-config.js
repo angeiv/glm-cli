@@ -87,10 +87,7 @@ export function readGlmUserConfig() {
 
 export function readGlmModelProfileOverrides() {
   const config = readGlmUserConfig();
-  const modelProfiles = config?.modelProfiles;
-  if (!modelProfiles || typeof modelProfiles !== "object") return undefined;
-
-  const overrides = modelProfiles.overrides;
+  const overrides = config?.modelOverrides ?? config?.modelProfiles?.overrides;
   if (!Array.isArray(overrides) || overrides.length === 0) return undefined;
 
   const rules = [];

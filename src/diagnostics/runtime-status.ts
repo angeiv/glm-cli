@@ -277,7 +277,7 @@ export async function buildRuntimeStatus(args: {
         api: effectiveApi,
         modelId: args.runtime.model,
         baseUrl,
-        overrides: args.config?.modelProfiles?.overrides,
+        overrides: args.config?.modelOverrides,
       });
 
       return {

@@ -86,7 +86,6 @@ export function shouldApplyGlmNativePayloadPatches(model: {
   baseUrl?: string;
   api?: string;
   provider?: string;
-  upstreamProvider?: string;
 }): boolean {
   if (model.api !== "openai-completions") {
     return false;
@@ -96,7 +95,6 @@ export function shouldApplyGlmNativePayloadPatches(model: {
     provider: model.provider,
     modelId: model.id ?? "",
     baseUrl: model.baseUrl,
-    upstreamProvider: model.upstreamProvider,
     overrides: modelProfileOverrides,
   });
 
@@ -157,7 +155,6 @@ export function applyZhipuPayloadPatches(
     provider?: string;
     id?: string;
     baseUrl?: string;
-    upstreamProvider?: string;
   },
 ): unknown {
   if (!payload || typeof payload !== "object") return payload;
@@ -168,7 +165,6 @@ export function applyZhipuPayloadPatches(
           provider: model.provider,
           modelId: model.id,
           baseUrl: model.baseUrl,
-          upstreamProvider: model.upstreamProvider,
           overrides: modelProfileOverrides,
         })
       : undefined;

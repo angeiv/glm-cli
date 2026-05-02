@@ -257,21 +257,19 @@ describe("buildRuntimeStatus", () => {
         ANTHROPIC_BASE_URL: "https://api-inference.modelscope.cn/v1/messages",
       },
       config: normalizeConfigFile({
-        modelProfiles: {
-          overrides: [
-            {
-              match: {
-                provider: "anthropic",
-                baseUrl: "*modelscope.cn*",
-                modelId: "ZhipuAI/GLM-5*",
-              },
-              canonicalModelId: "glm-5",
-              caps: {
-                contextWindow: 96_000,
-              },
+        modelOverrides: [
+          {
+            match: {
+              provider: "anthropic",
+              baseUrl: "*modelscope.cn*",
+              modelId: "ZhipuAI/GLM-5*",
             },
-          ],
-        },
+            canonicalModelId: "glm-5",
+            caps: {
+              contextWindow: 96_000,
+            },
+          },
+        ],
       }),
     });
 

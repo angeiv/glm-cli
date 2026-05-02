@@ -43,6 +43,7 @@ Compaction controls (defaults shown):
 Supported persisted keys today:
 
 - `defaultProvider`
+- `defaultApi`
 - `defaultModel`
 - `taskLaneDefault`
 - `approvalPolicy`
@@ -64,18 +65,14 @@ Supported persisted keys today:
 - `loop.failureMode`
 - `loop.autoVerify`
 - `loop.verifyCommand`
-- `modelProfiles.overrides`
-- `providers.glm.apiKey`
-- `providers.glm.baseURL`
-- `providers.glm.endpoint`
-- `providers.glm.upstreamProvider`
-- `providers["openai-compatible"].apiKey`
-- `providers["openai-compatible"].baseURL`
-- `providers["openai-compatible"].upstreamProvider`
+- `modelOverrides`
+- `providers.<provider>.apiKey`
+- `providers.<provider>.baseURL`
+- `providers.<provider>.api`
 
 Anthropic-compatible credentials are env-only today.
 
-`modelProfiles.overrides[]` supports these fields:
+`modelOverrides[]` supports these fields:
 
 - `match`
 - `canonicalModelId`
@@ -83,23 +80,22 @@ Anthropic-compatible credentials are env-only today.
 - `modalities`
 - `caps`
 
-`modelProfiles.overrides[].modalities` currently accepts `text`, `image`, and `video`.
+`modelOverrides[].modalities` currently accepts `text`, `image`, and `video`.
 
-`modelProfiles.overrides[].match` can target transport (`provider`), explicit upstream routing (`upstreamProvider`), base URL globs, model aliases, canonical IDs, platform, and upstream vendor hints.
+`modelOverrides[].match` can target `provider`, `api`, base URL globs, model aliases, canonical IDs, platform, and upstream vendor hints.
 
 ## `glm config` command surface
 
 `glm config get|set` currently exposes:
 
 - `defaultProvider`
+- `defaultApi`
 - `defaultModel`
 - `taskLaneDefault`
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
 - `glmEndpoint`
-- `glmUpstreamProvider`
-- `openaiUpstreamProvider`
 - `maxOutputTokens`
 - `temperature`
 - `topP`
@@ -131,8 +127,8 @@ When adding a new config key, update all of:
 Capability and loop env inputs currently include:
 
 - `GLM_PROVIDER`
+- `GLM_API`
 - `GLM_MODEL`
-- `GLM_ENDPOINT`
 - `GLM_MAX_OUTPUT_TOKENS`
 - `GLM_TEMPERATURE`
 - `GLM_TOP_P`
@@ -154,15 +150,12 @@ Credential env inputs:
 
 - `GLM_API_KEY`
 - `GLM_BASE_URL`
-- `GLM_UPSTREAM_PROVIDER`
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`
 - `OPENAI_MODEL`
-- `OPENAI_UPSTREAM_PROVIDER`
 - `ANTHROPIC_AUTH_TOKEN`
 - `ANTHROPIC_BASE_URL`
 - `ANTHROPIC_MODEL`
-- `ANTHROPIC_UPSTREAM_PROVIDER`
 
 MCP env inputs:
 
@@ -184,7 +177,9 @@ The CLI influences runtime behavior via flags. `glm inspect --json` is the easie
 
 ## Resolution notes
 
-- Provider/model selection is resolved from CLI flags, env, and persisted config in `src/providers/index.ts` and `src/app/env.ts`.
+- Provider/API/model selection is resolved from CLI flags, env, and persisted config in `src/providers/index.ts` and `src/app/env.ts`.
+- Recommended operator flow is: select `provider`, optionally override `api`, then set `model`.
+- `custom` is the generic path for proxy, local, and unknown models. Start with the requested model name, then refine capabilities with `modelOverrides` when the default generic profile is too conservative.
 - Loop options are resolved in `src/app/env.ts`.
 - Session paths are derived in `src/session/session-paths.ts`.
 - Packaged prompts/extensions are synced by `src/app/resource-sync.ts`.

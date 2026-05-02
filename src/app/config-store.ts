@@ -56,9 +56,7 @@ export type GlmCapabilitiesConfig = {
   responseFormat?: ResponseFormatType;
   contextCache?: ContextCacheMode;
 };
-export type ModelProfilesConfig = {
-  overrides?: GlmProfileOverrideRule[];
-};
+export type ModelOverridesConfig = GlmProfileOverrideRule[];
 export type LoopConfig = {
   enabledByDefault?: boolean;
   profile?: LoopProfileName;
@@ -167,7 +165,7 @@ export type GlmConfigFile = {
   generation: GenerationConfig;
   glmCapabilities: GlmCapabilitiesConfig;
   loop: LoopConfig;
-  modelProfiles?: ModelProfilesConfig;
+  modelOverrides?: ModelOverridesConfig;
   providers: Record<StorageProviderKey, ProviderConfig>;
 };
 
@@ -315,15 +313,14 @@ function cloneLoopConfig(config?: LoopConfig): LoopConfig {
   };
 }
 
-function cloneModelProfilesConfig(config?: ModelProfilesConfig): ModelProfilesConfig | undefined {
-  const rawOverrides = (config as unknown as { overrides?: unknown })?.overrides;
+function cloneModelOverrides(rawOverrides: unknown): ModelOverridesConfig | undefined {
   if (rawOverrides === undefined) {
     return undefined;
   }
 
   if (!Array.isArray(rawOverrides)) {
     // Preserve invalid values so validation can surface a helpful error.
-    return { ...(config as any) } as ModelProfilesConfig;
+    return rawOverrides as ModelOverridesConfig;
   }
 
   if (rawOverrides.length === 0) {
@@ -351,7 +348,7 @@ function cloneModelProfilesConfig(config?: ModelProfilesConfig): ModelProfilesCo
     } as GlmProfileOverrideRule;
   });
 
-  return { overrides };
+  return overrides;
 }
 
 export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigFile {
@@ -370,9 +367,10 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       ? BASE_DEFAULT_CONFIG_FILE.defaultProvider
       : (rawDefaultProvider as PersistedProviderName));
   const rawProviders = (config as unknown as { providers?: Record<string, unknown> })?.providers;
-  const modelProfiles = cloneModelProfilesConfig(
-    (config as unknown as { modelProfiles?: ModelProfilesConfig })?.modelProfiles,
-  );
+  const rawModelOverrides =
+    (config as unknown as { modelOverrides?: unknown })?.modelOverrides ??
+    (config as unknown as { modelProfiles?: { overrides?: unknown } })?.modelProfiles?.overrides;
+  const modelOverrides = cloneModelOverrides(rawModelOverrides);
 
   return {
     defaultProvider,
@@ -417,7 +415,7 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
     loop: cloneLoopConfig(
       (config as unknown as { loop?: LoopConfig })?.loop ?? BASE_DEFAULT_CONFIG_FILE.loop,
     ),
-    ...(modelProfiles ? { modelProfiles } : {}),
+    ...(modelOverrides ? { modelOverrides } : {}),
     providers: Object.fromEntries(
       PROVIDER_NAMES.map((provider) => [
         provider,
@@ -515,7 +513,7 @@ function validateConfigFile(config: GlmConfigFile): void {
   validateGenerationConfig(config.generation);
   validateGlmCapabilitiesConfig(config.glmCapabilities);
   validateLoopConfig(config.loop);
-  validateModelProfilesConfig(config.modelProfiles);
+  validateModelOverridesConfig(config.modelOverrides);
 
   Object.entries(config.providers).forEach(([key, value]) => {
     validateProviderConfig(value, key as StorageProviderKey);
@@ -639,32 +637,21 @@ const GLM_MODEL_CAP_KEYS = new Set([
   "supportsMcp",
 ]);
 
-function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
+function validateModelOverridesConfig(config?: ModelOverridesConfig): void {
   if (config === undefined) return;
-  if (typeof config !== "object" || config === null) {
-    throw new Error(`Invalid modelProfiles in config file: ${typeof config}`);
+  if (!Array.isArray(config)) {
+    throw new Error(`Invalid modelOverrides in config file: ${typeof config}`);
   }
 
-  const overrides = (config as unknown as { overrides?: unknown })?.overrides;
-  if (overrides === undefined) {
-    return;
-  }
-
-  if (!Array.isArray(overrides)) {
-    throw new Error(`Invalid modelProfiles.overrides in config file: ${typeof overrides}`);
-  }
-
-  overrides.forEach((rule, index) => {
+  config.forEach((rule, index) => {
     if (typeof rule !== "object" || rule === null) {
-      throw new Error(`Invalid modelProfiles.overrides[${index}] in config file: ${typeof rule}`);
+      throw new Error(`Invalid modelOverrides[${index}] in config file: ${typeof rule}`);
     }
 
     const record = rule as Record<string, unknown>;
     const match = record.match;
     if (typeof match !== "object" || match === null) {
-      throw new Error(
-        `Invalid modelProfiles.overrides[${index}].match in config file: ${typeof match}`,
-      );
+      throw new Error(`Invalid modelOverrides[${index}].match in config file: ${typeof match}`);
     }
 
     const matchRecord = match as Record<string, unknown>;
@@ -682,12 +669,12 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
       if (value === undefined) return false;
       if (typeof value !== "string") {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].match.${key} in config file: ${typeof value}`,
+          `Invalid modelOverrides[${index}].match.${key} in config file: ${typeof value}`,
         );
       }
       if (!value.trim()) {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].match.${key} in config file: empty string`,
+          `Invalid modelOverrides[${index}].match.${key} in config file: empty string`,
         );
       }
       return true;
@@ -695,7 +682,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
 
     if (populatedKeys.length === 0) {
       throw new Error(
-        `Invalid modelProfiles.overrides[${index}] in config file: match must specify at least one selector`,
+        `Invalid modelOverrides[${index}] in config file: match must specify at least one selector`,
       );
     }
 
@@ -703,12 +690,12 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     if (canonicalModelId !== undefined) {
       if (typeof canonicalModelId !== "string") {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].canonicalModelId in config file: ${typeof canonicalModelId}`,
+          `Invalid modelOverrides[${index}].canonicalModelId in config file: ${typeof canonicalModelId}`,
         );
       }
       if (!canonicalModelId.trim()) {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].canonicalModelId in config file: empty string`,
+          `Invalid modelOverrides[${index}].canonicalModelId in config file: empty string`,
         );
       }
     }
@@ -717,7 +704,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     if (payloadPatchPolicy !== undefined) {
       if (payloadPatchPolicy !== "glm-native" && payloadPatchPolicy !== "safe-openai-compatible") {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].payloadPatchPolicy in config file: ${String(payloadPatchPolicy)}`,
+          `Invalid modelOverrides[${index}].payloadPatchPolicy in config file: ${String(payloadPatchPolicy)}`,
         );
       }
     }
@@ -726,14 +713,14 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     if (modalities !== undefined) {
       if (!Array.isArray(modalities) || modalities.length === 0) {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].modalities in config file: ${String(modalities)}`,
+          `Invalid modelOverrides[${index}].modalities in config file: ${String(modalities)}`,
         );
       }
 
       modalities.forEach((value, modalityIndex) => {
         if (!isGlmInputModality(value)) {
           throw new Error(
-            `Invalid modelProfiles.overrides[${index}].modalities[${modalityIndex}] in config file: ${String(value)}`,
+            `Invalid modelOverrides[${index}].modalities[${modalityIndex}] in config file: ${String(value)}`,
           );
         }
       });
@@ -745,20 +732,18 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
     }
 
     if (typeof caps !== "object" || caps === null) {
-      throw new Error(
-        `Invalid modelProfiles.overrides[${index}].caps in config file: ${typeof caps}`,
-      );
+      throw new Error(`Invalid modelOverrides[${index}].caps in config file: ${typeof caps}`);
     }
 
     for (const [key, value] of Object.entries(caps)) {
       if (!GLM_MODEL_CAP_KEYS.has(key)) {
-        throw new Error(`Invalid modelProfiles.overrides[${index}].caps key: ${key}`);
+        throw new Error(`Invalid modelOverrides[${index}].caps key: ${key}`);
       }
 
       if (key === "contextWindow" || key === "maxOutputTokens") {
         if (!Number.isInteger(value) || (value as number) <= 0) {
           throw new Error(
-            `Invalid modelProfiles.overrides[${index}].caps.${key} in config file: ${String(value)}`,
+            `Invalid modelOverrides[${index}].caps.${key} in config file: ${String(value)}`,
           );
         }
         continue;
@@ -767,7 +752,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
       if (key === "defaultThinkingMode") {
         if (value !== "auto" && value !== "enabled" && value !== "disabled") {
           throw new Error(
-            `Invalid modelProfiles.overrides[${index}].caps.defaultThinkingMode in config file: ${String(value)}`,
+            `Invalid modelOverrides[${index}].caps.defaultThinkingMode in config file: ${String(value)}`,
           );
         }
         continue;
@@ -775,7 +760,7 @@ function validateModelProfilesConfig(config?: ModelProfilesConfig): void {
 
       if (typeof value !== "boolean") {
         throw new Error(
-          `Invalid modelProfiles.overrides[${index}].caps.${key} in config file: ${typeof value}`,
+          `Invalid modelOverrides[${index}].caps.${key} in config file: ${typeof value}`,
         );
       }
     }

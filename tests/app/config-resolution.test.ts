@@ -132,7 +132,36 @@ describe("config store normalization", () => {
     await expect(readConfigFile()).rejects.toThrow(/apiKey/i);
   });
 
-  test("readConfigFile validates model profile override selectors", async () => {
+  test("readConfigFile reads modelOverrides as the primary override surface", async () => {
+    const payload = JSON.stringify({
+      defaultProvider: "bigmodel-coding",
+      approvalPolicy: "ask",
+      providers: {},
+      modelOverrides: [
+        {
+          match: {
+            provider: "custom",
+            api: "anthropic",
+            baseUrl: "*modelscope.cn*",
+            modelId: "ZhipuAI/GLM-5*",
+          },
+          canonicalModelId: "glm-5",
+        },
+      ],
+    });
+    vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
+
+    const config = await readConfigFile();
+    expect(config.modelOverrides?.[0]).toMatchObject({
+      match: {
+        provider: "custom",
+        api: "anthropic",
+      },
+      canonicalModelId: "glm-5",
+    });
+  });
+
+  test("readConfigFile keeps legacy modelProfiles.overrides compatible", async () => {
     const payload = JSON.stringify({
       defaultProvider: "bigmodel-coding",
       approvalPolicy: "ask",
@@ -154,7 +183,7 @@ describe("config store normalization", () => {
     vi.spyOn(fileSystem, "readFile").mockResolvedValueOnce(payload);
 
     const config = await readConfigFile();
-    expect(config.modelProfiles?.overrides?.[0]).toMatchObject({
+    expect(config.modelOverrides?.[0]).toMatchObject({
       match: {
         provider: "custom",
         api: "anthropic",
