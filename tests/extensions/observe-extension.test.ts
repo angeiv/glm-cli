@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { clearRuntimeEvents, getRuntimeEvents } from "../../src/diagnostics/event-log.js";
 import { setRuntimeStatus } from "../../src/diagnostics/runtime-status.js";
 
@@ -169,5 +169,130 @@ describe("glm-zz-observe extension", () => {
       reasoning_effort: "xhigh",
       max_completion_tokens: 32000,
     });
+  });
+
+  test("updates the thinking status bar and records thinking level changes", async () => {
+    const { default: registerObserveExtension } = await import(
+      "../../resources/extensions/glm-zz-observe/index.ts"
+    );
+
+    clearRuntimeEvents();
+    setDebugRuntime(false);
+    clearRuntimeEvents();
+
+    const handlers = new Map<string, (...args: any[]) => any>();
+    const setStatus = vi.fn();
+    registerObserveExtension({
+      on: (event: string, handler: (...args: any[]) => any) => {
+        handlers.set(event, handler);
+      },
+    } as unknown as ExtensionAPI);
+
+    const thinkingLevelSelect = handlers.get("thinking_level_select");
+    expect(thinkingLevelSelect).toBeTypeOf("function");
+
+    await thinkingLevelSelect?.(
+      { type: "thinking_level_select", level: "high", previousLevel: "minimal" },
+      {
+        hasUI: true,
+        ui: { setStatus },
+        model: {
+          provider: "glm",
+          id: "glm-5.1",
+          reasoning: true,
+          thinkingLevelMap: {
+            minimal: null,
+            low: null,
+            medium: null,
+          },
+        },
+      },
+    );
+
+    expect(setStatus).toHaveBeenCalledWith("glm.thinking", "thinking: high [off/high]");
+    expect(getRuntimeEvents()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "thinking.level",
+          summary: "thinking level changed: minimal -> high [off/high]",
+        }),
+      ]),
+    );
+  });
+
+  test("captures provider response metadata and replaces the finalized assistant message", async () => {
+    const { default: registerObserveExtension } = await import(
+      "../../resources/extensions/glm-zz-observe/index.ts"
+    );
+
+    clearRuntimeEvents();
+    setDebugRuntime(true);
+    clearRuntimeEvents();
+
+    const handlers = new Map<string, (...args: any[]) => any>();
+    registerObserveExtension({
+      on: (event: string, handler: (...args: any[]) => any) => {
+        handlers.set(event, handler);
+      },
+    } as unknown as ExtensionAPI);
+
+    const afterProviderResponse = handlers.get("after_provider_response");
+    const messageEnd = handlers.get("message_end");
+    expect(afterProviderResponse).toBeTypeOf("function");
+    expect(messageEnd).toBeTypeOf("function");
+
+    await afterProviderResponse?.(
+      {
+        type: "after_provider_response",
+        status: 200,
+        headers: new Headers({
+          "x-request-id": "req_123",
+          "x-cache": "HIT",
+          "x-routed-model": "glm-5.1-20260501",
+        }),
+      },
+      {},
+    );
+
+    const result = await messageEnd?.(
+      {
+        type: "message_end",
+        message: {
+          role: "assistant",
+          provider: "glm",
+          model: "glm-5.1",
+          stopReason: "stop",
+          usage: {
+            input: 12,
+            output: 34,
+            cacheRead: 56,
+            cacheWrite: 0,
+            totalTokens: 102,
+          },
+          content: [{ type: "text", text: "done" }],
+        },
+      },
+      {},
+    );
+
+    expect(result?.message).toMatchObject({
+      role: "assistant",
+      content: [{ type: "text", text: "done" }],
+      glmMeta: {
+        providerResponse: {
+          status: 200,
+          requestId: "req_123",
+          cacheStatus: "HIT",
+          routedModel: "glm-5.1-20260501",
+        },
+      },
+    });
+    expect(getRuntimeEvents()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "provider.response",
+        }),
+      ]),
+    );
   });
 });

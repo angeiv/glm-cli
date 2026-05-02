@@ -9,6 +9,21 @@ type ProviderModelInfo = {
   compat?: Record<string, unknown>;
 };
 
+type ThinkingModelInfo = {
+  reasoning?: boolean;
+  thinkingLevelMap?: Record<string, string | null>;
+};
+
+type ProviderResponseSnapshot = {
+  status?: number;
+  requestId?: string;
+  cacheStatus?: string;
+  routedModel?: string;
+};
+
+const THINKING_STATUS_KEY = "glm.thinking";
+const OBSERVE_RESPONSE_STATE = Symbol.for("glm.observe.lastProviderResponse");
+
 function toBoolean(value: unknown): boolean | undefined {
   if (value === true) return true;
   if (value === false) return false;
@@ -90,6 +105,144 @@ function pickMaxTokens(payload: Record<string, unknown>): {
   };
 }
 
+function setStatusText(
+  ctx: { hasUI?: boolean; ui?: { setStatus?: (key: string, text: string | undefined) => void } },
+  key: string,
+  text: string | undefined,
+): void {
+  if (!ctx.hasUI) return;
+  const setStatus = ctx.ui?.setStatus;
+  if (typeof setStatus === "function") {
+    setStatus(key, text);
+  }
+}
+
+function getSupportedThinkingLevels(model: ThinkingModelInfo | undefined): string[] {
+  if (!model?.reasoning) {
+    return ["off"];
+  }
+
+  const levels = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
+  return levels.filter((level) => {
+    const mapped = model.thinkingLevelMap?.[level];
+    if (mapped === null) return false;
+    if (level === "xhigh") return mapped !== undefined;
+    return true;
+  });
+}
+
+function formatThinkingStatus(level: string, model: ThinkingModelInfo | undefined): string {
+  const supported = getSupportedThinkingLevels(model);
+  return `thinking: ${level} [${supported.join("/")}]`;
+}
+
+function getResponseStateStore(): { latest?: ProviderResponseSnapshot } {
+  const store = globalThis as Record<PropertyKey, unknown>;
+  const existing = store[OBSERVE_RESPONSE_STATE];
+  if (existing && typeof existing === "object") {
+    return existing as { latest?: ProviderResponseSnapshot };
+  }
+
+  const next: { latest?: ProviderResponseSnapshot } = {};
+  store[OBSERVE_RESPONSE_STATE] = next;
+  return next;
+}
+
+function clearLatestProviderResponse(): void {
+  delete getResponseStateStore().latest;
+}
+
+function setLatestProviderResponse(snapshot: ProviderResponseSnapshot): void {
+  getResponseStateStore().latest = snapshot;
+}
+
+function takeLatestProviderResponse(): ProviderResponseSnapshot | undefined {
+  const store = getResponseStateStore();
+  const latest = store.latest;
+  delete store.latest;
+  return latest;
+}
+
+function getHeaderValue(headers: unknown, names: string[]): string | undefined {
+  if (!headers) return undefined;
+
+  for (const name of names) {
+    if (typeof (headers as Headers).get === "function") {
+      const value = (headers as Headers).get(name);
+      if (value) return value;
+    }
+
+    if (typeof headers === "object" && !Array.isArray(headers)) {
+      const record = headers as Record<string, unknown>;
+      const matched = Object.entries(record).find(([key]) => key.toLowerCase() === name);
+      if (matched && typeof matched[1] === "string" && matched[1].trim()) {
+        return matched[1];
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function buildProviderResponseSnapshot(event: {
+  status?: number;
+  headers?: unknown;
+}): ProviderResponseSnapshot {
+  return {
+    ...(event.status === undefined ? {} : { status: event.status }),
+    ...(getHeaderValue(event.headers, ["x-request-id", "request-id", "anthropic-request-id"])
+      ? {
+          requestId: getHeaderValue(event.headers, [
+            "x-request-id",
+            "request-id",
+            "anthropic-request-id",
+          ]),
+        }
+      : {}),
+    ...(getHeaderValue(event.headers, ["x-cache", "cf-cache-status", "x-cache-status"])
+      ? {
+          cacheStatus: getHeaderValue(event.headers, [
+            "x-cache",
+            "cf-cache-status",
+            "x-cache-status",
+          ]),
+        }
+      : {}),
+    ...(getHeaderValue(event.headers, [
+      "x-routed-model",
+      "openai-model",
+      "x-model",
+      "x-upstream-model",
+    ])
+      ? {
+          routedModel: getHeaderValue(event.headers, [
+            "x-routed-model",
+            "openai-model",
+            "x-model",
+            "x-upstream-model",
+          ]),
+        }
+      : {}),
+  };
+}
+
+function summarizeProviderResponse(args: {
+  snapshot: ProviderResponseSnapshot;
+  message: Record<string, unknown>;
+  requestedModel?: string;
+}): string {
+  const parts = [
+    `status=${args.snapshot.status ?? "unknown"}`,
+    args.snapshot.requestId ? `request_id=${args.snapshot.requestId}` : undefined,
+    args.snapshot.cacheStatus ? `cache=${args.snapshot.cacheStatus}` : undefined,
+    args.snapshot.routedModel ? `routed=${args.snapshot.routedModel}` : undefined,
+    args.requestedModel ? `requested=${args.requestedModel}` : undefined,
+    typeof args.message.model === "string" ? `message_model=${args.message.model}` : undefined,
+  ].filter(Boolean);
+
+  return parts.join(" | ");
+}
+
 function renderRequestSummary(args: {
   model: ProviderModelInfo;
   payload: Record<string, unknown>;
@@ -130,6 +283,8 @@ function renderRequestSummary(args: {
 
 export default function (pi: ExtensionAPI) {
   pi.on("before_provider_request", (event, ctx) => {
+    clearLatestProviderResponse();
+
     const status = getRuntimeStatus();
     if (!status?.diagnostics?.debugRuntime) {
       return;
@@ -206,5 +361,77 @@ export default function (pi: ExtensionAPI) {
         },
       },
     });
+  });
+
+  pi.on("session_start", (_event, ctx) => {
+    const currentLevel = ctx.sessionManager.buildSessionContext().thinkingLevel ?? "off";
+    setStatusText(ctx, THINKING_STATUS_KEY, formatThinkingStatus(currentLevel, ctx.model));
+  });
+
+  pi.on("model_select", (event, ctx) => {
+    const currentLevel = ctx.sessionManager.buildSessionContext().thinkingLevel ?? "off";
+    setStatusText(ctx, THINKING_STATUS_KEY, formatThinkingStatus(currentLevel, event.model));
+  });
+
+  pi.on("thinking_level_select", (event, ctx) => {
+    const summary = formatThinkingStatus(event.level, ctx.model);
+    setStatusText(ctx, THINKING_STATUS_KEY, summary);
+    appendRuntimeEvent({
+      type: "thinking.level",
+      summary: `thinking level changed: ${event.previousLevel} -> ${event.level} [${getSupportedThinkingLevels(ctx.model).join("/")}]`,
+      details: {
+        previousLevel: event.previousLevel,
+        level: event.level,
+        supportedLevels: getSupportedThinkingLevels(ctx.model),
+        model: ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : {},
+      },
+    });
+  });
+
+  pi.on("after_provider_response", (event) => {
+    setLatestProviderResponse(buildProviderResponseSnapshot(event));
+  });
+
+  pi.on("message_end", (event) => {
+    if (event.message.role !== "assistant") {
+      return;
+    }
+
+    const snapshot = takeLatestProviderResponse();
+    if (!snapshot) {
+      return;
+    }
+
+    const status = getRuntimeStatus();
+    const nextMessage = {
+      ...event.message,
+      glmMeta: {
+        ...((event.message as Record<string, unknown>).glmMeta as
+          | Record<string, unknown>
+          | undefined),
+        providerResponse: {
+          ...(snapshot.status === undefined ? {} : { status: snapshot.status }),
+          ...(snapshot.requestId ? { requestId: snapshot.requestId } : {}),
+          ...(snapshot.cacheStatus ? { cacheStatus: snapshot.cacheStatus } : {}),
+          ...(snapshot.routedModel ? { routedModel: snapshot.routedModel } : {}),
+          ...(status?.model ? { requestedModel: status.model } : {}),
+        },
+      },
+    };
+
+    if (status?.diagnostics?.debugRuntime) {
+      appendRuntimeEvent({
+        type: "provider.response",
+        summary: summarizeProviderResponse({
+          snapshot,
+          message: event.message as Record<string, unknown>,
+          requestedModel: status.model,
+        }),
+      });
+    }
+
+    return {
+      message: nextMessage as typeof event.message,
+    };
   });
 }

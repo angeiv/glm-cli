@@ -9,6 +9,8 @@ const trackedEnvKeys = [
   "OPENAI_MODEL",
   "ANTHROPIC_MODEL",
   "GLM_APPROVAL_POLICY",
+  "PI_CODING_AGENT_DIR",
+  "PI_CODING_AGENT_SESSION_DIR",
 ] as const;
 
 const originalEnv = Object.fromEntries(
@@ -79,6 +81,10 @@ test("createGlmSession resolves the requested model explicitly and restores mode
     expect(process.env.OPENAI_MODEL).toBe(requestedModel.id);
     expect(process.env.GLM_MODEL).toBeUndefined();
     expect(process.env.ANTHROPIC_MODEL).toBeUndefined();
+    expect(process.env.PI_CODING_AGENT_DIR?.endsWith("/.glm/agent")).toBe(true);
+    expect(process.env.PI_CODING_AGENT_SESSION_DIR?.endsWith("/.glm/sessions/--tmp-demo--")).toBe(
+      true,
+    );
 
     return {
       services: {
@@ -138,6 +144,8 @@ test("createGlmSession resolves the requested model explicitly and restores mode
   expect(process.env.GLM_MODEL).toBe("outside-glm");
   expect(process.env.GLM_APPROVAL_POLICY).toBe("outside-policy");
   expect(process.env.ANTHROPIC_MODEL).toBeUndefined();
+  expect(process.env.PI_CODING_AGENT_DIR).toBeUndefined();
+  expect(process.env.PI_CODING_AGENT_SESSION_DIR).toBeUndefined();
 });
 
 test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restores env", async () => {
@@ -170,6 +178,10 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
     expect(process.env.OPENAI_MODEL).toBeUndefined();
     expect(process.env.GLM_MODEL).toBeUndefined();
     expect(process.env.GLM_APPROVAL_POLICY).toBe("never");
+    expect(process.env.PI_CODING_AGENT_DIR?.endsWith("/.glm/agent")).toBe(true);
+    expect(process.env.PI_CODING_AGENT_SESSION_DIR?.endsWith("/.glm/sessions/--tmp-demo--")).toBe(
+      true,
+    );
 
     return {
       services: {
@@ -208,6 +220,8 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
   process.env.OPENAI_MODEL = "outside-openai";
   process.env.GLM_MODEL = "outside-glm";
   process.env.GLM_APPROVAL_POLICY = "outside-policy";
+  process.env.PI_CODING_AGENT_DIR = "outside-agent-dir";
+  process.env.PI_CODING_AGENT_SESSION_DIR = "outside-session-dir";
 
   const { createGlmSession } = await import("../../src/session/create-session.js");
 
@@ -217,6 +231,9 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
     provider: "anthropic",
     approvalPolicy: "never",
   });
+
+  expect(process.env.PI_CODING_AGENT_DIR).toBe("outside-agent-dir");
+  expect(process.env.PI_CODING_AGENT_SESSION_DIR).toBe("outside-session-dir");
 
   expect(createAgentSessionFromServices).toHaveBeenCalledWith(
     expect.objectContaining({
