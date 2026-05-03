@@ -455,7 +455,7 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
   const loopModePart = status.loop.mode ? ` | mode ${status.loop.mode}` : "";
   const loopPhasePart = status.loop.phase ? ` | phase ${status.loop.phase}` : "";
   const loopSpendPart = loopSpendParts.length > 0 ? ` | ${loopSpendParts.join(" | ")}` : "";
-  const modelDiscoveryParts = [status.modelDiscovery.source];
+  const modelDiscoveryParts: string[] = [status.modelDiscovery.source];
   if (status.modelDiscovery.modelCount !== undefined) {
     modelDiscoveryParts.push(`models ${status.modelDiscovery.modelCount}`);
   }
