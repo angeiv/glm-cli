@@ -17,10 +17,53 @@ import {
 } from "../../resources/extensions/glm-mcp/index.js";
 
 const ORIGINAL_ENV = { ...process.env };
+const { clientConnectMock, clientListToolsMock, clientCloseMock, stdioTransportCtorMock } =
+  vi.hoisted(() => ({
+    clientConnectMock: vi.fn(),
+    clientListToolsMock: vi.fn(),
+    clientCloseMock: vi.fn(),
+    stdioTransportCtorMock: vi.fn(),
+  }));
+
+vi.mock("@modelcontextprotocol/sdk/client/index.js", () => {
+  class Client {
+    constructor(_info: unknown, _options: unknown) {}
+
+    connect = clientConnectMock;
+    listTools = clientListToolsMock;
+    close = clientCloseMock;
+  }
+
+  return { Client };
+});
+
+vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => {
+  class StdioClientTransport {
+    close = vi.fn();
+
+    constructor(params: unknown) {
+      stdioTransportCtorMock(params);
+    }
+  }
+
+  return { StdioClientTransport };
+});
+
+vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => ({
+  StreamableHTTPClientTransport: class StreamableHTTPClientTransport {},
+}));
+
+vi.mock("@modelcontextprotocol/sdk/client/sse.js", () => ({
+  SSEClientTransport: class SSEClientTransport {},
+}));
 
 beforeEach(() => {
   vi.restoreAllMocks();
   process.env = { ...ORIGINAL_ENV };
+  clientConnectMock.mockReset();
+  clientListToolsMock.mockReset();
+  clientCloseMock.mockReset();
+  stdioTransportCtorMock.mockReset();
 });
 
 afterEach(() => {
@@ -453,5 +496,139 @@ describe("glm-mcp extension helpers", () => {
       ui: { notify },
     });
     expect(notify).toHaveBeenCalledWith("reader: 1 tool | mode hybrid | cached", "info");
+  });
+
+  test("compiled glm-mcp extension connects stdio servers through the external MCP SDK", async () => {
+    clientConnectMock.mockResolvedValue(undefined);
+    clientListToolsMock.mockResolvedValue({
+      tools: [{ name: "router.search", description: "Search docs" }],
+    });
+    clientCloseMock.mockResolvedValue(undefined);
+
+    const dir = mkdtempSync(join(tmpdir(), "glm-mcp-connect-"));
+    const configPath = join(dir, "mcp.json");
+    const cachePath = join(dir, "mcp-cache.json");
+
+    writeFileSync(
+      configPath,
+      JSON.stringify(
+        {
+          mcpServers: {
+            "mcp-router": {
+              command: "npm",
+              args: ["exec", "--yes", "--package", "@mcp_router/cli", "--", "mcpr", "connect"],
+              env: { MCPR_TOKEN: "token" },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    process.env.GLM_MCP_CONFIG = configPath;
+    process.env.GLM_MCP_CACHE_PATH = cachePath;
+
+    const tools = new Map<
+      string,
+      {
+        execute: (
+          toolCallId: string,
+          params: Record<string, unknown>,
+          signal?: AbortSignal,
+        ) => Promise<any>;
+      }
+    >();
+
+    await registerMcpExtension({
+      registerTool: (tool: {
+        name: string;
+        execute: (
+          toolCallId: string,
+          params: Record<string, unknown>,
+          signal?: AbortSignal,
+        ) => Promise<any>;
+      }) => {
+        tools.set(tool.name, tool);
+      },
+      registerCommand: vi.fn(),
+      sendMessage: vi.fn(),
+      on: vi.fn(),
+    } as any);
+
+    const proxyTool = tools.get("mcp__mcp-router__proxy");
+    expect(proxyTool).toBeDefined();
+
+    const result = await proxyTool?.execute("tool-1", { action: "list" });
+    expect(stdioTransportCtorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: "npm",
+        args: ["exec", "--yes", "--package", "@mcp_router/cli", "--", "mcpr", "connect"],
+      }),
+    );
+    expect(clientConnectMock).toHaveBeenCalledTimes(1);
+    expect(clientListToolsMock).toHaveBeenCalledTimes(1);
+    expect(result?.content?.[0]?.text).toContain("router.search");
+  });
+
+  test("stdio transport constructor failures include actionable diagnostics", async () => {
+    stdioTransportCtorMock.mockImplementation(() => {
+      throw new TypeError("broken constructor");
+    });
+
+    const dir = mkdtempSync(join(tmpdir(), "glm-mcp-connect-fail-"));
+    const configPath = join(dir, "mcp.json");
+
+    writeFileSync(
+      configPath,
+      JSON.stringify(
+        {
+          mcpServers: {
+            "mcp-router": {
+              command: "npm",
+              args: ["exec", "--yes", "--package", "@mcp_router/cli", "--", "mcpr", "connect"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    process.env.GLM_MCP_CONFIG = configPath;
+    process.env.GLM_MCP_CACHE_PATH = join(dir, "mcp-cache.json");
+
+    const tools = new Map<
+      string,
+      {
+        execute: (
+          toolCallId: string,
+          params: Record<string, unknown>,
+          signal?: AbortSignal,
+        ) => Promise<any>;
+      }
+    >();
+
+    await registerMcpExtension({
+      registerTool: (tool: {
+        name: string;
+        execute: (
+          toolCallId: string,
+          params: Record<string, unknown>,
+          signal?: AbortSignal,
+        ) => Promise<any>;
+      }) => {
+        tools.set(tool.name, tool);
+      },
+      registerCommand: vi.fn(),
+      sendMessage: vi.fn(),
+      on: vi.fn(),
+    } as any);
+
+    const proxyTool = tools.get("mcp__mcp-router__proxy");
+    await expect(proxyTool?.execute("tool-1", { action: "list" })).rejects.toThrow(/mcp-router/i);
+    await expect(proxyTool?.execute("tool-1", { action: "list" })).rejects.toThrow(/stdio/i);
   });
 });
