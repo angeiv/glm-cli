@@ -230,6 +230,7 @@ Trigger condition:
 
 - Compaction runs once the estimated context usage exceeds `contextWindow - reserveTokens`.
 - After compaction, glm keeps approximately `keepRecentTokens` worth of recent context.
+- The focused compaction summary also pulls in the repo context pack (AGENTS command/change hints plus common package scripts) and the latest loop/handoff state when available.
 
 `glm inspect --json` prints both the resolved model context window and the effective compaction settings.
 
@@ -258,6 +259,7 @@ Session memory:
 
 - `/memory`
 - `/memory note <text>`
+- `/memory` shows the latest compaction summary, the latest loop result snapshot, and operator notes stored for the session
 - `/memory clear-notes`
 - `/memory path`
 
