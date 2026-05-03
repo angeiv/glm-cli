@@ -192,6 +192,8 @@ CLI 会通过 flags 影响 runtime 行为。排查时建议直接运行 `glm ins
   - 选择 `glm chat` / `glm run` 使用的 prompt lane（执行风格）。
   - 会影响模型被如何引导工作（是否先计划、是否强调验证等）。
   - 不会启用或关闭 loop。loop 仍由 `--loop` 与 `loop.*` 配置控制。
+  - 对 `glm run` 而言，任务意图会独立解析。review 类任务会使用 review overlay，delivery 类任务会继续使用面向改动交付的 overlay。
+  - 手动指定 `--mode intensive` 不会单独开启 verifier harness；只有启用 `--loop` 时 verifier harness 才会生效。
   - 默认值：
     - `glm chat`：`standard`
     - `glm run`：`standard`

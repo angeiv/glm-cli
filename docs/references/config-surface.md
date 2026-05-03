@@ -192,6 +192,8 @@ The CLI influences runtime behavior via flags. `glm inspect --json` is the easie
   - Selects the prompt lane overlay (execution style) used by `glm chat` and `glm run`.
   - This affects how the model is instructed to work (plan-first vs. direct, verification emphasis).
   - It does **not** enable/disable the loop. Use `--loop` and `loop.*` config keys for loop behavior.
+  - For `glm run`, task intent is resolved separately. Review-style tasks receive a review overlay, while delivery tasks receive the normal change-oriented overlay.
+  - Manual `--mode intensive` does not enable verifier harness by itself. Verifier harness is only active when `--loop` is enabled.
   - Defaults:
     - `glm chat`: `standard`
     - `glm run`: `standard`

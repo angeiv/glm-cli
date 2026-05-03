@@ -7,6 +7,7 @@ import { runVerificationCommand } from "../loop/verify-runner.js";
 import type { VerificationCommandResolution, VerificationResult } from "../loop/types.js";
 import { composeTaskPrompt } from "./prompt.js";
 import type { PromptMode } from "../prompt/mode-overlays.js";
+import type { TaskPromptProfile } from "../prompt/task-prompt-profile.js";
 import { patchRuntimeLoopStatus } from "../diagnostics/runtime-status.js";
 
 export type RunRuntimeHooks = {
@@ -40,10 +41,14 @@ function defaultWriteHuman(text: string): void {
 export async function runSingleTask(
   runtime: AgentSessionRuntime,
   task: string,
-  promptMode: PromptMode = "standard",
+  taskPromptProfile: TaskPromptProfile = {
+    promptMode: "standard",
+    taskIntent: "delivery",
+    verifierHarness: "disabled",
+  },
   hooks?: RunRuntimeHooks,
 ): Promise<SingleTaskExecutionResult> {
-  return runPromptSequence(runtime, [composeTaskPrompt(task, promptMode)], hooks);
+  return runPromptSequence(runtime, [composeTaskPrompt(task, taskPromptProfile)], hooks);
 }
 
 type AgentAssistantMessage = {

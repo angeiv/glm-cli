@@ -14,7 +14,7 @@ import {
   type SingleTaskExecutionResult,
   type LoopTaskExecutionResult,
 } from "../runtime/run-runtime.js";
-import { routePromptModeForTask } from "../runtime/task-router.js";
+import { routeTaskExecutionForRun } from "../runtime/task-router.js";
 import {
   createGlmRuntime,
   withPreservedProcessCwd,
@@ -110,14 +110,12 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
       },
       async () => {
         const configuredLane = fileConfig.taskLaneDefault ?? "auto";
-        const promptMode =
-          input.promptMode ??
-          (configuredLane === "auto"
-            ? routePromptModeForTask({
-                task: input.task,
-                loopEnabled: loopOptions.enabled,
-              }).mode
-            : (configuredLane as PromptMode));
+        const taskRoute = routeTaskExecutionForRun({
+          task: input.task,
+          loopEnabled: loopOptions.enabled,
+          promptModeOverride:
+            input.promptMode ?? (configuredLane === "auto" ? undefined : (configuredLane as PromptMode)),
+        });
 
         const hooks = {
           emit: outputFormat === "jsonl" ? emitJsonl : undefined,
@@ -131,7 +129,7 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
         const runtime = await createGlmRuntime({
           cwd: input.cwd,
           ...runtimeConfig,
-          promptMode,
+          promptMode: taskRoute.promptMode,
         });
 
         const startedAt = new Date().toISOString();
@@ -143,12 +141,13 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
           provider: runtimeConfig.provider,
           model: runtimeConfig.model,
           loop: loopOptions.enabled,
-          promptMode,
+          promptMode: taskRoute.promptMode,
+          taskRoute,
         });
 
         const result: SingleTaskExecutionResult | LoopTaskExecutionResult = loopOptions.enabled
-          ? await runTaskLoop(runtime, input.task, loopOptions, promptMode, hooks)
-          : await runSingleTask(runtime, input.task, promptMode, hooks);
+          ? await runTaskLoop(runtime, input.task, loopOptions, taskRoute.promptMode, hooks)
+          : await runSingleTask(runtime, input.task, taskRoute, hooks);
 
         hooks.emit?.({
           type: "run.done",
@@ -168,7 +167,8 @@ export async function runRunCommand(input: RunCommandInput): Promise<number> {
             task: input.task,
             provider: runtimeConfig.provider,
             model: runtimeConfig.model,
-            promptMode,
+            promptMode: taskRoute.promptMode,
+            taskRoute,
             loop: loopOptions,
             result,
           });

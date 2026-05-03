@@ -7,7 +7,11 @@ export function createCodeLoopProfile(promptMode: PromptMode = "intensive"): Loo
   return {
     name: "code",
     buildLoopContract(task: string): string {
-      return composeTaskPrompt(task, promptMode);
+      return composeTaskPrompt(task, {
+        promptMode,
+        taskIntent: "delivery",
+        verifierHarness: "loop",
+      });
     },
     buildRepairPrompt(result: VerificationResult, nextRound: number): string {
       return composeRepairPrompt(result, nextRound);
