@@ -1,4 +1,5 @@
 import type {
+  DiscoveredModelMetadata,
   EffectiveModelCaps,
   GlmInputModality,
   GlmPlatformRoute,
@@ -39,6 +40,7 @@ export type GlmProfileOverrideRule = {
 };
 
 export type ResolveRuntimeModelProfileInput = ResolveGlmProfileInput & {
+  discovered?: DiscoveredModelMetadata;
   overrides?: GlmProfileOverrideRule[];
 };
 
@@ -279,10 +281,8 @@ export function resolveGlmPlatformRoute(
   providerOrBaseUrl?: string,
   maybeBaseUrl?: string,
 ): GlmPlatformRoute {
-  const provider =
-    providerOrBaseUrl && providerOrBaseUrl.includes("://") ? maybeBaseUrl : providerOrBaseUrl;
-  const baseUrl =
-    providerOrBaseUrl && providerOrBaseUrl.includes("://") ? providerOrBaseUrl : maybeBaseUrl;
+  const provider = providerOrBaseUrl?.includes("://") ? maybeBaseUrl : providerOrBaseUrl;
+  const baseUrl = providerOrBaseUrl?.includes("://") ? providerOrBaseUrl : maybeBaseUrl;
   const explicitPlatform = resolveExplicitPlatform(provider);
   if (explicitPlatform) {
     return explicitPlatform;
@@ -403,9 +403,15 @@ export function resolveRuntimeModelProfile(
     upstreamVendor,
     canonicalModelId,
   });
-  const effectiveCaps = mergeCaps(mergeCaps(baseCaps, variantCaps), overrides.caps);
+  const effectiveCaps = mergeCaps(
+    mergeCaps(mergeCaps(baseCaps, variantCaps), input.discovered?.caps),
+    overrides.caps,
+  );
   const effectiveModalities = mergeModalities(
-    canonicalModel?.modalities ?? getGenericOpenAiCompatibleModalities(),
+    mergeModalities(
+      canonicalModel?.modalities ?? getGenericOpenAiCompatibleModalities(),
+      input.discovered?.modalities,
+    ),
     overrides.modalities,
   );
 
