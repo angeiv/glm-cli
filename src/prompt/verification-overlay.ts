@@ -5,6 +5,18 @@ export function buildVerificationOverlay(result: VerificationResult, nextRound: 
     `Verification overlay: repair round ${nextRound}.`,
     result.command ? `Verifier: ${result.command}` : "Verifier: unavailable",
     `Failure summary: ${result.summary}`,
+    ...(result.artifactRef
+      ? [
+          `Artifact reference: verification | ${result.artifactRef.path}`,
+          ...(result.artifactRef.stdoutSummary
+            ? [`Artifact stdout summary: ${result.artifactRef.stdoutSummary}`]
+            : []),
+          ...(result.artifactRef.stderrSummary
+            ? [`Artifact stderr summary: ${result.artifactRef.stderrSummary}`]
+            : []),
+          "Use the artifact summary first. Inspect the artifact file only if you need full verifier output.",
+        ]
+      : []),
     "",
     "Repair instructions:",
     "- Fix only the verifier-reported failure.",
