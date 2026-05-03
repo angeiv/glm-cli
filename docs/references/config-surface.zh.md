@@ -203,5 +203,7 @@ CLI 会通过 flags 影响 runtime 行为。排查时建议直接运行 `glm ins
 - 推荐的操作流程是：先选 `provider`，按需覆盖 `api`，再指定 `model`。
 - `custom` 适用于代理网关、本地模型和未知模型。可以先用模型名直接试跑，再通过 `modelOverrides` 细化能力参数；默认 generic 能力是保守兜底，不代表最佳参数。
 - Loop options 解析在 `src/app/env.ts`。
+- Repo context pack 的组装逻辑在 `src/runtime/repo-context.ts`。当前会读取 `AGENTS.md` 中的命令/变更规则片段，以及常见 `package.json` scripts；compaction 扩展也会复用同一份 pack 作为 focused compression 的输入。
+- Session memory 持久化逻辑在 `src/harness/session-memory.ts` 与 `resources/extensions/glm-memory/index.ts`。它会为 `/memory` 保留 compaction 历史、操作员备注和最近一次 loop 结果快照。
 - Session 路径派生在 `src/session/session-paths.ts`。
 - 打包的 prompts/extensions 同步逻辑在 `src/app/resource-sync.ts`。

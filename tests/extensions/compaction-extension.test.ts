@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { describe, expect, test, vi } from "vitest";
 import { setRuntimeStatus } from "../../src/diagnostics/runtime-status.js";
@@ -32,8 +35,24 @@ describe("glm-compaction extension", () => {
       },
     } as unknown as ExtensionAPI);
 
+    const repoDir = mkdtempSync(join(tmpdir(), "glm-compaction-focus-"));
+    mkdirSync(join(repoDir, ".git"), { recursive: true });
+    writeFileSync(
+      join(repoDir, "AGENTS.md"),
+      ["# AGENTS", "", "## Command map", "", "- `pnpm test`: run tests"].join("\n"),
+      "utf8",
+    );
+    writeFileSync(
+      join(repoDir, "package.json"),
+      JSON.stringify({
+        packageManager: "pnpm@10.33.0",
+        scripts: { test: "vitest --run" },
+      }),
+      "utf8",
+    );
+
     setRuntimeStatus({
-      cwd: "/tmp/repo",
+      cwd: repoDir,
       provider: "glm",
       model: "glm-5",
       resolvedModel: {
@@ -159,6 +178,7 @@ describe("glm-compaction extension", () => {
         signal: new AbortController().signal,
       },
       {
+        cwd: repoDir,
         model: { id: "glm-5", provider: "glm" },
         modelRegistry: {
           getApiKeyAndHeaders: async () => ({ ok: true, apiKey: "key", headers: {} }),
@@ -169,6 +189,8 @@ describe("glm-compaction extension", () => {
     expect(compactMock).toHaveBeenCalled();
     const [, , , , customInstructions] = compactMock.mock.calls[0];
     expect(String(customInstructions)).toContain("Runtime: provider=glm");
+    expect(String(customInstructions)).toContain("Repo context pack (auto):");
+    expect(String(customInstructions)).toContain("Repo scripts (auto):");
     expect(String(customInstructions)).toContain("Loop (persisted): enabled=on");
     expect(String(customInstructions)).toContain("Loop result (latest): status=handoff");
 

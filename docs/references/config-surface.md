@@ -203,6 +203,8 @@ The CLI influences runtime behavior via flags. `glm inspect --json` is the easie
 - Recommended operator flow is: select `provider`, optionally override `api`, then set `model`.
 - `custom` is the generic path for proxy, local, and unknown models. Start with the requested model name, then refine capabilities with `modelOverrides` when the default generic profile is too conservative.
 - Loop options are resolved in `src/app/env.ts`.
+- Repo context pack assembly lives in `src/runtime/repo-context.ts`. It currently draws from `AGENTS.md` command/change sections and common `package.json` scripts, and the compaction extension reuses the same pack as focused compression input.
+- Session memory persistence lives in `src/harness/session-memory.ts` and `resources/extensions/glm-memory/index.ts`. It stores compaction history, operator notes, and the latest loop result snapshot for `/memory`.
 - Session paths are derived in `src/session/session-paths.ts`.
 - Packaged prompts/extensions are synced by `src/app/resource-sync.ts`.
 
