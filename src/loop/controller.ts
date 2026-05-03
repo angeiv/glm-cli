@@ -61,6 +61,8 @@ export async function runLoopController(
       const budgetStop: VerificationResult = {
         kind: "unavailable",
         ...(verification.command ? { command: verification.command } : {}),
+        ...(verification.artifactPath ? { artifactPath: verification.artifactPath } : {}),
+        ...(verification.artifactRef ? { artifactRef: verification.artifactRef } : {}),
         summary: `Verification budget exceeded (maxVerifyRuns=${input.maxVerifyRuns}). Last result: ${verification.summary}`,
       };
 
