@@ -11,7 +11,7 @@ import {
   setRuntimeStatus,
 } from "../../src/diagnostics/runtime-status.js";
 import { resolveGlmSessionPaths } from "../../src/session/session-paths.js";
-import { normalizeConfigFile } from "../../src/app/config-store.js";
+import { getDefaultConfigFile, normalizeConfigFile } from "../../src/app/config-store.js";
 
 afterEach(() => {
   clearRuntimeStatus();
@@ -21,6 +21,8 @@ describe("buildRuntimeStatus", () => {
   test("summarizes effective runtime state including MCP and diagnostics", async () => {
     const dir = mkdtempSync(join(tmpdir(), "glm-runtime-status-"));
     const mcpPath = join(dir, "mcp.json");
+    const agentDir = join(dir, "agent");
+    const discoveryFetchedAt = new Date().toISOString();
     writeFileSync(
       mcpPath,
       JSON.stringify(
@@ -38,6 +40,27 @@ describe("buildRuntimeStatus", () => {
             },
             direct: { command: "node" },
             disabled: { command: "node", disabled: true },
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    mkdirSync(agentDir, { recursive: true });
+    writeFileSync(
+      join(agentDir, "discovered-models.json"),
+      JSON.stringify(
+        {
+          version: 1,
+          entries: {
+            "custom::openai-compatible::https://gateway.example.com/v1": {
+              provider: "custom",
+              api: "openai-compatible",
+              baseUrl: "https://gateway.example.com/v1",
+              fetchedAt: discoveryFetchedAt,
+              models: [{ id: "glm-5.1" }, { id: "glm-5" }],
+            },
           },
         },
         null,
@@ -79,7 +102,8 @@ describe("buildRuntimeStatus", () => {
     const status = await buildRuntimeStatus({
       cwd: "/tmp/repo",
       runtime: {
-        provider: "glm",
+        provider: "custom",
+        api: "openai-compatible",
         model: "glm-5.1",
         approvalPolicy: "auto",
       },
@@ -101,7 +125,7 @@ describe("buildRuntimeStatus", () => {
         onLoopResult: false,
       },
       paths: {
-        agentDir: "/tmp/.glm/agent",
+        agentDir,
         sessionDir: "/tmp/.glm/sessions/demo",
         authPath: "/tmp/.glm/agent/auth.json",
         modelsPath: "/tmp/.glm/agent/models.json",
@@ -110,16 +134,26 @@ describe("buildRuntimeStatus", () => {
         GLM_MCP_CONFIG: mcpPath,
         GLM_MCP_CACHE_PATH: join(dir, "mcp-cache.json"),
       },
+      config: normalizeConfigFile({
+        providers: {
+          ...getDefaultConfigFile().providers,
+          custom: {
+            apiKey: "",
+            baseURL: "https://gateway.example.com/v1",
+            api: "openai-compatible",
+          },
+        },
+      }),
     });
 
-    expect(status.provider).toBe("glm");
+    expect(status.provider).toBe("custom");
     expect(status.model).toBe("glm-5.1");
     expect(status.resolvedModel).toMatchObject({
       canonicalModelId: "glm-5.1",
-      platform: "native-bigmodel",
+      platform: "gateway-other",
       upstreamVendor: "unknown",
-      payloadPatchPolicy: "glm-native",
-      confidence: "high",
+      payloadPatchPolicy: "safe-openai-compatible",
+      confidence: "medium",
       contextWindow: 204_800,
       maxOutputTokens: 131_072,
     });
@@ -171,15 +205,60 @@ describe("buildRuntimeStatus", () => {
       reserveTokens: 16_384,
       keepRecentTokens: 20_000,
     });
+    expect(status.modelDiscovery).toMatchObject({
+      enabled: true,
+      supported: true,
+      source: "cache-fresh",
+      modelCount: 2,
+      cachePath: join(agentDir, "discovered-models.json"),
+    });
     expect(formatRuntimeStatusLines(status)).toEqual(
       expect.arrayContaining([
-        expect.stringContaining("Model discovery: unsupported"),
+        expect.stringContaining("Model discovery: cache-fresh | models 2"),
         expect.stringContaining(
           `Verification: smoke | fail | pnpm test | tests failed | ${artifactPath}`,
         ),
       ]),
     );
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");
+  });
+
+  test("reports unsupported model discovery for official providers", async () => {
+    const status = await buildRuntimeStatus({
+      cwd: "/tmp/repo",
+      runtime: {
+        provider: "glm",
+        model: "glm-5.1",
+        approvalPolicy: "auto",
+      },
+      loop: {
+        enabled: true,
+        profile: "code",
+        maxRounds: 4,
+        failureMode: "handoff",
+        autoVerify: true,
+      },
+      diagnostics: {
+        debugRuntime: false,
+        eventLogLimit: 25,
+      },
+      notifications: {
+        enabled: false,
+        onTurnEnd: true,
+        onLoopResult: false,
+      },
+      paths: resolveGlmSessionPaths("/tmp/repo"),
+      env: {},
+    });
+
+    expect(status.modelDiscovery).toMatchObject({
+      enabled: true,
+      supported: false,
+      source: "unsupported",
+    });
+    expect(formatRuntimeStatusLines(status)).toEqual(
+      expect.arrayContaining([expect.stringContaining("Model discovery: unsupported")]),
+    );
   });
 
   test("patchRuntimeLoopStatus updates the in-process runtime status store", async () => {

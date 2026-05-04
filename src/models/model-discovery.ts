@@ -554,6 +554,45 @@ export function getDefaultModelDiscoveryConfig(): Required<ModelDiscoveryConfig>
   return { ...DEFAULT_MODEL_DISCOVERY_CONFIG };
 }
 
+export function cloneModelDiscoveryConfig(
+  config?: ModelDiscoveryConfig,
+): Required<ModelDiscoveryConfig> {
+  return normalizeConfig(config);
+}
+
+export function validateModelDiscoveryConfig(config: ModelDiscoveryConfig): void {
+  const rawEnabled = (config as { enabled?: unknown }).enabled;
+  const rawCacheTtlMs = (config as { cacheTtlMs?: unknown }).cacheTtlMs;
+  const rawAllowStaleOnError = (config as { allowStaleOnError?: unknown }).allowStaleOnError;
+  const rawRequestTimeoutMs = (config as { requestTimeoutMs?: unknown }).requestTimeoutMs;
+
+  if (rawEnabled !== undefined && typeof rawEnabled !== "boolean") {
+    throw new Error(`Invalid modelDiscovery.enabled in config file: ${typeof rawEnabled}`);
+  }
+
+  if (
+    rawCacheTtlMs !== undefined &&
+    (!Number.isInteger(rawCacheTtlMs) || (rawCacheTtlMs as number) <= 0)
+  ) {
+    throw new Error(`Invalid modelDiscovery.cacheTtlMs in config file: ${String(rawCacheTtlMs)}`);
+  }
+
+  if (rawAllowStaleOnError !== undefined && typeof rawAllowStaleOnError !== "boolean") {
+    throw new Error(
+      `Invalid modelDiscovery.allowStaleOnError in config file: ${typeof rawAllowStaleOnError}`,
+    );
+  }
+
+  if (
+    rawRequestTimeoutMs !== undefined &&
+    (!Number.isInteger(rawRequestTimeoutMs) || (rawRequestTimeoutMs as number) <= 0)
+  ) {
+    throw new Error(
+      `Invalid modelDiscovery.requestTimeoutMs in config file: ${String(rawRequestTimeoutMs)}`,
+    );
+  }
+}
+
 export function resolveDiscoveryCachePath(agentDir = getGlmAgentDir()): string {
   return join(agentDir, "discovered-models.json");
 }

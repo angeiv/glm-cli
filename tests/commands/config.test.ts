@@ -131,6 +131,24 @@ describe("configGet", () => {
     expect(value).toBe("true");
     expect(log).toHaveBeenCalledWith("true");
   });
+
+  test("reads model discovery keys", async () => {
+    const log = vi.fn();
+    const value = await configGet("modelDiscoveryCacheTtlMs", {
+      readConfigFile: async () => ({
+        ...getDefaultConfigFile(),
+        modelDiscovery: {
+          enabled: true,
+          cacheTtlMs: 120000,
+          allowStaleOnError: false,
+        },
+      }),
+      log,
+    });
+
+    expect(value).toBe("120000");
+    expect(log).toHaveBeenCalledWith("120000");
+  });
 });
 
 describe("configSet", () => {
@@ -286,6 +304,25 @@ describe("configSet", () => {
       expect.objectContaining({
         notifications: expect.objectContaining({
           onTurnEnd: false,
+        }),
+      }),
+    );
+  });
+
+  test("updates model discovery keys and persists them", async () => {
+    const writeConfigFile = vi.fn(async () => undefined);
+
+    const updated = await configSet("modelDiscoveryAllowStaleOnError", "false", {
+      readConfigFile: async () => getDefaultConfigFile(),
+      writeConfigFile,
+      log: vi.fn(),
+    });
+
+    expect(updated.modelDiscovery.allowStaleOnError).toBe(false);
+    expect(writeConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelDiscovery: expect.objectContaining({
+          allowStaleOnError: false,
         }),
       }),
     );

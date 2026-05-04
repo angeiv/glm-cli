@@ -1,4 +1,5 @@
 import type { ApprovalPolicy, LoopFailureMode, LoopProfileName } from "../app/config-store.js";
+import type { ModelDiscoveryStatus } from "../models/model-discovery.js";
 import type { RuntimeToolSignature } from "./tool-signature.js";
 
 export type RuntimeDiagnosticsConfig = {
@@ -99,18 +100,6 @@ export type RuntimeResolvedModelStatus = {
   supportsMcp: boolean;
 };
 
-export type RuntimeModelDiscoveryStatus = {
-  enabled: boolean;
-  supported: boolean;
-  source: string;
-  cachePath: string;
-  endpoint?: string;
-  modelCount?: number;
-  fetchedAt?: string;
-  stale?: boolean;
-  error?: string;
-};
-
 export type RuntimeGenerationStatus = {
   maxOutputTokens?: number;
   temperature?: number;
@@ -131,7 +120,7 @@ export type RuntimeStatus = {
   model: string;
   baseUrl?: string;
   resolvedModel: RuntimeResolvedModelStatus;
-  modelDiscovery?: RuntimeModelDiscoveryStatus;
+  modelDiscovery: ModelDiscoveryStatus;
   generation: RuntimeGenerationStatus;
   glmCapabilities: RuntimeGlmCapabilitiesStatus;
   toolSignature: RuntimeToolSignature;

@@ -1,10 +1,22 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import registerGlmProviders from "../../resources/extensions/glm-providers/index.ts";
+import { getDefaultConfigFile } from "../../src/app/config-store.js";
 
-const { resolveDiscoveredModelsMock } = vi.hoisted(() => ({
+const { readConfigFileMock, resolveDiscoveredModelsMock } = vi.hoisted(() => ({
+  readConfigFileMock: vi.fn(),
   resolveDiscoveredModelsMock: vi.fn(),
 }));
+
+vi.mock("../../src/app/config-store.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/app/config-store.js")>(
+    "../../src/app/config-store.js",
+  );
+
+  return {
+    ...actual,
+    readConfigFile: readConfigFileMock,
+  };
+});
 
 vi.mock("../../src/models/model-discovery.js", async () => {
   const actual = await vi.importActual<typeof import("../../src/models/model-discovery.js")>(
@@ -16,6 +28,8 @@ vi.mock("../../src/models/model-discovery.js", async () => {
     resolveDiscoveredModels: resolveDiscoveredModelsMock,
   };
 });
+
+import registerGlmProviders from "../../resources/extensions/glm-providers/index.ts";
 
 const trackedEnvKeys = [
   "GLM_PROVIDER",
@@ -70,7 +84,9 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  readConfigFileMock.mockReset();
   resolveDiscoveredModelsMock.mockReset();
+  readConfigFileMock.mockResolvedValue(getDefaultConfigFile());
   resolveDiscoveredModelsMock.mockResolvedValue({
     models: [],
     status: {

@@ -17,11 +17,10 @@ import {
   resolveOpenAiResponsesModelDefinition,
   resolveProviderSettings as resolveSharedProviderSettings,
 } from "../shared/glm-profile.js";
-import { readGlmModelProfileOverrides, readGlmUserConfig } from "../shared/glm-user-config.js";
+import { readConfigFile } from "../../../src/app/config-store.js";
 import {
   resolveDiscoveredModels,
   type DiscoveredModel,
-  type ModelDiscoveryConfig,
 } from "../../../src/models/model-discovery.js";
 
 type AnthropicContentBlock =
@@ -563,100 +562,31 @@ function resolveModelId(...candidates: Array<string | undefined>): string | unde
   return undefined;
 }
 
-type PersistedProviderConfig = {
-  apiKey?: string;
-  baseURL?: string;
-  api?: string;
-};
-
-type PersistedConfig = {
-  defaultApi?: string;
-  defaultModel?: string;
-  defaultProvider?: string;
-  modelDiscovery?: ModelDiscoveryConfig;
-  providers?: Record<string, PersistedProviderConfig | undefined>;
-};
-
-function normalizeProvider(value: unknown): PersistedProviderConfig | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  const maybe = value as Record<string, unknown>;
-  const apiKey = typeof maybe.apiKey === "string" ? maybe.apiKey : undefined;
-  const baseURL = typeof maybe.baseURL === "string" ? maybe.baseURL : undefined;
-  const api = typeof maybe.api === "string" ? maybe.api : undefined;
-  if (!apiKey && !baseURL && !api) return undefined;
-  return { apiKey, baseURL, api };
-}
-
-function readPersistedConfig(): PersistedConfig {
-  try {
-    const parsed = readGlmUserConfig();
-    if (typeof parsed !== "object" || parsed === null) {
-      return {};
-    }
-    const providers = (parsed as { providers?: Record<string, unknown> }).providers;
-    return {
-      defaultApi:
-        typeof (parsed as { defaultApi?: string }).defaultApi === "string"
-          ? (parsed as { defaultApi?: string }).defaultApi
-          : undefined,
-      defaultModel:
-        typeof (parsed as { defaultModel?: string }).defaultModel === "string"
-          ? (parsed as { defaultModel?: string }).defaultModel
-          : undefined,
-      defaultProvider:
-        typeof (parsed as { defaultProvider?: string }).defaultProvider === "string"
-          ? (parsed as { defaultProvider?: string }).defaultProvider
-          : undefined,
-      modelDiscovery:
-        (parsed as { modelDiscovery?: unknown }).modelDiscovery &&
-        typeof (parsed as { modelDiscovery?: unknown }).modelDiscovery === "object"
-          ? ((parsed as { modelDiscovery?: ModelDiscoveryConfig }).modelDiscovery ?? undefined)
-          : undefined,
-      providers: Object.fromEntries(
-        Object.entries(providers ?? {}).map(([key, value]) => [key, normalizeProvider(value)]),
-      ),
-    };
-  } catch {
-    return {};
-  }
-}
-
-const persistedConfig = readPersistedConfig();
-const modelProfileOverrides = readGlmModelProfileOverrides();
-
 export function resolveProviderSettings(options) {
   return resolveSharedProviderSettings(options);
 }
 
-function resolveConfigDefaultModel(): string | undefined {
-  return persistedConfig.defaultModel;
-}
-
-function resolveSelectedProvider() {
+function resolveSelectedProvider(defaultProvider) {
   return (
     normalizeProviderName(process.env.GLM_PROVIDER) ??
-    normalizeProviderName(persistedConfig.defaultProvider) ??
+    normalizeProviderName(defaultProvider) ??
     "bigmodel-coding"
   );
 }
 
-function resolveSelectedApi(provider, persisted) {
+function resolveSelectedApi(provider, persisted, defaultApi) {
   return (
     normalizeApiKind(process.env.GLM_API) ??
     normalizeApiKind(persisted?.api) ??
-    normalizeApiKind(persistedConfig.defaultApi) ??
+    normalizeApiKind(defaultApi) ??
     getProviderDefaultApi(provider)
   );
 }
 
-function resolveRequestedModelId(provider, api) {
+function resolveRequestedModelId(provider, api, defaultModel) {
   if (api === "anthropic") {
     return (
-      resolveModelId(
-        process.env.ANTHROPIC_MODEL,
-        process.env.GLM_MODEL,
-        resolveConfigDefaultModel(),
-      ) ?? "glm-5.1"
+      resolveModelId(process.env.ANTHROPIC_MODEL, process.env.GLM_MODEL, defaultModel) ?? "glm-5.1"
     );
   }
 
@@ -667,21 +597,14 @@ function resolveRequestedModelId(provider, api) {
     provider === "zai-coding"
   ) {
     return (
-      resolveModelId(
-        process.env.GLM_MODEL,
-        process.env.OPENAI_MODEL,
-        resolveConfigDefaultModel(),
-      ) ?? "glm-5.1"
+      resolveModelId(process.env.GLM_MODEL, process.env.OPENAI_MODEL, defaultModel) ?? "glm-5.1"
     );
   }
 
-  return (
-    resolveModelId(process.env.OPENAI_MODEL, process.env.GLM_MODEL, resolveConfigDefaultModel()) ??
-    "glm-5.1"
-  );
+  return resolveModelId(process.env.OPENAI_MODEL, process.env.GLM_MODEL, defaultModel) ?? "glm-5.1";
 }
 
-function shouldRegisterProvider(_provider, persisted) {
+function shouldRegisterProvider(provider, persisted) {
   return Boolean(
     process.env.GLM_API_KEY?.trim() ||
       process.env.OPENAI_API_KEY?.trim() ||
@@ -719,6 +642,7 @@ function buildGatewayModelDefinitions(args: {
   api: "openai-compatible" | "openai-responses";
   baseUrl: string;
   models: DiscoveredModel[];
+  overrides: unknown;
 }) {
   return [...args.models]
     .sort((left, right) => left.id.localeCompare(right.id))
@@ -729,22 +653,23 @@ function buildGatewayModelDefinitions(args: {
             modelId: model.id,
             baseUrl: args.baseUrl,
             discovered: model,
-            overrides: modelProfileOverrides,
+            overrides: args.overrides,
           })
         : resolveOpenAiCompatibleModelDefinition({
             provider: args.provider,
             modelId: model.id,
             baseUrl: args.baseUrl,
             discovered: model,
-            overrides: modelProfileOverrides,
+            overrides: args.overrides,
           }),
     );
 }
 
 export default async function (pi: ExtensionAPI) {
-  const provider = resolveSelectedProvider();
-  const persisted = persistedConfig.providers?.[provider];
-  const api = resolveSelectedApi(provider, persisted);
+  const config = await readConfigFile();
+  const provider = resolveSelectedProvider(config.defaultProvider);
+  const persisted = config.providers?.[provider];
+  const api = resolveSelectedApi(provider, persisted, config.defaultApi);
 
   if (!shouldRegisterProvider(provider, persisted)) {
     return;
@@ -756,8 +681,10 @@ export default async function (pi: ExtensionAPI) {
     env: process.env,
     persisted,
   });
-  const modelId = resolveRequestedModelId(provider, api);
+  const modelId = resolveRequestedModelId(provider, api, config.defaultModel);
   const isModelscope = api === "anthropic" && isModelscopeAnthropicBaseUrl(settings.baseUrl);
+  const modelProfileOverrides = config.modelOverrides;
+
   const discoveredModels =
     api === "anthropic" || isNativeOfficialProvider(provider)
       ? []
@@ -767,7 +694,7 @@ export default async function (pi: ExtensionAPI) {
             api,
             baseUrl: settings.baseUrl,
             apiKey: settings.apiKey,
-            config: persistedConfig.modelDiscovery,
+            config: config.modelDiscovery,
           })
         ).models;
 
@@ -785,6 +712,7 @@ export default async function (pi: ExtensionAPI) {
             api,
             baseUrl: settings.baseUrl,
             models: mergeRequestedModelId(discoveredModels, modelId),
+            overrides: modelProfileOverrides,
           })
         : isNativeOfficialProvider(provider)
           ? resolveNativeGlmProviderModels({
@@ -797,6 +725,7 @@ export default async function (pi: ExtensionAPI) {
               api: "openai-compatible",
               baseUrl: settings.baseUrl,
               models: mergeRequestedModelId(discoveredModels, modelId),
+              overrides: modelProfileOverrides,
             });
 
   pi.registerProvider(provider, {

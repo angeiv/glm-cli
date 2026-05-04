@@ -5,7 +5,6 @@ import {
   type RuntimeConfig,
 } from "../app/env.js";
 import { appendRuntimeEvent, getRuntimeEvents } from "./event-log.js";
-import { resolveModelDiscoveryStatus } from "../models/model-discovery.js";
 import { resolveGlmProfileV2 } from "../models/resolve-glm-profile-v2.js";
 import { formatCompactionSource, resolveRuntimeCompactionStatus } from "./compaction-settings.js";
 import {
@@ -14,6 +13,10 @@ import {
   resolveMcpToolMode,
 } from "../mcp/config.js";
 import { readLatestVerificationArtifact } from "../harness/artifact-index.js";
+import {
+  resolveDiscoveryCachePath,
+  resolveModelDiscoveryStatus,
+} from "../models/model-discovery.js";
 import { resolveProviderBaseUrl } from "../providers/settings.js";
 import {
   getProviderDefaultApi,
@@ -237,17 +240,16 @@ export async function buildRuntimeStatus(args: {
         ? getProviderDefaultApi(runtimeProviderInput.provider)
         : "openai-compatible");
   const baseUrl = resolveRuntimeBaseUrl(args.runtime.provider, effectiveApi, args.env, args.config);
+  const modelDiscovery = await resolveModelDiscoveryStatus({
+    provider: args.runtime.provider,
+    api: effectiveApi,
+    baseUrl: baseUrl ?? "",
+    cachePath: resolveDiscoveryCachePath(args.paths.agentDir),
+    config: args.config?.modelDiscovery,
+  });
   const capabilitiesEnv = args.config
     ? buildCapabilityEnvironment(args.env as any, args.config)
     : {};
-  const modelDiscovery =
-    baseUrl && effectiveApi !== "anthropic"
-      ? await resolveModelDiscoveryStatus({
-          provider: args.runtime.provider,
-          api: effectiveApi,
-          baseUrl,
-        })
-      : undefined;
   const generation: RuntimeGenerationStatus = {
     ...(parseOptionalInteger(capabilitiesEnv.GLM_MAX_OUTPUT_TOKENS) === undefined
       ? {}
@@ -280,7 +282,6 @@ export async function buildRuntimeStatus(args: {
     api: effectiveApi,
     model: args.runtime.model,
     baseUrl,
-    ...(modelDiscovery ? { modelDiscovery } : {}),
     resolvedModel: (() => {
       const profile = resolveGlmProfileV2({
         provider: args.runtime.provider,
@@ -308,6 +309,7 @@ export async function buildRuntimeStatus(args: {
         supportsMcp: profile.effectiveCaps.supportsMcp,
       };
     })(),
+    modelDiscovery,
     generation,
     glmCapabilities,
     toolSignature,
@@ -453,9 +455,16 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
   const loopModePart = status.loop.mode ? ` | mode ${status.loop.mode}` : "";
   const loopPhasePart = status.loop.phase ? ` | phase ${status.loop.phase}` : "";
   const loopSpendPart = loopSpendParts.length > 0 ? ` | ${loopSpendParts.join(" | ")}` : "";
-  const modelDiscoveryLine = status.modelDiscovery
-    ? `Model discovery: ${status.modelDiscovery.supported ? status.modelDiscovery.source : "unsupported"} | models=${status.modelDiscovery.modelCount ?? 0}${status.modelDiscovery.fetchedAt ? ` | fetchedAt=${status.modelDiscovery.fetchedAt}` : ""}${status.modelDiscovery.stale ? " | stale=yes" : ""}${status.modelDiscovery.error ? ` | error=${status.modelDiscovery.error}` : ""}`
-    : "Model discovery: unavailable";
+  const modelDiscoveryParts: string[] = [status.modelDiscovery.source];
+  if (status.modelDiscovery.modelCount !== undefined) {
+    modelDiscoveryParts.push(`models ${status.modelDiscovery.modelCount}`);
+  }
+  if (status.modelDiscovery.stale) {
+    modelDiscoveryParts.push("stale");
+  }
+  if (status.modelDiscovery.error) {
+    modelDiscoveryParts.push(`error ${status.modelDiscovery.error}`);
+  }
 
   return [
     `Cwd: ${status.cwd}`,
@@ -465,9 +474,9 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Base URL: ${status.baseUrl ?? "default"}`,
     `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
     `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens} | thinking=${status.resolvedModel.supportsThinking ? "on" : "off"} | preservedThinking=${status.resolvedModel.supportsPreservedThinking ? "on" : "off"} | toolCall=${status.resolvedModel.supportsToolCall ? "on" : "off"} | toolStream=${status.resolvedModel.supportsToolStream ? "on" : "off"} | struct=${status.resolvedModel.supportsStructuredOutput ? "on" : "off"} | cache=${status.resolvedModel.supportsCache ? "on" : "off"} | mcp=${status.resolvedModel.supportsMcp ? "on" : "off"}`,
-    modelDiscoveryLine,
     generationLine,
     glmLine,
+    `Model discovery: ${modelDiscoveryParts.join(" | ")}`,
     `Approval policy: ${status.approvalPolicy}`,
     `Loop: ${status.loop.enabled ? "on" : "off"} | ${status.loop.profile} | rounds ${status.loop.maxRounds}${
       status.loop.maxToolCalls === undefined ? "" : ` | tools<=${status.loop.maxToolCalls}`

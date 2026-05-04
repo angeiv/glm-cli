@@ -3,6 +3,12 @@ import * as fsPromises from "node:fs/promises";
 import type { GlmProfileOverrideRule } from "../models/resolve-glm-profile-v2.js";
 import type { GlmInputModality } from "../models/glm-profile-core.js";
 import {
+  cloneModelDiscoveryConfig,
+  getDefaultModelDiscoveryConfig,
+  type ModelDiscoveryConfig,
+  validateModelDiscoveryConfig,
+} from "../models/model-discovery.js";
+import {
   API_KINDS,
   PROVIDER_NAMES,
   type ApiKind,
@@ -44,6 +50,7 @@ export type NotificationsConfig = {
   onTurnEnd?: boolean;
   onLoopResult?: boolean;
 };
+export type { ModelDiscoveryConfig } from "../models/model-discovery.js";
 export type GenerationConfig = {
   maxOutputTokens?: number;
   temperature?: number;
@@ -122,6 +129,10 @@ function createDefaultNotificationsConfig(): NotificationsConfig {
   };
 }
 
+function createDefaultModelDiscoveryConfig(): Required<ModelDiscoveryConfig> {
+  return getDefaultModelDiscoveryConfig();
+}
+
 function createDefaultLoopConfig(): LoopConfig {
   return {
     enabledByDefault: false,
@@ -144,6 +155,7 @@ function buildDefaultConfigFile(): GlmConfigFile {
     hooksEnabled: true,
     hookTimeoutMs: 5000,
     notifications: createDefaultNotificationsConfig(),
+    modelDiscovery: createDefaultModelDiscoveryConfig(),
     generation: createDefaultGenerationConfig(),
     glmCapabilities: createDefaultGlmCapabilitiesConfig(),
     loop: createDefaultLoopConfig(),
@@ -162,6 +174,7 @@ export type GlmConfigFile = {
   hooksEnabled?: boolean;
   hookTimeoutMs?: number;
   notifications: NotificationsConfig;
+  modelDiscovery: ModelDiscoveryConfig;
   generation: GenerationConfig;
   glmCapabilities: GlmCapabilitiesConfig;
   loop: LoopConfig;
@@ -404,6 +417,10 @@ export function normalizeConfigFile(config?: Partial<GlmConfigFile>): GlmConfigF
       (config as unknown as { notifications?: NotificationsConfig })?.notifications ??
         BASE_DEFAULT_CONFIG_FILE.notifications,
     ),
+    modelDiscovery: cloneModelDiscoveryConfig(
+      (config as unknown as { modelDiscovery?: ModelDiscoveryConfig })?.modelDiscovery ??
+        BASE_DEFAULT_CONFIG_FILE.modelDiscovery,
+    ),
     generation: cloneGenerationConfig(
       (config as unknown as { generation?: GenerationConfig })?.generation ??
         BASE_DEFAULT_CONFIG_FILE.generation,
@@ -509,7 +526,7 @@ function validateConfigFile(config: GlmConfigFile): void {
     throw new Error(`Invalid hookTimeoutMs in config file: ${config.hookTimeoutMs}`);
   }
   validateNotificationsConfig(config.notifications);
-
+  validateModelDiscoveryConfig(config.modelDiscovery);
   validateGenerationConfig(config.generation);
   validateGlmCapabilitiesConfig(config.glmCapabilities);
   validateLoopConfig(config.loop);
@@ -785,6 +802,9 @@ export async function readConfigFile(): Promise<GlmConfigFile> {
   try {
     const contents = await fileSystem.readFile(getGlmConfigPath(), "utf8");
     const parsed = JSON.parse(contents) as Partial<GlmConfigFile>;
+    if (parsed.modelDiscovery !== undefined) {
+      validateModelDiscoveryConfig(parsed.modelDiscovery);
+    }
     const normalized = normalizeConfigFile(parsed);
     validateConfigFile(normalized);
     return normalized;

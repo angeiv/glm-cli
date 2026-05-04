@@ -15,6 +15,7 @@ Agent-facing map of the current `glm` config and runtime state.
 - `~/.glm/agent/prompts/system.md`: synced base contract prompt
 - `~/.glm/agent/auth.json`: runtime auth state path
 - `~/.glm/agent/models.json`: runtime model cache path
+- `~/.glm/agent/discovered-models.json`: OpenAI-style gateway `/models` discovery cache
 - `~/.glm/agent/settings.json`: global runtime settings (`/compact`, retry, steering, etc)
 - `~/.glm/sessions/`: session directories derived from cwd
 - `~/.glm/logs/`: reserved log directory helper
@@ -49,6 +50,9 @@ Supported persisted keys today:
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
+- `modelDiscovery.enabled`
+- `modelDiscovery.cacheTtlMs`
+- `modelDiscovery.allowStaleOnError`
 - `generation.maxOutputTokens`
 - `generation.temperature`
 - `generation.topP`
@@ -117,6 +121,9 @@ Example override for an unknown `custom` model:
 - `approvalPolicy`
 - `debugRuntime`
 - `eventLogLimit`
+- `modelDiscoveryEnabled`
+- `modelDiscoveryCacheTtlMs`
+- `modelDiscoveryAllowStaleOnError`
 - `glmEndpoint`
 - `maxOutputTokens`
 - `temperature`
@@ -202,6 +209,7 @@ The CLI influences runtime behavior via flags. `glm inspect --json` is the easie
 - Provider/API/model selection is resolved from CLI flags, env, and persisted config in `src/providers/index.ts` and `src/app/env.ts`.
 - Recommended operator flow is: select `provider`, optionally override `api`, then set `model`.
 - `custom` is the generic path for proxy, local, and unknown models. Start with the requested model name, then refine capabilities with `modelOverrides` when the default generic profile is too conservative.
+- `modelDiscovery.*` applies only to OpenAI-style gateway providers (`openai-compatible` / `openai-responses`). Native BigModel and z.ai routes continue to use the curated built-in catalog.
 - Loop options are resolved in `src/app/env.ts`.
 - Session paths are derived in `src/session/session-paths.ts`.
 - Packaged prompts/extensions are synced by `src/app/resource-sync.ts`.
