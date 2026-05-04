@@ -524,7 +524,6 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens} | thinking=${status.resolvedModel.supportsThinking ? "on" : "off"} | preservedThinking=${status.resolvedModel.supportsPreservedThinking ? "on" : "off"} | toolCall=${status.resolvedModel.supportsToolCall ? "on" : "off"} | toolStream=${status.resolvedModel.supportsToolStream ? "on" : "off"} | struct=${status.resolvedModel.supportsStructuredOutput ? "on" : "off"} | cache=${status.resolvedModel.supportsCache ? "on" : "off"} | mcp=${status.resolvedModel.supportsMcp ? "on" : "off"}`,
     formatCapabilityMatrixLine(status),
     modelDiscoveryLine,
-    formatCapabilityMatrixLine(status),
     generationLine,
     glmLine,
     `Approval policy: ${status.approvalPolicy}`,

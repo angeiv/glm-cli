@@ -192,7 +192,8 @@ describe("buildRuntimeStatus", () => {
       reserveTokens: 16_384,
       keepRecentTokens: 20_000,
     });
-    expect(formatRuntimeStatusLines(status)).toEqual(
+    const lines = formatRuntimeStatusLines(status);
+    expect(lines).toEqual(
       expect.arrayContaining([
         expect.stringContaining("Model discovery: unsupported"),
         expect.stringContaining(
@@ -203,6 +204,7 @@ describe("buildRuntimeStatus", () => {
         ),
       ]),
     );
+    expect(lines.filter((line) => line.startsWith("Capability matrix:"))).toHaveLength(1);
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");
   });
 
