@@ -802,6 +802,9 @@ export async function readConfigFile(): Promise<GlmConfigFile> {
   try {
     const contents = await fileSystem.readFile(getGlmConfigPath(), "utf8");
     const parsed = JSON.parse(contents) as Partial<GlmConfigFile>;
+    if (parsed.modelDiscovery !== undefined) {
+      validateModelDiscoveryConfig(parsed.modelDiscovery);
+    }
     const normalized = normalizeConfigFile(parsed);
     validateConfigFile(normalized);
     return normalized;

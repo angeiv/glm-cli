@@ -115,4 +115,43 @@ describe("runtime model profile", () => {
       dashscopeCompat: false,
     });
   });
+
+  test("applies discovered metadata before user overrides", () => {
+    const profile = resolveRuntimeModelProfile({
+      provider: "custom",
+      api: "openai-compatible",
+      modelId: "vendor/new-model",
+      baseUrl: "https://gateway.example.com/v1",
+      discovered: {
+        id: "vendor/new-model",
+        caps: {
+          contextWindow: 262_144,
+          maxOutputTokens: 65_536,
+          supportsThinking: true,
+          defaultThinkingMode: "enabled",
+          supportsToolCall: true,
+        },
+        modalities: ["text", "image"],
+      },
+      overrides: [
+        {
+          match: {
+            provider: "custom",
+            api: "openai-compatible",
+            modelId: "vendor/new-model",
+          },
+          caps: {
+            supportsToolCall: false,
+          },
+          modalities: ["text"],
+        },
+      ],
+    });
+
+    expect(profile.effectiveCaps.contextWindow).toBe(262_144);
+    expect(profile.effectiveCaps.maxOutputTokens).toBe(65_536);
+    expect(profile.effectiveCaps.supportsThinking).toBe(true);
+    expect(profile.effectiveCaps.supportsToolCall).toBe(false);
+    expect(profile.effectiveModalities).toEqual(["text"]);
+  });
 });

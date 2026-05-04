@@ -223,6 +223,44 @@ describe("buildRuntimeStatus", () => {
     expect(status.paths.sessionDir).toBe("/tmp/.glm/sessions/demo");
   });
 
+  test("reports unsupported model discovery for official providers", async () => {
+    const status = await buildRuntimeStatus({
+      cwd: "/tmp/repo",
+      runtime: {
+        provider: "glm",
+        model: "glm-5.1",
+        approvalPolicy: "auto",
+      },
+      loop: {
+        enabled: true,
+        profile: "code",
+        maxRounds: 4,
+        failureMode: "handoff",
+        autoVerify: true,
+      },
+      diagnostics: {
+        debugRuntime: false,
+        eventLogLimit: 25,
+      },
+      notifications: {
+        enabled: false,
+        onTurnEnd: true,
+        onLoopResult: false,
+      },
+      paths: resolveGlmSessionPaths("/tmp/repo"),
+      env: {},
+    });
+
+    expect(status.modelDiscovery).toMatchObject({
+      enabled: true,
+      supported: false,
+      source: "unsupported",
+    });
+    expect(formatRuntimeStatusLines(status)).toEqual(
+      expect.arrayContaining([expect.stringContaining("Model discovery: unsupported")]),
+    );
+  });
+
   test("patchRuntimeLoopStatus updates the in-process runtime status store", async () => {
     const status = await buildRuntimeStatus({
       cwd: "/tmp/repo",

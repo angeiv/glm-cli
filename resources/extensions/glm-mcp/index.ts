@@ -608,6 +608,143 @@ export default async function (pi: ExtensionAPI) {
     return `MCP: connecting ${serverName} (${transport})...`;
   }
 
+  function describeConstructorValue(value: unknown): string {
+    if (value === null) return "null";
+    if (value === undefined) return "undefined";
+    if (Array.isArray(value)) return "array";
+    if (typeof value === "function") {
+      return value.name ? `function ${value.name}` : "function";
+    }
+    return typeof value;
+  }
+
+  function createTransportInitError(
+    serverName: string,
+    config: ResolvedMcpServerConfig,
+    modulePath: string,
+    exportName: string,
+    exportValue: unknown,
+    error?: unknown,
+  ): Error {
+    const details = [
+      `server=${serverName}`,
+      `type=${config.type}`,
+      `module=${modulePath}`,
+      `export=${exportName}`,
+      `received=${describeConstructorValue(exportValue)}`,
+    ];
+
+    if (config.type === "stdio") {
+      details.push(`command=${config.command}`);
+    } else {
+      details.push(`url=${config.url}`);
+    }
+
+    const reason =
+      error instanceof Error ? error.message : error ? String(error) : "constructor is unavailable";
+
+    return new Error(
+      `MCP transport initialization failed: ${reason}. ${details.join(" | ")}. ` +
+        "Check the installed @modelcontextprotocol/sdk version and ensure resource extensions were rebuilt without bundling an incompatible transport module.",
+    );
+  }
+
+  function constructMcpTransport(
+    serverName: string,
+    config: ResolvedMcpServerConfig,
+    constructors: {
+      StdioClientTransport?: unknown;
+      StreamableHTTPClientTransport?: unknown;
+      SSEClientTransport?: unknown;
+    },
+  ): any {
+    if (config.type === "stdio") {
+      const candidate = constructors.StdioClientTransport;
+      if (typeof candidate !== "function") {
+        throw createTransportInitError(
+          serverName,
+          config,
+          "@modelcontextprotocol/sdk/client/stdio.js",
+          "StdioClientTransport",
+          candidate,
+        );
+      }
+
+      try {
+        return new candidate({
+          command: config.command,
+          args: config.args,
+          ...(config.env ? { env: { ...process.env, ...config.env } } : { env: process.env }),
+          ...(config.cwd ? { cwd: config.cwd } : {}),
+        });
+      } catch (error) {
+        throw createTransportInitError(
+          serverName,
+          config,
+          "@modelcontextprotocol/sdk/client/stdio.js",
+          "StdioClientTransport",
+          candidate,
+          error,
+        );
+      }
+    }
+
+    const url = new URL(config.url);
+    const requestInit: McpRequestInit | undefined = config.headers
+      ? { headers: config.headers }
+      : undefined;
+
+    if (config.type === "streamable-http") {
+      const candidate = constructors.StreamableHTTPClientTransport;
+      if (typeof candidate !== "function") {
+        throw createTransportInitError(
+          serverName,
+          config,
+          "@modelcontextprotocol/sdk/client/streamableHttp.js",
+          "StreamableHTTPClientTransport",
+          candidate,
+        );
+      }
+
+      try {
+        return new candidate(url, requestInit ? { requestInit } : undefined);
+      } catch (error) {
+        throw createTransportInitError(
+          serverName,
+          config,
+          "@modelcontextprotocol/sdk/client/streamableHttp.js",
+          "StreamableHTTPClientTransport",
+          candidate,
+          error,
+        );
+      }
+    }
+
+    const candidate = constructors.SSEClientTransport;
+    if (typeof candidate !== "function") {
+      throw createTransportInitError(
+        serverName,
+        config,
+        "@modelcontextprotocol/sdk/client/sse.js",
+        "SSEClientTransport",
+        candidate,
+      );
+    }
+
+    try {
+      return new candidate(url, requestInit ? { requestInit } : undefined);
+    } catch (error) {
+      throw createTransportInitError(
+        serverName,
+        config,
+        "@modelcontextprotocol/sdk/client/sse.js",
+        "SSEClientTransport",
+        candidate,
+        error,
+      );
+    }
+  }
+
   async function connectServer(
     serverName: string,
     ctx?: { hasUI: boolean; ui: { setStatus(key: string, text: string | undefined): void } },
@@ -649,24 +786,11 @@ export default async function (pi: ExtensionAPI) {
       );
       const { SSEClientTransport } = await import("@modelcontextprotocol/sdk/client/sse.js");
 
-      let transport: any;
-      if (config.type === "stdio") {
-        transport = new StdioClientTransport({
-          command: config.command,
-          args: config.args,
-          ...(config.env ? { env: { ...process.env, ...config.env } } : { env: process.env }),
-          ...(config.cwd ? { cwd: config.cwd } : {}),
-        });
-      } else {
-        const requestInit: McpRequestInit | undefined = config.headers
-          ? { headers: config.headers }
-          : undefined;
-        const url = new URL(config.url);
-        transport =
-          config.type === "streamable-http"
-            ? new StreamableHTTPClientTransport(url, requestInit ? { requestInit } : undefined)
-            : new SSEClientTransport(url, requestInit ? { requestInit } : undefined);
-      }
+      const transport = constructMcpTransport(serverName, config, {
+        StdioClientTransport,
+        StreamableHTTPClientTransport,
+        SSEClientTransport,
+      });
 
       const client = new Client(
         { name: "glm", version: "0.0.0" },

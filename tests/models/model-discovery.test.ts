@@ -23,22 +23,35 @@ afterEach(() => {
 });
 
 describe("resolveDiscoveredModels", () => {
-  test("fetches and caches OpenAI-style model ids", async () => {
+  test("fetches and caches OpenRouter-style metadata overlays", async () => {
     const { dir, cachePath } = createTempCachePath();
     const fetchMock = vi.fn(async () => ({
       ok: true,
       text: async () =>
         JSON.stringify({
-          data: [{ id: "qwen/qwen3.5-122b-a10b" }, { id: "glm-5.1" }, { id: "glm-5.1" }],
+          data: [
+            {
+              id: "qwen/qwen3.6-flash",
+              name: "Qwen: Qwen3.6 Flash",
+              context_length: 1_000_000,
+              architecture: {
+                input_modalities: ["text", "image", "video"],
+              },
+              top_provider: {
+                max_completion_tokens: 65_536,
+              },
+              supported_parameters: ["reasoning", "tools", "structured_outputs"],
+            },
+          ],
         }),
     }));
 
     try {
       const result = await resolveDiscoveredModels(
         {
-          provider: "custom",
+          provider: "openrouter",
           api: "openai-compatible",
-          baseUrl: "https://gateway.example.com/v1",
+          baseUrl: "https://openrouter.ai/api/v1",
           apiKey: "test-key",
           cachePath,
           config: getDefaultModelDiscoveryConfig(),
@@ -50,16 +63,30 @@ describe("resolveDiscoveredModels", () => {
       );
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(result.models).toEqual([{ id: "glm-5.1" }, { id: "qwen/qwen3.5-122b-a10b" }]);
+      expect(result.models).toEqual([
+        {
+          id: "qwen/qwen3.6-flash",
+          name: "Qwen: Qwen3.6 Flash",
+          caps: {
+            contextWindow: 1_000_000,
+            maxOutputTokens: 65_536,
+            supportsThinking: true,
+            defaultThinkingMode: "enabled",
+            supportsToolCall: true,
+            supportsStructuredOutput: true,
+          },
+          modalities: ["text", "image", "video"],
+        },
+      ]);
       expect(result.status).toMatchObject({
         source: "live",
-        modelCount: 2,
+        modelCount: 1,
       });
 
       const status = await resolveModelDiscoveryStatus({
-        provider: "custom",
+        provider: "openrouter",
         api: "openai-compatible",
-        baseUrl: "https://gateway.example.com/v1",
+        baseUrl: "https://openrouter.ai/api/v1",
         cachePath,
         config: getDefaultModelDiscoveryConfig(),
       });
@@ -69,11 +96,53 @@ describe("resolveDiscoveredModels", () => {
     }
   });
 
+  test("keeps partial metadata and falls back for missing fields", async () => {
+    const { dir, cachePath } = createTempCachePath();
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          data: [
+            {
+              id: "vendor/new-model",
+              context_length: 262_144,
+            },
+          ],
+        }),
+    }));
+
+    try {
+      const result = await resolveDiscoveredModels(
+        {
+          provider: "custom",
+          api: "openai-compatible",
+          baseUrl: "https://gateway.example.com/v1",
+          cachePath,
+        },
+        {
+          fetch: fetchMock as typeof fetch,
+          now: () => Date.parse("2026-05-03T10:00:00.000Z"),
+        },
+      );
+
+      expect(result.models).toEqual([
+        {
+          id: "vendor/new-model",
+          caps: {
+            contextWindow: 262_144,
+          },
+        },
+      ]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("uses fresh cache without refetching", async () => {
     const { dir, cachePath } = createTempCachePath();
     writeFileSync(
       cachePath,
-      JSON.stringify(
+      `${JSON.stringify(
         {
           version: 1,
           entries: {
@@ -82,13 +151,13 @@ describe("resolveDiscoveredModels", () => {
               api: "openai-compatible",
               baseUrl: "https://gateway.example.com/v1",
               fetchedAt: "2026-05-03T10:00:00.000Z",
-              models: [{ id: "glm-5.1" }],
+              models: [{ id: "glm-5.1", caps: { contextWindow: 204_800 } }],
             },
           },
         },
         null,
         2,
-      ),
+      )}\n`,
       "utf8",
     );
     const fetchMock = vi.fn();
@@ -109,7 +178,7 @@ describe("resolveDiscoveredModels", () => {
       );
 
       expect(fetchMock).not.toHaveBeenCalled();
-      expect(result.models).toEqual([{ id: "glm-5.1" }]);
+      expect(result.models).toEqual([{ id: "glm-5.1", caps: { contextWindow: 204_800 } }]);
       expect(result.status.source).toBe("cache-fresh");
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -120,7 +189,7 @@ describe("resolveDiscoveredModels", () => {
     const { dir, cachePath } = createTempCachePath();
     writeFileSync(
       cachePath,
-      JSON.stringify(
+      `${JSON.stringify(
         {
           version: 1,
           entries: {
@@ -129,13 +198,13 @@ describe("resolveDiscoveredModels", () => {
               api: "openai-compatible",
               baseUrl: "https://gateway.example.com/v1",
               fetchedAt: "2026-05-03T07:00:00.000Z",
-              models: [{ id: "glm-5.1" }],
+              models: [{ id: "glm-5.1", caps: { contextWindow: 204_800 } }],
             },
           },
         },
         null,
         2,
-      ),
+      )}\n`,
       "utf8",
     );
     const fetchMock = vi.fn(async () => {
@@ -161,7 +230,7 @@ describe("resolveDiscoveredModels", () => {
         },
       );
 
-      expect(result.models).toEqual([{ id: "glm-5.1" }]);
+      expect(result.models).toEqual([{ id: "glm-5.1", caps: { contextWindow: 204_800 } }]);
       expect(result.status).toMatchObject({
         source: "cache-stale",
         stale: true,
@@ -173,18 +242,28 @@ describe("resolveDiscoveredModels", () => {
     }
   });
 
-  test("skips discovery for unsupported apis", async () => {
+  test("skips discovery for unsupported apis and native official providers", async () => {
     const { dir, cachePath } = createTempCachePath();
     const fetchMock = vi.fn();
 
     try {
-      const result = await resolveDiscoveredModels(
+      const anthropicResult = await resolveDiscoveredModels(
         {
           provider: "custom",
           api: "anthropic",
-          baseUrl: "https://gateway.example.com/v1",
+          baseUrl: "https://gateway.example.com/v1/messages",
           cachePath,
-          config: getDefaultModelDiscoveryConfig(),
+        },
+        {
+          fetch: fetchMock as typeof fetch,
+        },
+      );
+      const officialResult = await resolveDiscoveredModels(
+        {
+          provider: "bigmodel",
+          api: "openai-compatible",
+          baseUrl: "https://open.bigmodel.cn/api/paas/v4/",
+          cachePath,
         },
         {
           fetch: fetchMock as typeof fetch,
@@ -192,8 +271,8 @@ describe("resolveDiscoveredModels", () => {
       );
 
       expect(fetchMock).not.toHaveBeenCalled();
-      expect(result.models).toEqual([]);
-      expect(result.status.source).toBe("unsupported");
+      expect(anthropicResult.status.source).toBe("unsupported");
+      expect(officialResult.status.source).toBe("unsupported");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

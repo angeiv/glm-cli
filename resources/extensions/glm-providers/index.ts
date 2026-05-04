@@ -18,7 +18,10 @@ import {
   resolveProviderSettings as resolveSharedProviderSettings,
 } from "../shared/glm-profile.js";
 import { readConfigFile } from "../../../src/app/config-store.js";
-import { resolveDiscoveredModels } from "../../../src/models/model-discovery.js";
+import {
+  resolveDiscoveredModels,
+  type DiscoveredModel,
+} from "../../../src/models/model-discovery.js";
 
 type AnthropicContentBlock =
   | { type: "text"; text: string }
@@ -614,7 +617,7 @@ function shouldRegisterProvider(provider, persisted) {
   );
 }
 
-function isNativeOfficialProvider(provider) {
+function isNativeOfficialProvider(provider: string): boolean {
   return (
     provider === "bigmodel" ||
     provider === "bigmodel-coding" ||
@@ -623,7 +626,10 @@ function isNativeOfficialProvider(provider) {
   );
 }
 
-function mergeRequestedModelId(models, requestedModelId) {
+function mergeRequestedModelId(
+  models: DiscoveredModel[],
+  requestedModelId: string,
+): DiscoveredModel[] {
   if (models.some((model) => model.id === requestedModelId)) {
     return models;
   }
@@ -631,26 +637,32 @@ function mergeRequestedModelId(models, requestedModelId) {
   return [...models, { id: requestedModelId }];
 }
 
-function buildGatewayModelDefinitions({ provider, api, baseUrl, modelIds, overrides }) {
-  const uniqueModelIds = [
-    ...new Set(modelIds.map((modelId) => modelId.trim()).filter(Boolean)),
-  ].sort((left, right) => left.localeCompare(right));
-
-  return uniqueModelIds.map((modelId) =>
-    api === "openai-responses"
-      ? resolveOpenAiResponsesModelDefinition({
-          provider,
-          modelId,
-          baseUrl,
-          overrides,
-        })
-      : resolveOpenAiCompatibleModelDefinition({
-          provider,
-          modelId,
-          baseUrl,
-          overrides,
-        }),
-  );
+function buildGatewayModelDefinitions(args: {
+  provider: string;
+  api: "openai-compatible" | "openai-responses";
+  baseUrl: string;
+  models: DiscoveredModel[];
+  overrides: unknown;
+}) {
+  return [...args.models]
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((model) =>
+      args.api === "openai-responses"
+        ? resolveOpenAiResponsesModelDefinition({
+            provider: args.provider,
+            modelId: model.id,
+            baseUrl: args.baseUrl,
+            discovered: model,
+            overrides: args.overrides,
+          })
+        : resolveOpenAiCompatibleModelDefinition({
+            provider: args.provider,
+            modelId: model.id,
+            baseUrl: args.baseUrl,
+            discovered: model,
+            overrides: args.overrides,
+          }),
+    );
 }
 
 export default async function (pi: ExtensionAPI) {
@@ -695,15 +707,13 @@ export default async function (pi: ExtensionAPI) {
           overrides: modelProfileOverrides,
         })
       : api === "openai-responses"
-        ? [
-            ...buildGatewayModelDefinitions({
-              provider,
-              api,
-              baseUrl: settings.baseUrl,
-              modelIds: mergeRequestedModelId(discoveredModels, modelId).map((model) => model.id),
-              overrides: modelProfileOverrides,
-            }),
-          ]
+        ? buildGatewayModelDefinitions({
+            provider,
+            api,
+            baseUrl: settings.baseUrl,
+            models: mergeRequestedModelId(discoveredModels, modelId),
+            overrides: modelProfileOverrides,
+          })
         : isNativeOfficialProvider(provider)
           ? resolveNativeGlmProviderModels({
               provider,
@@ -712,9 +722,9 @@ export default async function (pi: ExtensionAPI) {
             })
           : buildGatewayModelDefinitions({
               provider,
-              api,
+              api: "openai-compatible",
               baseUrl: settings.baseUrl,
-              modelIds: mergeRequestedModelId(discoveredModels, modelId).map((model) => model.id),
+              models: mergeRequestedModelId(discoveredModels, modelId),
               overrides: modelProfileOverrides,
             });
 

@@ -124,14 +124,34 @@ describe("glm-providers extension", () => {
     expect(model?.input).toEqual(["text"]);
   });
 
-  test("registers discovered OpenAI-style models in addition to the requested model", async () => {
+  test("registers discovered gateway models and applies discovered metadata overlays", async () => {
     process.env.GLM_PROVIDER = "custom";
     process.env.GLM_API = "openai-compatible";
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_BASE_URL = "https://gateway.example.com/v1";
     process.env.OPENAI_MODEL = "manual-model";
     resolveDiscoveredModelsMock.mockResolvedValue({
-      models: [{ id: "glm-5.1" }, { id: "qwen/qwen3.5-122b-a10b" }],
+      models: [
+        {
+          id: "glm-5.1",
+          name: "GLM 5.1 via Gateway",
+          caps: {
+            contextWindow: 300_000,
+            maxOutputTokens: 100_000,
+            supportsThinking: true,
+            defaultThinkingMode: "enabled",
+          },
+          modalities: ["text"],
+        },
+        {
+          id: "qwen/qwen3.5-122b-a10b",
+          caps: {
+            contextWindow: 1_000_000,
+            maxOutputTokens: 65_536,
+          },
+          modalities: ["text", "image"],
+        },
+      ],
       status: {
         enabled: true,
         supported: true,
@@ -154,10 +174,33 @@ describe("glm-providers extension", () => {
 
     expect(resolveDiscoveredModelsMock).toHaveBeenCalledTimes(1);
 
-    const provider = providers.find((p) => p.name === "custom");
+    const provider = providers.find((entry) => entry.name === "custom");
     expect(provider).toBeTruthy();
 
-    const models = (provider!.config.models as Array<{ id: string }>).map((entry) => entry.id);
-    expect(models).toEqual(["glm-5.1", "manual-model", "qwen/qwen3.5-122b-a10b"]);
+    const models = provider!.config.models as Array<{
+      id: string;
+      name: string;
+      contextWindow: number;
+      maxTokens: number;
+      input: string[];
+    }>;
+    expect(models.map((model) => model.id)).toEqual([
+      "glm-5.1",
+      "manual-model",
+      "qwen/qwen3.5-122b-a10b",
+    ]);
+    expect(models[0]).toMatchObject({
+      id: "glm-5.1",
+      name: "GLM 5.1 via Gateway",
+      contextWindow: 300_000,
+      maxTokens: 100_000,
+      input: ["text"],
+    });
+    expect(models[2]).toMatchObject({
+      id: "qwen/qwen3.5-122b-a10b",
+      contextWindow: 1_000_000,
+      maxTokens: 65_536,
+      input: ["text", "image"],
+    });
   });
 });
