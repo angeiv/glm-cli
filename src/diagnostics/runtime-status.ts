@@ -5,8 +5,8 @@ import {
   type RuntimeConfig,
 } from "../app/env.js";
 import { appendRuntimeEvent, getRuntimeEvents } from "./event-log.js";
+import { resolveRuntimeModelProfile } from "../models/runtime-model-profile.js";
 import { resolveModelDiscoveryStatus } from "../models/model-discovery.js";
-import { resolveGlmProfileV2 } from "../models/resolve-glm-profile-v2.js";
 import { formatCompactionSource, resolveRuntimeCompactionStatus } from "./compaction-settings.js";
 import {
   getMcpMetadataCachePath,
@@ -16,6 +16,7 @@ import {
 import { readLatestVerificationArtifact } from "../harness/artifact-index.js";
 import { resolveProviderBaseUrl } from "../providers/settings.js";
 import {
+  type ApiKind,
   getProviderDefaultApi,
   isProviderName,
   normalizeApiKind,
@@ -28,6 +29,7 @@ import type {
   RuntimeLoopStatus,
   RuntimeNotificationStatus,
   RuntimePaths,
+  RuntimeResolvedModelStatus,
   RuntimeStatus,
   RuntimeVerificationStatus,
 } from "./types.js";
@@ -207,6 +209,81 @@ function parseOptionalNumber(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function formatCapabilityFlag(enabled: boolean): "on" | "off" {
+  return enabled ? "on" : "off";
+}
+
+function buildResolvedModelStatus(args: {
+  provider: string;
+  api: ApiKind;
+  model: string;
+  baseUrl?: string;
+  overrides?: GlmConfigFile["modelOverrides"];
+}): RuntimeResolvedModelStatus {
+  const profile = resolveRuntimeModelProfile({
+    provider: args.provider,
+    api: args.api,
+    modelId: args.model,
+    baseUrl: args.baseUrl,
+    overrides: args.overrides,
+  });
+
+  const capabilityMatrix = {
+    modalities: profile.effectiveModalities,
+    thinking: profile.effectiveCaps.supportsThinking,
+    preservedThinking: profile.effectiveCaps.supportsPreservedThinking,
+    streaming: profile.effectiveCaps.supportsStreaming,
+    toolCall: profile.effectiveCaps.supportsToolCall,
+    toolStream: profile.effectiveCaps.supportsToolStream,
+    structuredOutput: profile.effectiveCaps.supportsStructuredOutput,
+    cache: profile.effectiveCaps.supportsCache,
+    mcp: profile.effectiveCaps.supportsMcp,
+    zhipuNativePatch: profile.patchPipeline.zhipuNative,
+    dashscopeCompatPatch: profile.patchPipeline.dashscopeCompat,
+  };
+
+  return {
+    family: profile.family,
+    transport: profile.transport,
+    gateway: profile.gateway,
+    canonicalModelId: profile.canonicalModelId,
+    platform: profile.evidence.platform,
+    upstreamVendor: profile.evidence.upstreamVendor,
+    payloadPatchPolicy: profile.payloadPatchPolicy,
+    confidence: profile.evidence.confidence,
+    modalities: profile.effectiveModalities,
+    patchPipeline: profile.patchPipeline,
+    capabilityMatrix,
+    contextWindow: profile.effectiveCaps.contextWindow,
+    maxOutputTokens: profile.effectiveCaps.maxOutputTokens,
+    supportsThinking: profile.effectiveCaps.supportsThinking,
+    supportsPreservedThinking: profile.effectiveCaps.supportsPreservedThinking,
+    supportsStreaming: profile.effectiveCaps.supportsStreaming,
+    supportsToolCall: profile.effectiveCaps.supportsToolCall,
+    supportsToolStream: profile.effectiveCaps.supportsToolStream,
+    supportsCache: profile.effectiveCaps.supportsCache,
+    supportsStructuredOutput: profile.effectiveCaps.supportsStructuredOutput,
+    supportsMcp: profile.effectiveCaps.supportsMcp,
+  };
+}
+
+function formatCapabilityMatrixLine(status: RuntimeStatus): string {
+  const matrix = status.resolvedModel.capabilityMatrix;
+  return [
+    `Capability matrix: input=${matrix.modalities.join(",") || "none"}`,
+    `thinking=${formatCapabilityFlag(matrix.thinking)}`,
+    `preservedThinking=${formatCapabilityFlag(matrix.preservedThinking)}`,
+    `streaming=${formatCapabilityFlag(matrix.streaming)}`,
+    `toolCall=${formatCapabilityFlag(matrix.toolCall)}`,
+    `toolStream=${formatCapabilityFlag(matrix.toolStream)}`,
+    `struct=${formatCapabilityFlag(matrix.structuredOutput)}`,
+    `cache=${formatCapabilityFlag(matrix.cache)}`,
+    `mcp=${formatCapabilityFlag(matrix.mcp)}`,
+    `zhipuNativePatch=${formatCapabilityFlag(matrix.zhipuNativePatch)}`,
+    `dashscopeCompatPatch=${formatCapabilityFlag(matrix.dashscopeCompatPatch)}`,
+  ].join(" | ");
+}
+
 export async function buildRuntimeStatus(args: {
   cwd: string;
   runtime: RuntimeConfig;
@@ -280,34 +357,14 @@ export async function buildRuntimeStatus(args: {
     api: effectiveApi,
     model: args.runtime.model,
     baseUrl,
+    resolvedModel: buildResolvedModelStatus({
+      provider: args.runtime.provider,
+      api: effectiveApi,
+      model: args.runtime.model,
+      baseUrl,
+      overrides: args.config?.modelOverrides,
+    }),
     ...(modelDiscovery ? { modelDiscovery } : {}),
-    resolvedModel: (() => {
-      const profile = resolveGlmProfileV2({
-        provider: args.runtime.provider,
-        api: effectiveApi,
-        modelId: args.runtime.model,
-        baseUrl,
-        overrides: args.config?.modelOverrides,
-      });
-
-      return {
-        canonicalModelId: profile.canonicalModelId,
-        platform: profile.evidence.platform,
-        upstreamVendor: profile.evidence.upstreamVendor,
-        payloadPatchPolicy: profile.payloadPatchPolicy,
-        confidence: profile.evidence.confidence,
-        contextWindow: profile.effectiveCaps.contextWindow,
-        maxOutputTokens: profile.effectiveCaps.maxOutputTokens,
-        supportsThinking: profile.effectiveCaps.supportsThinking,
-        supportsPreservedThinking: profile.effectiveCaps.supportsPreservedThinking,
-        supportsStreaming: profile.effectiveCaps.supportsStreaming,
-        supportsToolCall: profile.effectiveCaps.supportsToolCall,
-        supportsToolStream: profile.effectiveCaps.supportsToolStream,
-        supportsCache: profile.effectiveCaps.supportsCache,
-        supportsStructuredOutput: profile.effectiveCaps.supportsStructuredOutput,
-        supportsMcp: profile.effectiveCaps.supportsMcp,
-      };
-    })(),
     generation,
     glmCapabilities,
     toolSignature,
@@ -463,9 +520,11 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `API: ${status.api}`,
     `Model: ${status.model}`,
     `Base URL: ${status.baseUrl ?? "default"}`,
-    `Resolved: canonical=${status.resolvedModel.canonicalModelId ?? "none"} | platform=${status.resolvedModel.platform} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
+    `Resolved: family=${status.resolvedModel.family} | transport=${status.resolvedModel.transport} | gateway=${status.resolvedModel.gateway} | canonical=${status.resolvedModel.canonicalModelId ?? "none"} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
     `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens} | thinking=${status.resolvedModel.supportsThinking ? "on" : "off"} | preservedThinking=${status.resolvedModel.supportsPreservedThinking ? "on" : "off"} | toolCall=${status.resolvedModel.supportsToolCall ? "on" : "off"} | toolStream=${status.resolvedModel.supportsToolStream ? "on" : "off"} | struct=${status.resolvedModel.supportsStructuredOutput ? "on" : "off"} | cache=${status.resolvedModel.supportsCache ? "on" : "off"} | mcp=${status.resolvedModel.supportsMcp ? "on" : "off"}`,
+    formatCapabilityMatrixLine(status),
     modelDiscoveryLine,
+    formatCapabilityMatrixLine(status),
     generationLine,
     glmLine,
     `Approval policy: ${status.approvalPolicy}`,

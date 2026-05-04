@@ -93,6 +93,31 @@ export function patchRuntimeLoopStatus(patch) {
   };
 }
 
+function formatCapabilityFlag(enabled) {
+  return enabled ? "on" : "off";
+}
+
+function formatCapabilityMatrixLine(status) {
+  const matrix = status.resolvedModel?.capabilityMatrix;
+  if (!matrix) {
+    return "Capability matrix: unavailable";
+  }
+
+  return [
+    `Capability matrix: input=${(matrix.modalities || []).join(",") || "none"}`,
+    `thinking=${formatCapabilityFlag(Boolean(matrix.thinking))}`,
+    `preservedThinking=${formatCapabilityFlag(Boolean(matrix.preservedThinking))}`,
+    `streaming=${formatCapabilityFlag(Boolean(matrix.streaming))}`,
+    `toolCall=${formatCapabilityFlag(Boolean(matrix.toolCall))}`,
+    `toolStream=${formatCapabilityFlag(Boolean(matrix.toolStream))}`,
+    `struct=${formatCapabilityFlag(Boolean(matrix.structuredOutput))}`,
+    `cache=${formatCapabilityFlag(Boolean(matrix.cache))}`,
+    `mcp=${formatCapabilityFlag(Boolean(matrix.mcp))}`,
+    `zhipuNativePatch=${formatCapabilityFlag(Boolean(matrix.zhipuNativePatch))}`,
+    `dashscopeCompatPatch=${formatCapabilityFlag(Boolean(matrix.dashscopeCompatPatch))}`,
+  ].join(" | ");
+}
+
 export function buildRuntimeStatusLines(status) {
   const verifier = status.loop.verifyCommand
     ? status.loop.verifyCommand
@@ -174,10 +199,11 @@ export function buildRuntimeStatusLines(status) {
     `Cwd: ${status.cwd}`,
     `Provider: ${status.provider}`,
     `Model: ${status.model}`,
-    `Resolved: canonical=${status.resolvedModel?.canonicalModelId ?? "none"} | platform=${status.resolvedModel?.platform ?? "unknown"} | upstream=${status.resolvedModel?.upstreamVendor ?? "unknown"} | patch=${status.resolvedModel?.payloadPatchPolicy ?? "safe-openai-compatible"} | confidence=${status.resolvedModel?.confidence ?? "low"}`,
+    `Resolved: family=${status.resolvedModel?.family ?? "generic"} | transport=${status.resolvedModel?.transport ?? "openai-completions"} | gateway=${status.resolvedModel?.gateway ?? status.resolvedModel?.platform ?? "unknown"} | canonical=${status.resolvedModel?.canonicalModelId ?? "none"} | upstream=${status.resolvedModel?.upstreamVendor ?? "unknown"} | patch=${status.resolvedModel?.payloadPatchPolicy ?? "safe-openai-compatible"} | confidence=${status.resolvedModel?.confidence ?? "low"}`,
     status.resolvedModel?.contextWindow
       ? `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens}`
       : "Model caps: unknown",
+    formatCapabilityMatrixLine(status),
     generationLine,
     glmLine,
     `Approval policy: ${status.approvalPolicy}`,
