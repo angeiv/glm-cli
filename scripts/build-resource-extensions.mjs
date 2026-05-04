@@ -16,6 +16,12 @@ function listExtensionDirs(extensionsDir) {
 export async function buildResourceExtensions(rootDir = process.cwd()) {
   const resourcesDir = join(rootDir, "resources");
   const extensionsDir = join(resourcesDir, "extensions");
+  const externalArgs = [
+    "--external:@mariozechner/*",
+    "--external:node:*",
+    "--external:@modelcontextprotocol/sdk",
+    "--external:@modelcontextprotocol/sdk/*",
+  ];
 
   console.log("Generating shared GLM profile runtime helper...");
   execSync("node scripts/generate-glm-profile-resource.mjs", {
@@ -38,7 +44,7 @@ export async function buildResourceExtensions(rootDir = process.cwd()) {
 
     console.log(`  Compiling ${extDir}/index.ts...`);
     execSync(
-      `npx esbuild "${tsFile}" --outfile="${jsFile}" --format=esm --platform=node --bundle --external:@mariozechner/* --external:node:*`,
+      `npx esbuild "${tsFile}" --outfile="${jsFile}" --format=esm --platform=node --bundle ${externalArgs.join(" ")}`,
       {
         stdio: "pipe",
         cwd: rootDir,

@@ -6,6 +6,7 @@ import {
 } from "../app/env.js";
 import { appendRuntimeEvent, getRuntimeEvents } from "./event-log.js";
 import { resolveRuntimeModelProfile } from "../models/runtime-model-profile.js";
+import { resolveModelDiscoveryStatus } from "../models/model-discovery.js";
 import { formatCompactionSource, resolveRuntimeCompactionStatus } from "./compaction-settings.js";
 import {
   getMcpMetadataCachePath,
@@ -316,6 +317,14 @@ export async function buildRuntimeStatus(args: {
   const capabilitiesEnv = args.config
     ? buildCapabilityEnvironment(args.env as any, args.config)
     : {};
+  const modelDiscovery =
+    baseUrl && effectiveApi !== "anthropic"
+      ? await resolveModelDiscoveryStatus({
+          provider: args.runtime.provider,
+          api: effectiveApi,
+          baseUrl,
+        })
+      : undefined;
   const generation: RuntimeGenerationStatus = {
     ...(parseOptionalInteger(capabilitiesEnv.GLM_MAX_OUTPUT_TOKENS) === undefined
       ? {}
@@ -355,6 +364,7 @@ export async function buildRuntimeStatus(args: {
       baseUrl,
       overrides: args.config?.modelOverrides,
     }),
+    ...(modelDiscovery ? { modelDiscovery } : {}),
     generation,
     glmCapabilities,
     toolSignature,
@@ -500,6 +510,9 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
   const loopModePart = status.loop.mode ? ` | mode ${status.loop.mode}` : "";
   const loopPhasePart = status.loop.phase ? ` | phase ${status.loop.phase}` : "";
   const loopSpendPart = loopSpendParts.length > 0 ? ` | ${loopSpendParts.join(" | ")}` : "";
+  const modelDiscoveryLine = status.modelDiscovery
+    ? `Model discovery: ${status.modelDiscovery.supported ? status.modelDiscovery.source : "unsupported"} | models=${status.modelDiscovery.modelCount ?? 0}${status.modelDiscovery.fetchedAt ? ` | fetchedAt=${status.modelDiscovery.fetchedAt}` : ""}${status.modelDiscovery.stale ? " | stale=yes" : ""}${status.modelDiscovery.error ? ` | error=${status.modelDiscovery.error}` : ""}`
+    : "Model discovery: unavailable";
 
   return [
     `Cwd: ${status.cwd}`,
@@ -509,6 +522,8 @@ export function formatRuntimeStatusLines(status: RuntimeStatus): string[] {
     `Base URL: ${status.baseUrl ?? "default"}`,
     `Resolved: family=${status.resolvedModel.family} | transport=${status.resolvedModel.transport} | gateway=${status.resolvedModel.gateway} | canonical=${status.resolvedModel.canonicalModelId ?? "none"} | upstream=${status.resolvedModel.upstreamVendor} | patch=${status.resolvedModel.payloadPatchPolicy} | confidence=${status.resolvedModel.confidence}`,
     `Model caps: contextWindow=${status.resolvedModel.contextWindow} | maxOutputTokens=${status.resolvedModel.maxOutputTokens} | thinking=${status.resolvedModel.supportsThinking ? "on" : "off"} | preservedThinking=${status.resolvedModel.supportsPreservedThinking ? "on" : "off"} | toolCall=${status.resolvedModel.supportsToolCall ? "on" : "off"} | toolStream=${status.resolvedModel.supportsToolStream ? "on" : "off"} | struct=${status.resolvedModel.supportsStructuredOutput ? "on" : "off"} | cache=${status.resolvedModel.supportsCache ? "on" : "off"} | mcp=${status.resolvedModel.supportsMcp ? "on" : "off"}`,
+    formatCapabilityMatrixLine(status),
+    modelDiscoveryLine,
     formatCapabilityMatrixLine(status),
     generationLine,
     glmLine,

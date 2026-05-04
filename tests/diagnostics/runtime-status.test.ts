@@ -194,6 +194,7 @@ describe("buildRuntimeStatus", () => {
     });
     expect(formatRuntimeStatusLines(status)).toEqual(
       expect.arrayContaining([
+        expect.stringContaining("Model discovery: unsupported"),
         expect.stringContaining(
           "Capability matrix: input=text | thinking=on | preservedThinking=on",
         ),

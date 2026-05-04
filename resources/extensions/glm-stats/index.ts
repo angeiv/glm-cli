@@ -130,6 +130,23 @@ function buildStatsLines(label: string, totals: Totals): string[] {
   ];
 }
 
+function hasDistinctBranch(
+  allEntries: Array<{ id?: string }>,
+  branchEntries: Array<{ id?: string }>,
+): boolean {
+  if (allEntries.length !== branchEntries.length) {
+    return true;
+  }
+
+  for (let i = 0; i < allEntries.length; i += 1) {
+    if (allEntries[i]?.id !== branchEntries[i]?.id) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export default function (pi: ExtensionAPI) {
   const key = "glm.stats";
 
@@ -171,8 +188,15 @@ export default function (pi: ExtensionAPI) {
 
         const lines: string[] = [];
         lines.push(...buildStatsLines("Session total", sumUsage(allAssistantUsages)));
-        lines.push("");
-        lines.push(...buildStatsLines("Current branch", sumUsage(branchAssistantUsages)));
+        if (
+          hasDistinctBranch(
+            allEntries as Array<{ id?: string }>,
+            branchEntries as Array<{ id?: string }>,
+          )
+        ) {
+          lines.push("");
+          lines.push(...buildStatsLines("Current branch", sumUsage(branchAssistantUsages)));
+        }
 
         const contextUsage = ctx.getContextUsage();
         if (contextUsage) {
@@ -181,7 +205,7 @@ export default function (pi: ExtensionAPI) {
             `context: ${
               contextUsage.tokens === null ? "unknown" : formatNumber(contextUsage.tokens)
             } / ${formatNumber(contextUsage.contextWindow)}${
-              contextUsage.percent === null ? "" : ` (${Math.round(contextUsage.percent * 100)}%)`
+              contextUsage.percent === null ? "" : ` (${Math.round(contextUsage.percent)}%)`
             }`,
           );
         }

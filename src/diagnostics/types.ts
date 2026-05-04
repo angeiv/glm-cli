@@ -125,6 +125,18 @@ export type RuntimeResolvedModelStatus = {
   supportsMcp: boolean;
 };
 
+export type RuntimeModelDiscoveryStatus = {
+  enabled: boolean;
+  supported: boolean;
+  source: string;
+  cachePath: string;
+  endpoint?: string;
+  modelCount?: number;
+  fetchedAt?: string;
+  stale?: boolean;
+  error?: string;
+};
+
 export type RuntimeGenerationStatus = {
   maxOutputTokens?: number;
   temperature?: number;
@@ -145,6 +157,7 @@ export type RuntimeStatus = {
   model: string;
   baseUrl?: string;
   resolvedModel: RuntimeResolvedModelStatus;
+  modelDiscovery?: RuntimeModelDiscoveryStatus;
   generation: RuntimeGenerationStatus;
   glmCapabilities: RuntimeGlmCapabilitiesStatus;
   toolSignature: RuntimeToolSignature;

@@ -35,6 +35,13 @@ export type CatalogModelProfile = EffectiveModelCaps & {
   modalities: GlmInputModality[];
 };
 
+export type DiscoveredModelMetadata = {
+  id: string;
+  name?: string;
+  caps?: Partial<EffectiveModelCaps>;
+  modalities?: GlmInputModality[];
+};
+
 export type GlmPlatformRoute =
   | "native-bigmodel"
   | "native-zai"
