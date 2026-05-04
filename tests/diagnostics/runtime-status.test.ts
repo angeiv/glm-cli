@@ -173,6 +173,7 @@ describe("buildRuntimeStatus", () => {
     });
     expect(formatRuntimeStatusLines(status)).toEqual(
       expect.arrayContaining([
+        expect.stringContaining("Model discovery: unsupported"),
         expect.stringContaining(
           `Verification: smoke | fail | pnpm test | tests failed | ${artifactPath}`,
         ),

@@ -1,4 +1,5 @@
 import { getCatalogModelProfile, getStandardGlmModels } from "./model-family-registry.js";
+import type { DiscoveredModel } from "./model-discovery.js";
 import { resolveRuntimeModelProfile } from "./runtime-model-profile.js";
 import type { GlmProfileOverrideRule } from "./runtime-model-profile.js";
 
@@ -65,6 +66,7 @@ function buildDefinition(args: {
   api: "openai-compatible" | "openai-responses" | "anthropic";
   modelId: string;
   baseUrl: string;
+  discovered?: DiscoveredModel;
   overrides?: GlmProfileOverrideRule[];
   includeCompat?: boolean;
 }) {
@@ -73,6 +75,7 @@ function buildDefinition(args: {
     api: args.api,
     modelId: args.modelId,
     baseUrl: args.baseUrl,
+    discovered: args.discovered,
     overrides: args.overrides,
   });
   const canonical = profile.canonicalModelId
@@ -82,7 +85,7 @@ function buildDefinition(args: {
 
   return {
     id: args.modelId,
-    name: canonical?.displayName ?? args.modelId,
+    name: args.discovered?.name ?? canonical?.displayName ?? args.modelId,
     reasoning: profile.effectiveCaps.supportsThinking,
     input: profile.effectiveModalities,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -114,6 +117,7 @@ export function resolveOpenAiCompatibleModelDefinition(args: {
   provider: string;
   modelId: string;
   baseUrl: string;
+  discovered?: DiscoveredModel;
   overrides?: GlmProfileOverrideRule[];
 }) {
   return buildDefinition({
@@ -121,6 +125,7 @@ export function resolveOpenAiCompatibleModelDefinition(args: {
     api: "openai-compatible",
     modelId: args.modelId,
     baseUrl: args.baseUrl,
+    discovered: args.discovered,
     overrides: args.overrides,
     includeCompat: true,
   });
@@ -130,6 +135,7 @@ export function resolveOpenAiResponsesModelDefinition(args: {
   provider: string;
   modelId: string;
   baseUrl: string;
+  discovered?: DiscoveredModel;
   overrides?: GlmProfileOverrideRule[];
 }) {
   return buildDefinition({
@@ -137,6 +143,7 @@ export function resolveOpenAiResponsesModelDefinition(args: {
     api: "openai-responses",
     modelId: args.modelId,
     baseUrl: args.baseUrl,
+    discovered: args.discovered,
     overrides: args.overrides,
   });
 }
@@ -145,6 +152,7 @@ export function resolveAnthropicModels(args: {
   provider: string;
   requestedModelId: string;
   baseUrl: string;
+  discovered?: DiscoveredModel;
   overrides?: GlmProfileOverrideRule[];
 }) {
   const standardModels = getStandardGlmModels().map((model) =>
@@ -168,6 +176,7 @@ export function resolveAnthropicModels(args: {
       api: "anthropic",
       modelId: args.requestedModelId,
       baseUrl: args.baseUrl,
+      discovered: args.discovered,
       overrides: args.overrides,
     }),
   ];

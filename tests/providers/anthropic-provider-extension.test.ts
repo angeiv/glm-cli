@@ -25,14 +25,14 @@ function withEnv(overrides: Partial<Record<(typeof trackedEnvKeys)[number], stri
   }
 }
 
-function registerProviderByName(
+async function registerProviderByName(
   name: string,
   overrides: Partial<Record<(typeof trackedEnvKeys)[number], string>>,
 ) {
   withEnv(overrides);
 
   const registrations: Array<{ name: string; config: Record<string, unknown> }> = [];
-  registerGlmProviders({
+  await registerGlmProviders({
     registerProvider(providerName: string, config: Record<string, unknown>) {
       registrations.push({ name: providerName, config });
     },
@@ -53,8 +53,8 @@ afterEach(() => {
 });
 
 describe("anthropic-compatible provider registration", () => {
-  test("registers a non-GLM ANTHROPIC_MODEL so runtime selection can resolve it", () => {
-    const provider = registerProviderByName("custom", {
+  test("registers a non-GLM ANTHROPIC_MODEL so runtime selection can resolve it", async () => {
+    const provider = await registerProviderByName("custom", {
       GLM_PROVIDER: "custom",
       GLM_API: "anthropic",
       ANTHROPIC_AUTH_TOKEN: "token",
@@ -78,8 +78,8 @@ describe("anthropic-compatible provider registration", () => {
     });
   });
 
-  test("keeps built-in GLM metadata when anthropic mode targets known GLM ids", () => {
-    const provider = registerProviderByName("bigmodel", {
+  test("keeps built-in GLM metadata when anthropic mode targets known GLM ids", async () => {
+    const provider = await registerProviderByName("bigmodel", {
       GLM_PROVIDER: "bigmodel",
       GLM_API: "anthropic",
       ANTHROPIC_AUTH_TOKEN: "token",
@@ -99,8 +99,8 @@ describe("anthropic-compatible provider registration", () => {
     });
   });
 
-  test("uses a custom api adapter for ModelScope anthropic endpoints", () => {
-    const provider = registerProviderByName("custom", {
+  test("uses a custom api adapter for ModelScope anthropic endpoints", async () => {
+    const provider = await registerProviderByName("custom", {
       GLM_PROVIDER: "custom",
       GLM_API: "anthropic",
       ANTHROPIC_AUTH_TOKEN: "token",
@@ -113,8 +113,8 @@ describe("anthropic-compatible provider registration", () => {
     expect(typeof provider!.config.streamSimple).toBe("function");
   });
 
-  test("lets provider selection keep native glm capability matching on proxies", () => {
-    const provider = registerProviderByName("bigmodel", {
+  test("lets provider selection keep native glm capability matching on proxies", async () => {
+    const provider = await registerProviderByName("bigmodel", {
       GLM_PROVIDER: "bigmodel",
       GLM_API: "anthropic",
       ANTHROPIC_AUTH_TOKEN: "token",

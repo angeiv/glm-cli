@@ -1,4 +1,5 @@
 import type {
+  DiscoveredModelMetadata,
   EffectiveModelCaps,
   GlmInputModality,
   PayloadPatchPolicy,
@@ -40,6 +41,7 @@ export type GlmProfileOverrideRule = {
 };
 
 export type ResolveRuntimeModelProfileInput = ResolveGlmProfileInput & {
+  discovered?: DiscoveredModelMetadata;
   overrides?: GlmProfileOverrideRule[];
 };
 
@@ -308,9 +310,15 @@ export function resolveRuntimeModelProfile(
     upstreamVendor,
     canonicalModelId,
   });
-  const effectiveCaps = mergeCaps(mergeCaps(baseCaps, variantCaps), overrides.caps);
+  const effectiveCaps = mergeCaps(
+    mergeCaps(mergeCaps(baseCaps, variantCaps), input.discovered?.caps),
+    overrides.caps,
+  );
   const effectiveModalities = mergeModalities(
-    canonicalModel?.modalities ?? getGenericOpenAiCompatibleModalities(),
+    mergeModalities(
+      canonicalModel?.modalities ?? getGenericOpenAiCompatibleModalities(),
+      input.discovered?.modalities,
+    ),
     overrides.modalities,
   );
 
