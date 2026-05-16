@@ -32,6 +32,18 @@ export function createCodeLoopProfile(promptMode: PromptMode = "intensive"): Loo
         `Rounds attempted: ${rounds.length}`,
         lastResult.command ? `Last verifier: ${lastResult.command}` : undefined,
         `Last result: ${lastResult.summary}`,
+        lastResult.artifactRef
+          ? `Artifact reference: verification | ${lastResult.artifactRef.path}`
+          : undefined,
+        lastResult.artifactRef?.stdoutSummary
+          ? `Artifact stdout summary: ${lastResult.artifactRef.stdoutSummary}`
+          : undefined,
+        lastResult.artifactRef?.stderrSummary
+          ? `Artifact stderr summary: ${lastResult.artifactRef.stderrSummary}`
+          : undefined,
+        lastResult.artifactRef
+          ? "Use the artifact summary first. Inspect the artifact file only if deeper verifier output is required."
+          : undefined,
         "Recommended next step: inspect the latest verifier output, apply a focused fix, and rerun verification.",
       ]
         .filter(Boolean)
