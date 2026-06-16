@@ -1,7 +1,10 @@
 import type { PromptMode } from "../prompt/mode-overlays.js";
+import type { TaskPromptProfile } from "../prompt/task-prompt-profile.js";
 
 export type TaskRouterDecision = {
-  mode: PromptMode;
+  promptMode: PromptMode;
+  taskIntent: TaskPromptProfile["taskIntent"];
+  verifierHarness: TaskPromptProfile["verifierHarness"];
   reason: string;
 };
 
@@ -57,28 +60,78 @@ function isLikelyTrivialTask(task: string): boolean {
   return false;
 }
 
-export function routePromptModeForTask(args: {
+function isLikelyReviewTask(task: string): boolean {
+  return matchesAnyKeyword(task, [
+    "review",
+    "audit",
+    "code review",
+    "pr review",
+    "regression review",
+    "security review",
+    "审查",
+    "评审",
+    "代码审查",
+  ]);
+}
+
+export function routeTaskExecutionForRun(args: {
   task: string;
   loopEnabled: boolean;
+  promptModeOverride?: PromptMode;
 }): TaskRouterDecision {
   const task = normalizeTaskText(args.task);
 
   if (args.loopEnabled) {
     return {
-      mode: "intensive",
-      reason: "loop enabled",
+      promptMode: args.promptModeOverride ?? "intensive",
+      taskIntent: "delivery",
+      verifierHarness: "loop",
+      reason:
+        args.promptModeOverride === undefined ? "loop enabled" : "loop enabled; prompt mode override",
+    };
+  }
+
+  if (isLikelyReviewTask(task)) {
+    return {
+      promptMode: args.promptModeOverride ?? "standard",
+      taskIntent: "review",
+      verifierHarness: "disabled",
+      reason:
+        args.promptModeOverride === undefined
+          ? "review task heuristic"
+          : "review task heuristic; prompt mode override",
     };
   }
 
   if (isLikelyTrivialTask(task)) {
     return {
-      mode: "direct",
-      reason: "trivial task heuristic",
+      promptMode: args.promptModeOverride ?? "direct",
+      taskIntent: "delivery",
+      verifierHarness: "disabled",
+      reason:
+        args.promptModeOverride === undefined
+          ? "trivial task heuristic"
+          : "trivial task heuristic; prompt mode override",
     };
   }
 
   return {
-    mode: "standard",
-    reason: "default lane",
+    promptMode: args.promptModeOverride ?? "standard",
+    taskIntent: "delivery",
+    verifierHarness: "disabled",
+    reason:
+      args.promptModeOverride === undefined ? "default lane" : "default lane; prompt mode override",
+  };
+}
+
+export function routePromptModeForTask(args: {
+  task: string;
+  loopEnabled: boolean;
+  promptModeOverride?: PromptMode;
+}): { mode: PromptMode; reason: string } {
+  const decision = routeTaskExecutionForRun(args);
+  return {
+    mode: decision.promptMode,
+    reason: decision.reason,
   };
 }

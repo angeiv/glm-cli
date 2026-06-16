@@ -64,12 +64,16 @@ describe("runSingleTask", () => {
     const runtime = createFakeRuntime(dir);
     vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
-    const result = await runSingleTask(runtime, "fix tests", "direct");
+    const result = await runSingleTask(runtime, "fix tests", {
+      promptMode: "direct",
+      taskIntent: "delivery",
+      verifierHarness: "disabled",
+    });
 
     expect(result.exitCode).toBe(0);
     expect(runtime.session.prompt).toHaveBeenCalledTimes(1);
     expect(runtime.session.prompt).toHaveBeenCalledWith(
-      expect.stringContaining("Task overlay (direct):"),
+      expect.stringContaining("Task overlay (direct/delivery):"),
       expect.anything(),
     );
     expect(runtime.dispose).toHaveBeenCalledTimes(1);
