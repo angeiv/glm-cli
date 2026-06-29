@@ -17,7 +17,7 @@ command: `glm`
 - `glm inspect` / `glm verify` / `glm doctor` for runtime observability and diagnostics
 
 ## Requirements
-- Node.js 22 or newer
+- Node.js 24 or newer
 
 ## Install
 
