@@ -1,5 +1,5 @@
-import type { CompactionResult, ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
-import { compact } from "@mariozechner/pi-coding-agent";
+import type { CompactionResult, ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
+import { compact } from "@earendil-works/pi-coding-agent";
 import { appendRuntimeEvent, getRuntimeStatus } from "../shared/runtime-state.js";
 
 const LOOP_STATE_ENTRY = "glm.loop.state";

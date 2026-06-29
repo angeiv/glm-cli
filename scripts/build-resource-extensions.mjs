@@ -17,7 +17,7 @@ export async function buildResourceExtensions(rootDir = process.cwd()) {
   const resourcesDir = join(rootDir, "resources");
   const extensionsDir = join(resourcesDir, "extensions");
   const externalArgs = [
-    "--external:@mariozechner/*",
+    "--external:@earendil-works/*",
     "--external:node:*",
     "--external:@modelcontextprotocol/sdk",
     "--external:@modelcontextprotocol/sdk/*",

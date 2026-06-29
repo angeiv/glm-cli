@@ -1,4 +1,4 @@
-import type { AgentSessionRuntime } from "@mariozechner/pi-coding-agent";
+import type { AgentSessionRuntime } from "@earendil-works/pi-coding-agent";
 import type { LoopRuntimeOptions } from "../app/env.js";
 import { runLoopController } from "../loop/controller.js";
 import { createLoopProfile } from "../loop/profiles/index.js";

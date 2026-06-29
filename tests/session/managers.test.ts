@@ -71,9 +71,9 @@ test("createGlmServices injects the prompt stack through resource loader overrid
     };
   });
 
-  vi.doMock("@mariozechner/pi-coding-agent", async () => {
-    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
-      "@mariozechner/pi-coding-agent",
+  vi.doMock("@earendil-works/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@earendil-works/pi-coding-agent")>(
+      "@earendil-works/pi-coding-agent",
     );
 
     return {

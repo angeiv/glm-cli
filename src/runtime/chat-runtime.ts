@@ -1,4 +1,4 @@
-import { InteractiveMode, type AgentSessionRuntime } from "@mariozechner/pi-coding-agent";
+import { InteractiveMode, type AgentSessionRuntime } from "@earendil-works/pi-coding-agent";
 
 export async function runChatSession(runtime: AgentSessionRuntime): Promise<void> {
   const interactiveMode = new InteractiveMode(runtime, {
