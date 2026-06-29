@@ -17,7 +17,7 @@ npm 包名：`@angeiv/glm`
 - `glm inspect`/`glm verify`/`glm doctor` 等可观测与诊断命令
 
 ## 环境要求
-- Node.js 22 或更高版本
+- Node.js 24 或更高版本
 
 ## 安装
 
