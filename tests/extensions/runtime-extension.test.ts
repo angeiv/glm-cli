@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import registerRuntimeExtension from "../../resources/extensions/glm-runtime/index.js";
 import { appendRuntimeEvent, clearRuntimeEvents } from "../../src/diagnostics/event-log.js";

@@ -102,9 +102,9 @@ test("createGlmSession resolves the requested model explicitly and restores mode
     };
   });
 
-  vi.doMock("@mariozechner/pi-coding-agent", async () => {
-    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
-      "@mariozechner/pi-coding-agent",
+  vi.doMock("@earendil-works/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@earendil-works/pi-coding-agent")>(
+      "@earendil-works/pi-coding-agent",
     );
 
     return {
@@ -202,9 +202,9 @@ test("createGlmSession scopes ANTHROPIC_MODEL for anthropic sessions and restore
     };
   });
 
-  vi.doMock("@mariozechner/pi-coding-agent", async () => {
-    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
-      "@mariozechner/pi-coding-agent",
+  vi.doMock("@earendil-works/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@earendil-works/pi-coding-agent")>(
+      "@earendil-works/pi-coding-agent",
     );
 
     return {
@@ -498,9 +498,9 @@ test("createGlmRuntime scopes approval policy for direct runtime session usage a
     importFromJsonl: vi.fn(async () => ({ cancelled: false })),
   };
 
-  vi.doMock("@mariozechner/pi-coding-agent", async () => {
-    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
-      "@mariozechner/pi-coding-agent",
+  vi.doMock("@earendil-works/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@earendil-works/pi-coding-agent")>(
+      "@earendil-works/pi-coding-agent",
     );
 
     return {
@@ -590,9 +590,9 @@ test("createGlmRuntime does not print resume model mismatch warnings to console 
     importFromJsonl: vi.fn(async () => ({ cancelled: false })),
   };
 
-  vi.doMock("@mariozechner/pi-coding-agent", async () => {
-    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
-      "@mariozechner/pi-coding-agent",
+  vi.doMock("@earendil-works/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@earendil-works/pi-coding-agent")>(
+      "@earendil-works/pi-coding-agent",
     );
 
     return {
@@ -655,9 +655,9 @@ test("approval policy can be changed at runtime via shared global state", async 
     importFromJsonl: vi.fn(async () => ({ cancelled: false })),
   };
 
-  vi.doMock("@mariozechner/pi-coding-agent", async () => {
-    const actual = await vi.importActual<typeof import("@mariozechner/pi-coding-agent")>(
-      "@mariozechner/pi-coding-agent",
+  vi.doMock("@earendil-works/pi-coding-agent", async () => {
+    const actual = await vi.importActual<typeof import("@earendil-works/pi-coding-agent")>(
+      "@earendil-works/pi-coding-agent",
     );
 
     return {

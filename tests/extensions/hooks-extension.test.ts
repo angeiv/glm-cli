@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { HookRunner } from "../../src/hooks/runner.js";
 import { clearHookRuns } from "../../src/hooks/state.js";
 import { clearRuntimeEvents } from "../../src/diagnostics/event-log.js";

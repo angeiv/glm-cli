@@ -5,7 +5,7 @@ import {
   type CreateAgentSessionResult,
   type CreateAgentSessionRuntimeFactory,
   type ModelRegistry,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
 import { syncPackagedResources } from "../app/resource-sync.js";
 import type { ApprovalPolicy } from "../app/config-store.js";

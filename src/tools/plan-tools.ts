@@ -1,5 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import { defineTool } from "@mariozechner/pi-coding-agent";
+import { defineTool } from "@earendil-works/pi-coding-agent";
 
 export type PlanItem = { step: string; status: string };
 

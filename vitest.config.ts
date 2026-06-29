@@ -7,8 +7,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@mariozechner/pi-ai": "@mariozechner/pi-ai",
-      "@mariozechner/pi-coding-agent": "@mariozechner/pi-coding-agent",
+      "@earendil-works/pi-ai": "@earendil-works/pi-ai",
+      "@earendil-works/pi-coding-agent": "@earendil-works/pi-coding-agent",
     },
   },
 });

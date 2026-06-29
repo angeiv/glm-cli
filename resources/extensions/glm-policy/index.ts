@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { appendRuntimeEvent } from "../shared/runtime-state.js";
 
 const COMMAND_SEPARATORS = new Set([";", "&&", "||", "|"]);

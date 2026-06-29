@@ -40,8 +40,8 @@
     "test": "pnpm run build:resources && vitest --run"
   },
   "dependencies": {
-    "@mariozechner/pi-ai": "^0.73.0",
-    "@mariozechner/pi-coding-agent": "^0.73.0",
+    "@earendil-works/pi-ai": "^0.80.2",
+    "@earendil-works/pi-coding-agent": "^0.80.2",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "@sinclair/typebox": "^0.34.41",
     "chalk": "^5.6.2",
@@ -52,9 +52,10 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
     "@types/node": "^24.3.0",
-    "esbuild": "^0.28.0",
-    "tsx": "^4.20.3",
+    "esbuild": "^0.28.1",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "vite": "^7.3.5",
+    "vitest": "^4.1.9"
   }
 }

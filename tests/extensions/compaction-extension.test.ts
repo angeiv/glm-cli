@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { describe, expect, test, vi } from "vitest";
 import { setRuntimeStatus } from "../../src/diagnostics/runtime-status.js";
 
@@ -6,8 +6,8 @@ const { compactMock } = vi.hoisted(() => ({
   compactMock: vi.fn(),
 }));
 
-vi.mock("@mariozechner/pi-coding-agent", async () => {
-  const actual = await vi.importActual<any>("@mariozechner/pi-coding-agent");
+vi.mock("@earendil-works/pi-coding-agent", async () => {
+  const actual = await vi.importActual<any>("@earendil-works/pi-coding-agent");
   return { ...actual, compact: compactMock };
 });
 

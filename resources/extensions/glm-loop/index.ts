@@ -4,7 +4,7 @@ import type {
   ExtensionContext,
   ReadonlySessionManager,
   SessionEntry,
-} from "@mariozechner/pi-coding-agent";
+} from "@earendil-works/pi-coding-agent";
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { appendRuntimeEvent, patchRuntimeLoopStatus } from "../shared/runtime-state.js";

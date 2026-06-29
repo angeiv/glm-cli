@@ -7,7 +7,7 @@ import {
 } from "node:fs/promises";
 import { dirname, join, resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { VERSION } from "@mariozechner/pi-coding-agent";
+import { VERSION } from "@earendil-works/pi-coding-agent";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const resourcesRoot = resolve(here, "../../resources");
