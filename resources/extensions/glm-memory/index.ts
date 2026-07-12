@@ -3,12 +3,14 @@ import { appendRuntimeEvent } from "../shared/runtime-state.js";
 import {
   getSessionMemoryPath,
   readSessionMemory,
+  type SessionMemoryLoopResultSnapshot,
   upsertSessionMemoryCompaction,
   upsertSessionMemoryOperatorNotes,
   type SessionMemory,
 } from "../../../src/harness/session-memory.js";
 
 const MEMORY_WIDGET_KEY = "glm.memory";
+const LOOP_RESULT_ENTRY = "glm.loop.result";
 
 function emitMemoryMessage(pi: ExtensionAPI, lines: string[]): void {
   pi.sendMessage(
@@ -20,6 +22,70 @@ function emitMemoryMessage(pi: ExtensionAPI, lines: string[]): void {
     },
     { triggerTurn: false, deliverAs: "nextTurn" },
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function readLatestLoopResult(
+  entries: Array<{ type?: string; customType?: string; data?: unknown }>,
+): SessionMemoryLoopResultSnapshot | undefined {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry?.type !== "custom" || entry.customType !== LOOP_RESULT_ENTRY || !isRecord(entry.data)) {
+      continue;
+    }
+
+    const verification = isRecord(entry.data.verification) ? entry.data.verification : undefined;
+    const status = readString(entry.data.status);
+    const task = readString(entry.data.task);
+    const rounds = readNumber(entry.data.rounds);
+    const completedAt = readString(entry.data.completedAt);
+    const summary =
+      readString(entry.data.outcome) ??
+      readString(verification?.summary) ??
+      readString(entry.data.summary);
+
+    if (!status || !task || rounds === undefined || !summary) {
+      continue;
+    }
+
+    return {
+      status,
+      task,
+      rounds,
+      summary,
+      ...(completedAt ? { completedAt } : {}),
+      ...(verification
+        ? {
+            verification: {
+              kind: readString(verification.kind) ?? "unknown",
+              ...(readString(verification.command)
+                ? { command: readString(verification.command)! }
+                : {}),
+              ...(readNumber(verification.exitCode) === undefined
+                ? {}
+                : { exitCode: readNumber(verification.exitCode)! }),
+              summary: readString(verification.summary) ?? summary,
+              ...(readString(verification.artifactPath)
+                ? { artifactPath: readString(verification.artifactPath)! }
+                : {}),
+            },
+          }
+        : {}),
+    };
+  }
+
+  return undefined;
 }
 
 function formatMemoryLines(args: { memoryPath: string; memory?: SessionMemory }): string[] {
@@ -37,12 +103,17 @@ function formatMemoryLines(args: { memoryPath: string; memory?: SessionMemory })
   const compactionSummary = latest
     ? `${latest.summary}${latest.tokensBefore ? ` (tokensBefore=${latest.tokensBefore})` : ""}`
     : "none";
+  const latestLoop = args.memory.latestLoopResult;
+  const latestLoopSummary = latestLoop
+    ? `${latestLoop.status} | ${latestLoop.task} | ${latestLoop.verification?.summary ?? latestLoop.summary}`
+    : "none";
 
   return [
     `Session memory: v${args.memory.version}`,
     `Path: ${args.memoryPath}`,
     `Updated: ${args.memory.updatedAt}`,
     `Compactions: ${args.memory.compactions.length} | latest: ${compactionSummary}`,
+    `Latest loop result: ${latestLoopSummary}`,
     `Operator notes: ${args.memory.operatorNotes ? "set" : "none"}`,
     ...(args.memory.operatorNotes ? ["", args.memory.operatorNotes] : []),
   ];
@@ -169,6 +240,16 @@ export default function (pi: ExtensionAPI) {
     const sessionDir = ctx.sessionManager.getSessionDir();
     const sessionId = ctx.sessionManager.getSessionId();
     const sessionFile = ctx.sessionManager.getSessionFile();
+    const latestLoopResult =
+      typeof ctx.sessionManager.getEntries === "function"
+        ? readLatestLoopResult(
+            ctx.sessionManager.getEntries() as Array<{
+              type?: string;
+              customType?: string;
+              data?: unknown;
+            }>,
+          )
+        : undefined;
 
     await upsertSessionMemoryCompaction({
       sessionDir,
@@ -180,6 +261,7 @@ export default function (pi: ExtensionAPI) {
         summary: event.compactionEntry.summary,
         tokensBefore: event.compactionEntry.tokensBefore,
       },
+      ...(latestLoopResult ? { latestLoopResult } : {}),
     });
 
     appendRuntimeEvent({

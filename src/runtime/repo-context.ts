@@ -39,6 +39,21 @@ async function readTextFile(path: string): Promise<string | undefined> {
   }
 }
 
+async function readJsonFile<T>(path: string): Promise<T | undefined> {
+  const raw = await readTextFile(path);
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+type PackageJson = {
+  packageManager?: string;
+  scripts?: Record<string, string>;
+};
+
 function extractMarkdownSection(markdown: string, headingText: string): string | undefined {
   const lines = markdown.split(/\r?\n/);
   const headingRegex = /^(#{1,6})\s+(.*)$/;
@@ -101,6 +116,29 @@ function keepUsefulLines(args: { text: string; maxLines: number; maxChars: numbe
   return out;
 }
 
+function normalizePackageManager(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return trimmed.split("@")[0]?.toLowerCase();
+}
+
+function formatScriptCommand(packageManager: string | undefined, scriptName: string): string {
+  if (packageManager === "pnpm") {
+    return scriptName === "test" ? "pnpm test" : `pnpm ${scriptName}`;
+  }
+  if (packageManager === "yarn") {
+    return scriptName === "test" ? "yarn test" : `yarn ${scriptName}`;
+  }
+  if (packageManager === "bun") {
+    return scriptName === "test" ? "bun test" : `bun run ${scriptName}`;
+  }
+  if (packageManager === "npm") {
+    return scriptName === "test" ? "npm test" : `npm run ${scriptName}`;
+  }
+  return `run ${scriptName}`;
+}
+
 async function buildAgentsSections(repoRoot: string): Promise<RepoContextSection[]> {
   const agentsPath = join(repoRoot, "AGENTS.md");
   const raw = await readTextFile(agentsPath);
@@ -126,11 +164,30 @@ async function buildAgentsSections(repoRoot: string): Promise<RepoContextSection
   return sections;
 }
 
+async function buildPackageScriptSection(repoRoot: string): Promise<RepoContextSection[]> {
+  const packageJson = await readJsonFile<PackageJson>(join(repoRoot, "package.json"));
+  const scripts = packageJson?.scripts;
+  if (!scripts) return [];
+
+  const preferred = ["test", "lint", "build", "typecheck", "check", "verify"];
+  const packageManager = normalizePackageManager(packageJson.packageManager);
+  const lines = preferred
+    .filter((name) => typeof scripts[name] === "string" && scripts[name]?.trim())
+    .map((name) => `- ${name}: ${formatScriptCommand(packageManager, name)}`);
+
+  if (lines.length === 0) {
+    return [];
+  }
+
+  return [{ title: "Repo scripts (auto)", lines }];
+}
+
 export async function buildRepoContextPack(cwd: string): Promise<string | undefined> {
   const repoRoot = await findRepoRoot(cwd);
   const sections: RepoContextSection[] = [];
 
   sections.push(...(await buildAgentsSections(repoRoot)));
+  sections.push(...(await buildPackageScriptSection(repoRoot)));
 
   if (sections.length === 0) {
     return undefined;
