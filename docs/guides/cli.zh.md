@@ -173,6 +173,12 @@ glm auth login
 - `standard`：默认推荐；对一般开发任务会先做简短计划，再实现并在可行时验证。
 - `intensive`：适合复杂或高风险任务（大范围重构、测试不稳定、需要更多自检），更强调明确计划和严格验证。
 
+对 `glm run` 来说，任务意图会与 prompt lane 分开判断：
+
+- review 类任务会自动切到 review overlay，更强调 findings、回归风险和缺失测试
+- delivery 类任务仍使用面向改动交付的 overlay
+- verifier harness 只有在启用 `--loop` 时才会开启；即使手动指定 `--mode intensive`，也不会隐式开启 verifier harness
+
 默认行为：
 
 - `glm chat` 默认 `standard`
@@ -181,7 +187,7 @@ glm auth login
 
 你也可以通过 `glm config set taskLaneDefault <auto|direct|standard|intensive>` 覆盖上述默认值。
 
-当 `taskLaneDefault=auto` 时，`glm run` 会对简单任务（如文档、lint、format）自动选择 `direct`，其他情况选择 `standard`；`glm run --loop` 仍会强制使用 `intensive`。
+当 `taskLaneDefault=auto` 时，`glm run` 会对简单任务（如文档、lint、format）自动选择 `direct`，对普通交付任务选择 `standard`，对 review 类任务追加 review overlay；`glm run --loop` 仍会强制使用 `intensive`，并启用 verifier harness。
 
 ## 审批（`--yolo` 与 `/approval`）
 

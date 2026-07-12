@@ -1,15 +1,22 @@
-import type { PromptMode } from "./mode-overlays.js";
+import type { TaskPromptProfile } from "./task-prompt-profile.js";
 
-export function buildTaskOverlay(task: string, mode: PromptMode): string {
+export function buildTaskOverlay(task: string, profile: TaskPromptProfile): string {
   const trimmedTask = task.trim();
+  const { promptMode, taskIntent, verifierHarness } = profile;
 
   const instructions =
-    mode === "direct"
+    taskIntent === "review"
+      ? [
+          "- Review the requested scope before proposing changes.",
+          "- Prioritize concrete findings, regressions, risks, and missing tests.",
+          "- Do not make code changes unless the task explicitly asks for them.",
+        ]
+      : promptMode === "direct"
       ? [
           "- Work the bounded task directly.",
           "- Keep the change minimal and report the concrete result.",
         ]
-      : mode === "intensive"
+      : promptMode === "intensive"
         ? [
             "- Start with a short plan.",
             "- Make the smallest coherent fix or change.",
@@ -17,11 +24,16 @@ export function buildTaskOverlay(task: string, mode: PromptMode): string {
           ]
         : [
             "- Start with a short plan when needed.",
-            "- Make the smallest coherent change that completes the task.",
-            "- Verify before claiming success when the repo offers a practical check.",
-          ];
+          "- Make the smallest coherent change that completes the task.",
+          "- Verify before claiming success when the repo offers a practical check.",
+        ];
 
-  return [`Task overlay (${mode}):`, trimmedTask, "", "Round instructions:", ...instructions].join(
-    "\n",
-  );
+  return [
+    `Task overlay (${promptMode}/${taskIntent}):`,
+    trimmedTask,
+    "",
+    `Verifier harness: ${verifierHarness}`,
+    "Round instructions:",
+    ...instructions,
+  ].join("\n");
 }

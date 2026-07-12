@@ -173,6 +173,12 @@ See [config-surface.md](../references/config-surface.md) for the full override s
 - `standard`: recommended default for most tasks.
 - `intensive`: best for complex or high-risk tasks (large refactors, flaky tests, heavy verification).
 
+For `glm run`, task intent is routed separately from prompt lane:
+
+- review-style tasks automatically use a review overlay that prioritizes findings, regressions, and missing tests
+- delivery tasks keep the normal change-oriented overlay
+- verifier harness stays disabled unless `--loop` is enabled, even if `--mode intensive` is selected manually
+
 Defaults:
 
 - `glm chat`: `standard`
@@ -181,7 +187,7 @@ Defaults:
 
 You can override these defaults via `glm config set taskLaneDefault <auto|direct|standard|intensive>`.
 
-When `taskLaneDefault=auto`, `glm run` will pick `direct` for trivial tasks (docs/lint/format) and `standard` otherwise. `glm run --loop` still forces `intensive`.
+When `taskLaneDefault=auto`, `glm run` will pick `direct` for trivial tasks (docs/lint/format), `standard` for normal delivery work, and a review overlay for review-style tasks. `glm run --loop` still forces `intensive` and enables the verifier harness.
 
 ## Approvals (`--yolo` and `/approval`)
 
