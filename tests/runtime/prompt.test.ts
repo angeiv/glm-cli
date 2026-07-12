@@ -65,6 +65,16 @@ describe("runtime prompt stack", () => {
         command: "pnpm test",
         exitCode: 1,
         summary: "1 test failed",
+        artifactRef: {
+          kind: "verification",
+          id: "verify-1",
+          path: "/tmp/repo/artifacts/verify-1.json",
+          createdAt: "2026-05-03T00:00:00.000Z",
+          command: "pnpm test",
+          exitCode: 1,
+          summary: "1 test failed",
+          stderrSummary: "1 failing test",
+        },
       },
       2,
     );
@@ -72,6 +82,8 @@ describe("runtime prompt stack", () => {
     expect(repairPrompt).toContain("Verification overlay: repair round 2.");
     expect(repairPrompt).toContain("pnpm test");
     expect(repairPrompt).toContain("1 test failed");
+    expect(repairPrompt).toContain("/tmp/repo/artifacts/verify-1.json");
+    expect(repairPrompt).toContain("Use the artifact summary first.");
     expect(repairPrompt).not.toContain("Start with a short explicit plan before editing.");
   });
 });

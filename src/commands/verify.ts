@@ -1,8 +1,12 @@
 import { readConfigFile, type GlmConfigFile } from "../app/config-store.js";
+import {
+  formatVerificationArtifactReference,
+  writeVerificationArtifact,
+  type VerificationArtifact,
+} from "../harness/artifacts.js";
 import { detectCodeVerifier } from "../loop/verify-detect.js";
 import { runVerificationCommand } from "../loop/verify-runner.js";
 import type { VerificationCommandResolution, VerificationResult } from "../loop/types.js";
-import { writeVerificationArtifact, type VerificationArtifact } from "../harness/artifacts.js";
 import { resolveVerifyScenario, type VerifyScenarioName } from "../harness/scenarios.js";
 
 export type VerifyCommandArgs = {
@@ -18,6 +22,7 @@ type VerifyResolution = {
   verification: VerificationResult;
   artifact: VerificationArtifact;
   artifactPath: string;
+  artifactRef: NonNullable<VerificationResult["artifactRef"]>;
 };
 
 type VerifyDependencies = {
@@ -32,27 +37,6 @@ type VerifyDependencies = {
   log: (message: string) => void;
   writeArtifact: typeof writeVerificationArtifact;
 };
-
-function summarizeOutputText(
-  value: string | undefined,
-  maxLines = 2,
-  maxChars = 160,
-): string | undefined {
-  if (!value) return undefined;
-  const lines = value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, maxLines);
-  if (lines.length === 0) return undefined;
-
-  const summary = lines.join(" | ");
-  if (summary.length <= maxChars) {
-    return summary;
-  }
-
-  return `${summary.slice(0, maxChars - 1)}…`;
-}
 
 async function resolveVerifier(args: {
   cwd: string;
@@ -115,7 +99,11 @@ export async function verifyProject(
 
     return {
       resolution,
-      verification,
+      verification: {
+        ...verification,
+        artifactPath: artifactResult.artifactPath,
+        artifactRef: artifactResult.artifactRef,
+      },
       ...artifactResult,
     };
   }
@@ -132,7 +120,15 @@ export async function verifyProject(
     verification,
   });
 
-  return { resolution, verification, ...artifactResult };
+  return {
+    resolution,
+    verification: {
+      ...verification,
+      artifactPath: artifactResult.artifactPath,
+      artifactRef: artifactResult.artifactRef,
+    },
+    ...artifactResult,
+  };
 }
 
 export async function runVerifyCommand(
@@ -141,14 +137,12 @@ export async function runVerifyCommand(
 ): Promise<number> {
   const log = deps?.log ?? console.log;
   const { resolution, verification, artifact, artifactPath } = await verifyProject(input, deps);
+  const artifactRef = verification.artifactRef;
 
   if (input.json) {
-    log(JSON.stringify({ resolution, verification, artifact, artifactPath }, null, 2));
+    log(JSON.stringify({ resolution, verification, artifact, artifactPath, artifactRef }, null, 2));
     return verification.kind === "pass" ? 0 : 1;
   }
-
-  const stdoutSummary = summarizeOutputText(verification.stdout);
-  const stderrSummary = summarizeOutputText(verification.stderr);
 
   const lines = [
     resolution.kind === "command"
@@ -156,10 +150,9 @@ export async function runVerifyCommand(
       : `Verifier: ${resolution.summary}`,
     `Result: ${verification.kind}`,
     `Summary: ${verification.summary}`,
-    ...(verification.exitCode === undefined ? [] : [`Exit code: ${verification.exitCode}`]),
-    `Artifact: ${artifactPath}`,
-    ...(stdoutSummary ? [`Stdout summary: ${stdoutSummary}`] : []),
-    ...(stderrSummary ? [`Stderr summary: ${stderrSummary}`] : []),
+    ...(artifactRef
+      ? formatVerificationArtifactReference(artifactRef)
+      : [`Artifact reference: verification | ${artifactPath}`]),
   ];
 
   log(lines.join("\n"));
