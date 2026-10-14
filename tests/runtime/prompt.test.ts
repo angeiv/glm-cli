@@ -54,8 +54,12 @@ describe("runtime prompt stack", () => {
   });
 
   test("task and repair overlays stay narrow", () => {
-    const taskPrompt = composeTaskPrompt("fix failing tests", "intensive");
-    expect(taskPrompt).toContain("Task overlay (intensive):");
+    const taskPrompt = composeTaskPrompt("fix failing tests", {
+      promptMode: "intensive",
+      taskIntent: "delivery",
+      verifierHarness: "loop",
+    });
+    expect(taskPrompt).toContain("Task overlay (intensive/delivery):");
     expect(taskPrompt).toContain("fix failing tests");
     expect(taskPrompt).not.toContain("Respect the approval policy");
 
@@ -73,5 +77,18 @@ describe("runtime prompt stack", () => {
     expect(repairPrompt).toContain("pnpm test");
     expect(repairPrompt).toContain("1 test failed");
     expect(repairPrompt).not.toContain("Start with a short explicit plan before editing.");
+  });
+
+  test("review overlays prioritize findings without enabling verifier harness", () => {
+    const taskPrompt = composeTaskPrompt("review the current patch", {
+      promptMode: "standard",
+      taskIntent: "review",
+      verifierHarness: "disabled",
+    });
+
+    expect(taskPrompt).toContain("Task overlay (standard/review):");
+    expect(taskPrompt).toContain("Prioritize concrete findings");
+    expect(taskPrompt).toContain("Verifier harness: disabled");
+    expect(taskPrompt).not.toContain("Make the smallest coherent fix");
   });
 });

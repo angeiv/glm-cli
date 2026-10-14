@@ -33,7 +33,7 @@ describe("runLoopController", () => {
 
     expect(result.status).toBe("succeeded");
     expect(prompts).toHaveLength(2);
-    expect(prompts[0]).toContain("Task overlay (intensive):");
+    expect(prompts[0]).toContain("Task overlay (intensive/delivery):");
     expect(prompts[0]).toContain("fix tests");
     expect(prompts[1]).toContain("Verification overlay: repair round 2.");
     expect(prompts[1]).toContain("pnpm test");
@@ -105,6 +105,6 @@ describe("runLoopController", () => {
     });
 
     expect(result.status).toBe("succeeded");
-    expect(prompts[0]).toContain("Task overlay (direct):");
+    expect(prompts[0]).toContain("Task overlay (direct/delivery):");
   });
 });

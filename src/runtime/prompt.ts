@@ -2,6 +2,7 @@ import { getBaseContractPath, loadBaseContractPrompt } from "../prompt/base-cont
 import { buildModeOverlay, type PromptMode } from "../prompt/mode-overlays.js";
 import { buildRepoOverlay } from "../prompt/repo-overlay.js";
 import { buildTaskOverlay } from "../prompt/task-overlay.js";
+import type { TaskPromptProfile } from "../prompt/task-prompt-profile.js";
 import { buildVerificationOverlay } from "../prompt/verification-overlay.js";
 import type { VerificationResult } from "../loop/types.js";
 import { buildRepoContextPack } from "./repo-context.js";
@@ -37,8 +38,8 @@ export async function buildRuntimePromptStack(args: {
   };
 }
 
-export function composeTaskPrompt(task: string, mode: PromptMode): string {
-  return buildTaskOverlay(task, mode);
+export function composeTaskPrompt(task: string, profile: TaskPromptProfile): string {
+  return buildTaskOverlay(task, profile);
 }
 
 export function composeRepairPrompt(result: VerificationResult, nextRound: number): string {
