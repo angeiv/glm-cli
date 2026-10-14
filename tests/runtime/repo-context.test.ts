@@ -31,6 +31,22 @@ describe("repo context pack", () => {
       ].join("\n"),
       "utf8",
     );
+    writeFileSync(
+      join(repoRoot, "package.json"),
+      JSON.stringify(
+        {
+          packageManager: "pnpm@10.33.0",
+          scripts: {
+            test: "vitest --run",
+            build: "tsc -p tsconfig.json",
+            lint: "biome check .",
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
 
     expect(await findRepoRoot(join(repoRoot, "subdir"))).toBe(repoRoot);
 
@@ -40,6 +56,8 @@ describe("repo context pack", () => {
     expect(pack).toContain("pnpm test");
     expect(pack).toContain("Change rules (from AGENTS.md):");
     expect(pack).toContain("Keep changes small and atomic.");
+    expect(pack).toContain("Repo scripts (auto):");
+    expect(pack).toContain("test: pnpm test");
     expect(pack).not.toContain("Ignore this section.");
   });
 });

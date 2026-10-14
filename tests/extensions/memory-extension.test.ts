@@ -101,6 +101,26 @@ describe("glm-memory extension", () => {
           getSessionDir: () => sessionDir,
           getSessionId: () => sessionId,
           getSessionFile: () => sessionFile,
+          getEntries: () => [
+            {
+              type: "custom",
+              customType: "glm.loop.result",
+              data: {
+                status: "handoff",
+                task: "fix flaky tests",
+                rounds: 2,
+                completedAt: "2026-04-25T00:30:00.000Z",
+                verification: {
+                  kind: "fail",
+                  command: "pnpm test",
+                  exitCode: 1,
+                  summary: "still failing",
+                  artifactPath: "/tmp/repo/artifacts/verify-1.json",
+                },
+                outcome: "Loop stopped and requires human handoff.",
+              },
+            },
+          ],
         },
       },
     );
@@ -108,5 +128,7 @@ describe("glm-memory extension", () => {
     const memoryPath = getSessionMemoryPath(sessionDir, sessionId);
     expect(existsSync(memoryPath)).toBe(true);
     expect(readFileSync(memoryPath, "utf8")).toContain("compacted summary");
+    expect(readFileSync(memoryPath, "utf8")).toContain('"latestLoopResult"');
+    expect(readFileSync(memoryPath, "utf8")).toContain('"task": "fix flaky tests"');
   });
 });

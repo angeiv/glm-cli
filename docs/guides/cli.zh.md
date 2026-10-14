@@ -230,6 +230,7 @@ Compaction 配置（写在任一 `settings.json` 中）：
 
 - 当估算的上下文 token 使用量超过 `contextWindow - reserveTokens` 时，会触发 compaction。
 - 压缩后会尽量保留约 `keepRecentTokens` 的近期上下文。
+- 当可用时，focused compaction summary 还会带入 repo context pack（AGENTS 中的命令/变更规则提示，以及常见 package scripts）与最近一次 loop/handoff 状态。
 
 `glm inspect --json` 会同时输出模型的 `contextWindow` 与最终生效的 compaction 配置。
 
@@ -258,6 +259,7 @@ Token / 成本统计：
 
 - `/memory`
 - `/memory note <text>`
+- `/memory` 会展示该 session 最近一次 compaction 摘要、最近一次 loop 结果快照，以及操作员备注
 - `/memory clear-notes`
 - `/memory path`
 

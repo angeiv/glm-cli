@@ -1,5 +1,6 @@
 import type { CompactionResult, ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
 import { compact } from "@mariozechner/pi-coding-agent";
+import { buildRepoContextPack } from "../../../src/runtime/repo-context.js";
 import { appendRuntimeEvent, getRuntimeStatus } from "../shared/runtime-state.js";
 
 const LOOP_STATE_ENTRY = "glm.loop.state";
@@ -87,7 +88,7 @@ function formatLoopResult(value: unknown): string | undefined {
   return parts.length ? parts.join(" | ") : undefined;
 }
 
-function formatCompactionFocus(): string {
+async function formatCompactionFocus(cwd?: string): Promise<string> {
   const runtime = getRuntimeStatus();
 
   const lines: string[] = [
@@ -109,6 +110,13 @@ function formatCompactionFocus(): string {
       lines.push(
         `Verification (latest): ${runtime.verification.latest.kind} | ${runtime.verification.latest.command ?? "no command"} | ${runtime.verification.latest.summary} | ${runtime.verification.latest.artifactPath}`,
       );
+    }
+  }
+
+  if (cwd) {
+    const repoContextPack = await buildRepoContextPack(cwd);
+    if (repoContextPack) {
+      lines.push(repoContextPack);
     }
   }
 
@@ -249,7 +257,7 @@ export default function (pi: ExtensionAPI) {
       readLatestCustomEntry(event.branchEntries, LOOP_RESULT_ENTRY),
     );
 
-    const focusLines = [formatCompactionFocus()];
+    const focusLines = [await formatCompactionFocus(ctx.cwd)];
     if (loopState) {
       focusLines.push(`Loop (persisted): ${loopState}`);
     }

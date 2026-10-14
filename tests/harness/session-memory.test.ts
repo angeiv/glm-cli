@@ -7,6 +7,7 @@ import {
   readSessionMemory,
   upsertSessionMemoryCompaction,
   upsertSessionMemoryOperatorNotes,
+  writeSessionMemory,
 } from "../../src/harness/session-memory.js";
 
 describe("session memory", () => {
@@ -26,7 +27,7 @@ describe("session memory", () => {
     const memory = await readSessionMemory({ sessionDir, sessionId });
     expect(memory).toMatchObject({
       kind: "glm.sessionMemory",
-      version: 1,
+      version: 2,
       sessionId,
       operatorNotes: "prefer pnpm; keep commits atomic",
       compactions: [],
@@ -78,5 +79,63 @@ describe("session memory", () => {
 
     const payload = readFileSync(getSessionMemoryPath(sessionDir, sessionId), "utf8");
     expect(payload).toContain('"entryId": "c3"');
+  });
+
+  test("migrates older memory and persists the latest loop result snapshot", async () => {
+    const sessionDir = join(tmpdir(), `glm-session-memory-migrate-${Date.now()}`);
+    const sessionId = "test-session";
+    mkdirSync(join(sessionDir, "artifacts"), { recursive: true });
+
+    await writeSessionMemory({
+      sessionDir,
+      sessionId,
+      memory: {
+        kind: "glm.sessionMemory",
+        version: 1,
+        sessionId,
+        updatedAt: "2026-04-25T00:00:00.000Z",
+        compactions: [],
+        operatorNotes: "legacy notes",
+      } as any,
+    });
+
+    await upsertSessionMemoryCompaction({
+      sessionDir,
+      sessionId,
+      compaction: {
+        entryId: "c1",
+        at: "2026-04-25T01:00:00.000Z",
+        summary: "compacted",
+        tokensBefore: 321,
+      },
+      latestLoopResult: {
+        status: "handoff",
+        task: "fix flaky tests",
+        rounds: 2,
+        summary: "still failing",
+        completedAt: "2026-04-25T01:00:00.000Z",
+        verification: {
+          kind: "fail",
+          command: "pnpm test",
+          exitCode: 1,
+          summary: "still failing",
+          artifactPath: "/tmp/repo/artifacts/verify-1.json",
+        },
+      },
+    });
+
+    const memory = await readSessionMemory({ sessionDir, sessionId });
+    expect(memory).toMatchObject({
+      version: 2,
+      operatorNotes: "legacy notes",
+      latestLoopResult: {
+        status: "handoff",
+        task: "fix flaky tests",
+        summary: "still failing",
+        verification: {
+          command: "pnpm test",
+        },
+      },
+    });
   });
 });
