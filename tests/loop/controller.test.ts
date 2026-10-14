@@ -52,12 +52,23 @@ describe("runLoopController", () => {
         command: "pnpm test",
         exitCode: 1,
         summary: "still failing",
+        artifactRef: {
+          kind: "verification",
+          id: "verify-1",
+          path: "/tmp/repo/artifacts/verify-1.json",
+          createdAt: "2026-05-03T00:00:00.000Z",
+          command: "pnpm test",
+          exitCode: 1,
+          summary: "still failing",
+          stderrSummary: "1 failing test",
+        },
       }),
     });
 
     expect(result.status).toBe("handoff");
     expect(result.summary).toContain("pnpm test");
     expect(result.summary).toContain("still failing");
+    expect(result.summary).toContain("/tmp/repo/artifacts/verify-1.json");
   });
 
   test("stops before repair when maxVerifyRuns would be exceeded", async () => {

@@ -15,6 +15,18 @@ type LoopProfileName = "code";
 type LoopFailureMode = "handoff" | "fail";
 type LoopExecutionStatus = "succeeded" | "handoff" | "failed";
 type LoopPhase = "run" | "verify" | "repair";
+type VerificationArtifactReference = {
+  kind: "verification";
+  id: string;
+  path: string;
+  createdAt: string;
+  scenario?: string;
+  command?: string;
+  exitCode?: number;
+  summary: string;
+  stdoutSummary?: string;
+  stderrSummary?: string;
+};
 type VerificationResult =
   | {
       kind: "pass";
@@ -22,6 +34,7 @@ type VerificationResult =
       exitCode: 0;
       summary: string;
       artifactPath?: string;
+      artifactRef?: VerificationArtifactReference;
       stdout?: string;
       stderr?: string;
     }
@@ -31,6 +44,7 @@ type VerificationResult =
       exitCode: number;
       summary: string;
       artifactPath?: string;
+      artifactRef?: VerificationArtifactReference;
       stdout?: string;
       stderr?: string;
     }
@@ -39,6 +53,7 @@ type VerificationResult =
       command?: string;
       summary: string;
       artifactPath?: string;
+      artifactRef?: VerificationArtifactReference;
       stdout?: string;
       stderr?: string;
     };
@@ -71,6 +86,7 @@ type LoopVerificationRecord = {
   command?: string;
   exitCode?: number;
   summary: string;
+  artifact?: VerificationArtifactReference;
   artifactPath?: string;
   stdoutSummary?: string;
   stderrSummary?: string;
@@ -228,6 +244,7 @@ function isLoopResultRecord(value: unknown): value is LoopResultRecord {
   if (!value || typeof value !== "object") return false;
   const maybe = value as Partial<LoopResultRecord>;
   const verification = maybe.verification as Partial<LoopVerificationRecord> | undefined;
+  const artifact = verification?.artifact as Partial<VerificationArtifactReference> | undefined;
   return (
     (maybe.status === "succeeded" || maybe.status === "handoff" || maybe.status === "failed") &&
     typeof maybe.task === "string" &&
@@ -242,6 +259,16 @@ function isLoopResultRecord(value: unknown): value is LoopResultRecord {
     (verification.command === undefined || typeof verification.command === "string") &&
     (verification.exitCode === undefined || typeof verification.exitCode === "number") &&
     typeof verification.summary === "string" &&
+    (!artifact ||
+      (artifact.kind === "verification" &&
+        typeof artifact.id === "string" &&
+        typeof artifact.path === "string" &&
+        typeof artifact.createdAt === "string" &&
+        (artifact.command === undefined || typeof artifact.command === "string") &&
+        (artifact.exitCode === undefined || typeof artifact.exitCode === "number") &&
+        typeof artifact.summary === "string" &&
+        (artifact.stdoutSummary === undefined || typeof artifact.stdoutSummary === "string") &&
+        (artifact.stderrSummary === undefined || typeof artifact.stderrSummary === "string"))) &&
     (verification.artifactPath === undefined || typeof verification.artifactPath === "string") &&
     (verification.stdoutSummary === undefined || typeof verification.stdoutSummary === "string") &&
     (verification.stderrSummary === undefined || typeof verification.stderrSummary === "string") &&
@@ -354,18 +381,18 @@ function summarizeOutputText(
 }
 
 function createLoopVerificationRecord(result: VerificationResult): LoopVerificationRecord {
+  const stdoutSummary = result.artifactRef?.stdoutSummary ?? summarizeOutputText(result.stdout);
+  const stderrSummary = result.artifactRef?.stderrSummary ?? summarizeOutputText(result.stderr);
+
   return {
     kind: result.kind,
     ...(result.command ? { command: result.command } : {}),
     ...(result.exitCode === undefined ? {} : { exitCode: result.exitCode }),
     summary: result.summary,
+    ...(result.artifactRef ? { artifact: result.artifactRef } : {}),
     ...(result.artifactPath ? { artifactPath: result.artifactPath } : {}),
-    ...(summarizeOutputText(result.stdout)
-      ? { stdoutSummary: summarizeOutputText(result.stdout) }
-      : {}),
-    ...(summarizeOutputText(result.stderr)
-      ? { stderrSummary: summarizeOutputText(result.stderr) }
-      : {}),
+    ...(stdoutSummary ? { stdoutSummary } : {}),
+    ...(stderrSummary ? { stderrSummary } : {}),
   };
 }
 
@@ -455,6 +482,9 @@ function buildLastResultLines(result: LoopResultRecord): string[] {
     result.verification.command ? `Last verifier: ${result.verification.command}` : undefined,
     `Last verification: ${result.verification.kind}`,
     `Last summary: ${result.verification.summary}`,
+    result.verification.artifact
+      ? `Last artifact: verification | ${result.verification.artifact.path}`
+      : undefined,
     result.verification.stdoutSummary
       ? `Last stdout summary: ${result.verification.stdoutSummary}`
       : undefined,
@@ -504,6 +534,9 @@ function buildShowLines(results: LoopResultRecord[], index: number): string[] {
       ? []
       : [`Exit code: ${result.verification.exitCode}`]),
     `Summary: ${result.verification.summary}`,
+    ...(result.verification.artifact
+      ? [`Artifact reference: verification | ${result.verification.artifact.path}`]
+      : []),
     ...(result.verification.stdoutSummary
       ? [`Stdout summary: ${result.verification.stdoutSummary}`]
       : []),
@@ -700,6 +733,18 @@ function buildRepairPrompt(result: VerificationResult, nextRound: number): strin
     `Verification failed. Begin repair round ${nextRound}.`,
     result.command ? `Verifier: ${result.command}` : "Verifier: unavailable",
     `Summary: ${result.summary}`,
+    ...(result.artifactRef
+      ? [
+          `Artifact reference: verification | ${result.artifactRef.path}`,
+          ...(result.artifactRef.stdoutSummary
+            ? [`Artifact stdout summary: ${result.artifactRef.stdoutSummary}`]
+            : []),
+          ...(result.artifactRef.stderrSummary
+            ? [`Artifact stderr summary: ${result.artifactRef.stderrSummary}`]
+            : []),
+          "Use the artifact summary first. Inspect the artifact file only if you need full verifier output.",
+        ]
+      : []),
     "",
     "Instructions:",
     "- Fix only the failure reported by the verifier.",
@@ -734,6 +779,18 @@ function buildFailureSummary(args: {
     `Rounds attempted: ${args.rounds.length}`,
     args.lastResult.command ? `Last verifier: ${args.lastResult.command}` : undefined,
     `Last result: ${args.lastResult.summary}`,
+    args.lastResult.artifactRef
+      ? `Artifact reference: verification | ${args.lastResult.artifactRef.path}`
+      : undefined,
+    args.lastResult.artifactRef?.stdoutSummary
+      ? `Artifact stdout summary: ${args.lastResult.artifactRef.stdoutSummary}`
+      : undefined,
+    args.lastResult.artifactRef?.stderrSummary
+      ? `Artifact stderr summary: ${args.lastResult.artifactRef.stderrSummary}`
+      : undefined,
+    args.lastResult.artifactRef
+      ? "Use the artifact summary first. Inspect the artifact file only if deeper verifier output is required."
+      : undefined,
     "Recommended next step: inspect the latest verifier output, apply a focused fix, and rerun verification.",
   ]
     .filter(Boolean)
@@ -866,7 +923,11 @@ async function runVerification(
       resolution: { kind: "command", command, source: "loop" },
       verification,
     });
-    return { ...verification, artifactPath: artifact.artifactPath };
+    return {
+      ...verification,
+      artifactPath: artifact.artifactPath,
+      artifactRef: artifact.artifactRef,
+    };
   }
 
   const verification: VerificationResult = {
@@ -882,7 +943,11 @@ async function runVerification(
     resolution: { kind: "command", command, source: "loop" },
     verification,
   });
-  return { ...verification, artifactPath: artifact.artifactPath };
+  return {
+    ...verification,
+    artifactPath: artifact.artifactPath,
+    artifactRef: artifact.artifactRef,
+  };
 }
 
 async function resolveVerifier(

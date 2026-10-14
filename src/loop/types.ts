@@ -1,3 +1,16 @@
+export type VerificationArtifactReference = {
+  kind: "verification";
+  id: string;
+  path: string;
+  createdAt: string;
+  scenario?: string;
+  command?: string;
+  exitCode?: number;
+  summary: string;
+  stdoutSummary?: string;
+  stderrSummary?: string;
+};
+
 export type VerificationResult =
   | {
       kind: "pass";
@@ -5,6 +18,7 @@ export type VerificationResult =
       exitCode: 0;
       summary: string;
       artifactPath?: string;
+      artifactRef?: VerificationArtifactReference;
       stdout?: string;
       stderr?: string;
     }
@@ -14,6 +28,7 @@ export type VerificationResult =
       exitCode: number;
       summary: string;
       artifactPath?: string;
+      artifactRef?: VerificationArtifactReference;
       stdout?: string;
       stderr?: string;
     }
@@ -23,6 +38,7 @@ export type VerificationResult =
       exitCode?: number;
       summary: string;
       artifactPath?: string;
+      artifactRef?: VerificationArtifactReference;
       stdout?: string;
       stderr?: string;
     };

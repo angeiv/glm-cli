@@ -98,12 +98,24 @@ describe("verifyProject", () => {
     const persisted = JSON.parse(readFileSync(result.artifactPath, "utf8"));
     expect(persisted).toMatchObject({
       kind: "verification",
+      digest: {
+        command: "pnpm test",
+        summary: "Verification passed.",
+        stdoutSummary: "ok",
+      },
       resolution: {
         command: "pnpm test",
       },
       verification: {
         stdout: "ok\n",
       },
+    });
+    expect(result.verification.artifactRef).toMatchObject({
+      kind: "verification",
+      path: result.artifactPath,
+      command: "pnpm test",
+      summary: "Verification passed.",
+      stdoutSummary: "ok",
     });
   });
 });
@@ -138,5 +150,12 @@ describe("runVerifyCommand", () => {
     const payload = JSON.parse(log.mock.calls[0][0]);
     expect(payload.artifactPath).toContain("verify-");
     expect(payload.artifact.verification.stderr).toBe("failed\n");
+    expect(payload.artifactRef).toMatchObject({
+      kind: "verification",
+      path: payload.artifactPath,
+      command: "pnpm test",
+      summary: "Verification failed with exit code 1.",
+      stderrSummary: "failed",
+    });
   });
 });
